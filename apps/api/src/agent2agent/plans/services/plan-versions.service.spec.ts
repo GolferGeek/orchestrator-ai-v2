@@ -1,8 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { PlanVersionsService } from './plan-versions.service';
 import {
   PlanVersionsRepository,
@@ -221,7 +218,12 @@ describe('PlanVersionsService', () => {
       plansRepo.findById.mockResolvedValue(mockPlanRecord);
       versionsRepo.findByPlanId.mockResolvedValue([
         mockVersionRecord,
-        { ...mockVersionRecord, id: 'version-2', version_number: 2, is_current_version: false },
+        {
+          ...mockVersionRecord,
+          id: 'version-2',
+          version_number: 2,
+          is_current_version: false,
+        },
       ]);
 
       const result = await service.getVersionHistory(mockExecutionContext);
@@ -382,7 +384,10 @@ describe('PlanVersionsService', () => {
       });
       plansRepo.setCurrentVersion.mockResolvedValue(mockPlanRecord);
 
-      const result = await service.copyVersion('version-1', mockExecutionContext);
+      const result = await service.copyVersion(
+        'version-1',
+        mockExecutionContext,
+      );
 
       expect(result.versionNumber).toBe(2);
       expect(versionsRepo.create).toHaveBeenCalledWith(
@@ -696,7 +701,12 @@ describe('PlanVersionsService', () => {
 
       await service.rerunWithDifferentLLM(
         'version-1',
-        { provider: 'openai', model: 'gpt-4', temperature: 0.7, maxTokens: 4000 },
+        {
+          provider: 'openai',
+          model: 'gpt-4',
+          temperature: 0.7,
+          maxTokens: 4000,
+        },
         mockExecutionContext,
       );
 
@@ -718,7 +728,11 @@ describe('PlanVersionsService', () => {
 
   describe('ExecutionContext compliance', () => {
     it('should pass full ExecutionContext to LLM service in mergeVersions', async () => {
-      const mockVersion1 = { ...mockVersionRecord, id: 'v1', version_number: 1 };
+      const mockVersion1 = {
+        ...mockVersionRecord,
+        id: 'v1',
+        version_number: 1,
+      };
       const mockVersion2 = {
         ...mockVersionRecord,
         id: 'v2',

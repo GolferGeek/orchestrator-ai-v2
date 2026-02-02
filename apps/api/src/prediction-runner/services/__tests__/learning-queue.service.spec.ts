@@ -75,9 +75,16 @@ describe('LearningQueueService', () => {
             findById: jest.fn().mockResolvedValue(mockLearningQueueItem),
             findByIdOrThrow: jest.fn().mockResolvedValue(mockLearningQueueItem),
             create: jest.fn().mockResolvedValue(mockLearningQueueItem),
-            update: jest.fn().mockResolvedValue({ ...mockLearningQueueItem, status: 'approved' }),
-            findBySourceEvaluation: jest.fn().mockResolvedValue([mockLearningQueueItem]),
-            findBySourceMissedOpportunity: jest.fn().mockResolvedValue([mockLearningQueueItem]),
+            update: jest.fn().mockResolvedValue({
+              ...mockLearningQueueItem,
+              status: 'approved',
+            }),
+            findBySourceEvaluation: jest
+              .fn()
+              .mockResolvedValue([mockLearningQueueItem]),
+            findBySourceMissedOpportunity: jest
+              .fn()
+              .mockResolvedValue([mockLearningQueueItem]),
           },
         },
         {
@@ -103,7 +110,9 @@ describe('LearningQueueService', () => {
     it('should return pending items', async () => {
       const result = await service.getPendingItems();
 
-      expect(learningQueueRepository.findPending).toHaveBeenCalledWith(undefined);
+      expect(learningQueueRepository.findPending).toHaveBeenCalledWith(
+        undefined,
+      );
       expect(result).toEqual([mockLearningQueueItem]);
     });
 
@@ -126,17 +135,24 @@ describe('LearningQueueService', () => {
     it('should return items by status', async () => {
       const result = await service.getItemsByStatus('pending');
 
-      expect(learningQueueRepository.findByStatus).toHaveBeenCalledWith('pending');
+      expect(learningQueueRepository.findByStatus).toHaveBeenCalledWith(
+        'pending',
+      );
       expect(result).toEqual([mockLearningQueueItem]);
     });
 
     it('should return approved items', async () => {
-      const approvedItem = { ...mockLearningQueueItem, status: 'approved' as const };
+      const approvedItem = {
+        ...mockLearningQueueItem,
+        status: 'approved' as const,
+      };
       learningQueueRepository.findByStatus.mockResolvedValue([approvedItem]);
 
       const result = await service.getItemsByStatus('approved');
 
-      expect(learningQueueRepository.findByStatus).toHaveBeenCalledWith('approved');
+      expect(learningQueueRepository.findByStatus).toHaveBeenCalledWith(
+        'approved',
+      );
       expect(result).toHaveLength(1);
       expect(result[0]?.status).toBe('approved');
     });
@@ -154,7 +170,9 @@ describe('LearningQueueService', () => {
     it('should return item by ID', async () => {
       const result = await service.findById('queue-123');
 
-      expect(learningQueueRepository.findById).toHaveBeenCalledWith('queue-123');
+      expect(learningQueueRepository.findById).toHaveBeenCalledWith(
+        'queue-123',
+      );
       expect(result).toEqual(mockLearningQueueItem);
     });
 
@@ -171,7 +189,9 @@ describe('LearningQueueService', () => {
     it('should return item when found', async () => {
       const result = await service.findByIdOrThrow('queue-123');
 
-      expect(learningQueueRepository.findByIdOrThrow).toHaveBeenCalledWith('queue-123');
+      expect(learningQueueRepository.findByIdOrThrow).toHaveBeenCalledWith(
+        'queue-123',
+      );
       expect(result).toEqual(mockLearningQueueItem);
     });
   });
@@ -281,16 +301,19 @@ describe('LearningQueueService', () => {
     });
 
     it('should throw BadRequestException for non-pending items', async () => {
-      const approvedItem = { ...mockLearningQueueItem, status: 'approved' as const };
+      const approvedItem = {
+        ...mockLearningQueueItem,
+        status: 'approved' as const,
+      };
       learningQueueRepository.findByIdOrThrow.mockResolvedValue(approvedItem);
 
       const reviewDto = {
         status: 'approved' as const,
       };
 
-      await expect(service.respond('queue-123', reviewDto, 'user-123')).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        service.respond('queue-123', reviewDto, 'user-123'),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('should use suggested values when no overrides provided', async () => {
@@ -317,7 +340,9 @@ describe('LearningQueueService', () => {
     it('should find items by evaluation ID', async () => {
       const result = await service.findBySourceEvaluation('eval-123');
 
-      expect(learningQueueRepository.findBySourceEvaluation).toHaveBeenCalledWith('eval-123');
+      expect(
+        learningQueueRepository.findBySourceEvaluation,
+      ).toHaveBeenCalledWith('eval-123');
       expect(result).toEqual([mockLearningQueueItem]);
     });
 
@@ -334,12 +359,16 @@ describe('LearningQueueService', () => {
     it('should find items by missed opportunity ID', async () => {
       const result = await service.findBySourceMissedOpportunity('miss-123');
 
-      expect(learningQueueRepository.findBySourceMissedOpportunity).toHaveBeenCalledWith('miss-123');
+      expect(
+        learningQueueRepository.findBySourceMissedOpportunity,
+      ).toHaveBeenCalledWith('miss-123');
       expect(result).toEqual([mockLearningQueueItem]);
     });
 
     it('should return empty array when no matches', async () => {
-      learningQueueRepository.findBySourceMissedOpportunity.mockResolvedValue([]);
+      learningQueueRepository.findBySourceMissedOpportunity.mockResolvedValue(
+        [],
+      );
 
       const result = await service.findBySourceMissedOpportunity('nonexistent');
 

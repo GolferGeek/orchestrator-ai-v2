@@ -69,19 +69,29 @@ describe('MissedOpportunityAnalysisService', () => {
       },
       {
         type: 'pattern',
-        content: 'RSI oversold during earnings week often precedes upward moves',
+        content:
+          'RSI oversold during earnings week often precedes upward moves',
         scope: 'universe',
       },
     ],
   });
 
   const createMockClient = (overrides?: {
-    missedOpp?: { data: unknown | null; error: { message: string; code?: string } | null };
+    missedOpp?: {
+      data: unknown;
+      error: { message: string; code?: string } | null;
+    };
     signals?: { data: unknown[] | null; error: { message: string } | null };
     update?: { error: { message: string } | null };
   }) => {
-    const missedOppResult = overrides?.missedOpp ?? { data: mockMissedOpportunity, error: null };
-    const signalsResult = overrides?.signals ?? { data: mockRejectedSignals, error: null };
+    const missedOppResult = overrides?.missedOpp ?? {
+      data: mockMissedOpportunity,
+      error: null,
+    };
+    const signalsResult = overrides?.signals ?? {
+      data: mockRejectedSignals,
+      error: null,
+    };
     const updateResult = overrides?.update ?? { error: null };
 
     const createChain = (fromTable: string) => {
@@ -122,7 +132,9 @@ describe('MissedOpportunityAnalysisService', () => {
 
     return {
       schema: jest.fn().mockReturnValue({
-        from: jest.fn().mockImplementation((table: string) => createChain(table)),
+        from: jest
+          .fn()
+          .mockImplementation((table: string) => createChain(table)),
       }),
     };
   };
@@ -155,7 +167,9 @@ describe('MissedOpportunityAnalysisService', () => {
     }).compile();
 
     module.useLogger(false);
-    service = module.get<MissedOpportunityAnalysisService>(MissedOpportunityAnalysisService);
+    service = module.get<MissedOpportunityAnalysisService>(
+      MissedOpportunityAnalysisService,
+    );
     supabaseService = module.get(SupabaseService);
     llmService = module.get(LLMService);
     learningQueueService = module.get(LearningQueueService);
@@ -167,7 +181,10 @@ describe('MissedOpportunityAnalysisService', () => {
 
   describe('analyzeMissedOpportunity', () => {
     it('should analyze a missed opportunity', async () => {
-      const result = await service.analyzeMissedOpportunity('miss-123', mockExecutionContext);
+      const result = await service.analyzeMissedOpportunity(
+        'miss-123',
+        mockExecutionContext,
+      );
 
       expect(result).toBeDefined();
       expect(result.missedOpportunityId).toBe('miss-123');
@@ -192,9 +209,14 @@ describe('MissedOpportunityAnalysisService', () => {
 
     it('should throw NotFoundException for non-existent miss', async () => {
       const mockClient = createMockClient({
-        missedOpp: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        missedOpp: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         service.analyzeMissedOpportunity('nonexistent', mockExecutionContext),
@@ -202,14 +224,20 @@ describe('MissedOpportunityAnalysisService', () => {
     });
 
     it('should include rejected signals in analysis', async () => {
-      const result = await service.analyzeMissedOpportunity('miss-123', mockExecutionContext);
+      const result = await service.analyzeMissedOpportunity(
+        'miss-123',
+        mockExecutionContext,
+      );
 
       expect(result.signalsWeHad).toContain('sig-1');
       expect(result.signalsWeHad).toContain('sig-2');
     });
 
     it('should generate tool suggestions based on source gaps', async () => {
-      const result = await service.analyzeMissedOpportunity('miss-123', mockExecutionContext);
+      const result = await service.analyzeMissedOpportunity(
+        'miss-123',
+        mockExecutionContext,
+      );
 
       expect(result.toolSuggestions).toBeDefined();
       expect(Array.isArray(result.toolSuggestions)).toBe(true);
@@ -224,7 +252,9 @@ describe('MissedOpportunityAnalysisService', () => {
 
       const suggestions = service.generateToolSuggestions(analysis);
 
-      expect(suggestions.some((s) => s.tool_type === 'social_media')).toBe(true);
+      expect(suggestions.some((s) => s.tool_type === 'social_media')).toBe(
+        true,
+      );
     });
 
     it('should generate news tool suggestion', () => {
@@ -234,7 +264,9 @@ describe('MissedOpportunityAnalysisService', () => {
 
       const suggestions = service.generateToolSuggestions(analysis);
 
-      expect(suggestions.some((s) => s.tool_type === 'news_aggregator')).toBe(true);
+      expect(suggestions.some((s) => s.tool_type === 'news_aggregator')).toBe(
+        true,
+      );
     });
 
     it('should generate technical analysis tool suggestion', () => {
@@ -244,7 +276,9 @@ describe('MissedOpportunityAnalysisService', () => {
 
       const suggestions = service.generateToolSuggestions(analysis);
 
-      expect(suggestions.some((s) => s.tool_type === 'technical_analysis')).toBe(true);
+      expect(
+        suggestions.some((s) => s.tool_type === 'technical_analysis'),
+      ).toBe(true);
     });
 
     it('should generate fundamental data tool suggestion', () => {
@@ -254,7 +288,9 @@ describe('MissedOpportunityAnalysisService', () => {
 
       const suggestions = service.generateToolSuggestions(analysis);
 
-      expect(suggestions.some((s) => s.tool_type === 'fundamental_data')).toBe(true);
+      expect(suggestions.some((s) => s.tool_type === 'fundamental_data')).toBe(
+        true,
+      );
     });
 
     it('should generate macro data tool suggestion', () => {
@@ -288,7 +324,9 @@ describe('MissedOpportunityAnalysisService', () => {
 
   describe('error handling', () => {
     it('should handle LLM service errors', async () => {
-      (llmService.generateResponse as jest.Mock).mockRejectedValue(new Error('LLM unavailable'));
+      (llmService.generateResponse as jest.Mock).mockRejectedValue(
+        new Error('LLM unavailable'),
+      );
 
       await expect(
         service.analyzeMissedOpportunity('miss-123', mockExecutionContext),
@@ -299,7 +337,9 @@ describe('MissedOpportunityAnalysisService', () => {
       const mockClient = createMockClient({
         signals: { data: null, error: { message: 'Signals fetch failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         service.analyzeMissedOpportunity('miss-123', mockExecutionContext),
@@ -307,9 +347,14 @@ describe('MissedOpportunityAnalysisService', () => {
     });
 
     it('should handle invalid LLM response gracefully', async () => {
-      (llmService.generateResponse as jest.Mock).mockResolvedValue('not valid json');
+      (llmService.generateResponse as jest.Mock).mockResolvedValue(
+        'not valid json',
+      );
 
-      const result = await service.analyzeMissedOpportunity('miss-123', mockExecutionContext);
+      const result = await service.analyzeMissedOpportunity(
+        'miss-123',
+        mockExecutionContext,
+      );
 
       // Should return empty arrays when parsing fails
       expect(result.discoveredDrivers).toEqual([]);
@@ -318,9 +363,14 @@ describe('MissedOpportunityAnalysisService', () => {
 
     it('should handle LLM response with markdown code blocks', async () => {
       const markdownResponse = '```json\n' + mockLLMResponse + '\n```';
-      (llmService.generateResponse as jest.Mock).mockResolvedValue(markdownResponse);
+      (llmService.generateResponse as jest.Mock).mockResolvedValue(
+        markdownResponse,
+      );
 
-      const result = await service.analyzeMissedOpportunity('miss-123', mockExecutionContext);
+      const result = await service.analyzeMissedOpportunity(
+        'miss-123',
+        mockExecutionContext,
+      );
 
       expect(result.discoveredDrivers.length).toBeGreaterThan(0);
     });
@@ -330,11 +380,18 @@ describe('MissedOpportunityAnalysisService', () => {
     it('should map learning types correctly', async () => {
       await service.analyzeMissedOpportunity('miss-123', mockExecutionContext);
 
-      const createCalls = (learningQueueService.createSuggestion as jest.Mock).mock.calls;
+      const createCalls = (learningQueueService.createSuggestion as jest.Mock)
+        .mock.calls;
       expect(createCalls.length).toBeGreaterThan(0);
 
       // Check that proper types are passed
-      const validTypes = ['rule', 'pattern', 'avoid', 'weight_adjustment', 'threshold'];
+      const validTypes = [
+        'rule',
+        'pattern',
+        'avoid',
+        'weight_adjustment',
+        'threshold',
+      ];
       for (const call of createCalls) {
         expect(validTypes).toContain(call[0].suggested_learning_type);
       }
@@ -343,7 +400,8 @@ describe('MissedOpportunityAnalysisService', () => {
     it('should map scope levels correctly', async () => {
       await service.analyzeMissedOpportunity('miss-123', mockExecutionContext);
 
-      const createCalls = (learningQueueService.createSuggestion as jest.Mock).mock.calls;
+      const createCalls = (learningQueueService.createSuggestion as jest.Mock)
+        .mock.calls;
       expect(createCalls.length).toBeGreaterThan(0);
 
       const validScopes = ['runner', 'domain', 'universe', 'target'];
@@ -358,7 +416,10 @@ describe('MissedOpportunityAnalysisService', () => {
       );
 
       // Should not throw, just log error
-      const result = await service.analyzeMissedOpportunity('miss-123', mockExecutionContext);
+      const result = await service.analyzeMissedOpportunity(
+        'miss-123',
+        mockExecutionContext,
+      );
 
       expect(result).toBeDefined();
     });

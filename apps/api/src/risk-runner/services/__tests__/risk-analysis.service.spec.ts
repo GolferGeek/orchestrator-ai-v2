@@ -202,7 +202,7 @@ describe('RiskAnalysisService', () => {
       recommended_adjustment: -5,
     },
     original_score: 0.65,
-    final_score: 0.60,
+    final_score: 0.6,
     score_adjustment: -0.05,
     transcript: [],
     status: 'completed',

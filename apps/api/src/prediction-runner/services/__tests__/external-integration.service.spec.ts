@@ -13,15 +13,19 @@ describe('ExternalIntegrationService', () => {
     }).compile();
 
     module.useLogger(false);
-    service = module.get<ExternalIntegrationService>(ExternalIntegrationService);
+    service = module.get<ExternalIntegrationService>(
+      ExternalIntegrationService,
+    );
   });
 
   afterEach(() => {
     jest.clearAllMocks();
     // Reset all service health
-    (['firecrawl', 'rss', 'price_api', 'llm', 'slack'] as const).forEach((svc) => {
-      service.resetServiceHealth(svc);
-    });
+    (['firecrawl', 'rss', 'price_api', 'llm', 'slack'] as const).forEach(
+      (svc) => {
+        service.resetServiceHealth(svc);
+      },
+    );
   });
 
   describe('executeWithRetry', () => {
@@ -63,9 +67,11 @@ describe('ExternalIntegrationService', () => {
     });
 
     it('should timeout long operations', async () => {
-      const operation = jest.fn().mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 500)),
-      );
+      const operation = jest
+        .fn()
+        .mockImplementation(
+          () => new Promise((resolve) => setTimeout(resolve, 500)),
+        );
 
       await expect(
         service.executeWithRetry('firecrawl', operation, {
@@ -216,7 +222,9 @@ describe('ExternalIntegrationService', () => {
         // Expected
       }
 
-      expect(service.getServiceHealth('firecrawl')?.consecutiveFailures).toBe(1);
+      expect(service.getServiceHealth('firecrawl')?.consecutiveFailures).toBe(
+        1,
+      );
 
       service.resetServiceHealth('firecrawl');
 
@@ -244,12 +252,17 @@ describe('ExternalIntegrationService', () => {
 
       // 3 successes
       for (let i = 0; i < 3; i++) {
-        await service.executeWithRetry('firecrawl', successOp, { maxRetries: 0 });
+        await service.executeWithRetry('firecrawl', successOp, {
+          maxRetries: 0,
+        });
       }
 
       // 1 failure
       try {
-        await service.executeWithRetry('firecrawl', failOp, { maxRetries: 0, initialDelayMs: 5 });
+        await service.executeWithRetry('firecrawl', failOp, {
+          maxRetries: 0,
+          initialDelayMs: 5,
+        });
       } catch {
         // Expected
       }

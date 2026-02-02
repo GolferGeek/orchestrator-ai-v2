@@ -34,15 +34,30 @@ describe('PredictionRepository', () => {
   };
 
   const createMockClient = (overrides?: {
-    single?: { data: unknown | null; error: { message: string; code?: string } | null };
-    list?: { data: unknown[] | null; error: { message: string } | null };
-    insert?: { data: unknown | null; error: { message: string } | null };
-    update?: { data: unknown | null; error: { message: string } | null };
+    single?: {
+      data: unknown;
+      error: { message: string; code?: string } | null;
+    };
+    list?: { data: unknown; error: { message: string } | null };
+    insert?: { data: unknown; error: { message: string } | null };
+    update?: { data: unknown; error: { message: string } | null };
   }) => {
-    const singleResult = overrides?.single ?? { data: mockPrediction, error: null };
-    const listResult = overrides?.list ?? { data: [mockPrediction], error: null };
-    const insertResult = overrides?.insert ?? { data: mockPrediction, error: null };
-    const updateResult = overrides?.update ?? { data: mockPrediction, error: null };
+    const singleResult = overrides?.single ?? {
+      data: mockPrediction,
+      error: null,
+    };
+    const listResult = overrides?.list ?? {
+      data: [mockPrediction],
+      error: null,
+    };
+    const insertResult = overrides?.insert ?? {
+      data: mockPrediction,
+      error: null,
+    };
+    const updateResult = overrides?.update ?? {
+      data: mockPrediction,
+      error: null,
+    };
 
     const createChain = () => {
       const chainableResult: Record<string, unknown> = {
@@ -141,9 +156,14 @@ describe('PredictionRepository', () => {
 
     it('should return null when prediction not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('nonexistent');
 
@@ -154,9 +174,13 @@ describe('PredictionRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(repository.findById('pred-123')).rejects.toThrow('Database error');
+      await expect(repository.findById('pred-123')).rejects.toThrow(
+        'Database error',
+      );
     });
   });
 
@@ -185,7 +209,9 @@ describe('PredictionRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findByTarget('target-123');
 
@@ -196,16 +222,22 @@ describe('PredictionRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(repository.findByTarget('target-123')).rejects.toThrow('Query failed');
+      await expect(repository.findByTarget('target-123')).rejects.toThrow(
+        'Query failed',
+      );
     });
   });
 
   describe('findByUniverse', () => {
     it('should return predictions for universe targets', async () => {
       const mockClient = createMockClient();
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findByUniverse('universe-123');
 
@@ -216,7 +248,9 @@ describe('PredictionRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findByUniverse('universe-123');
 
@@ -224,7 +258,10 @@ describe('PredictionRepository', () => {
     });
 
     it('should filter by status when provided', async () => {
-      const result = await repository.findByUniverse('universe-123', 'resolved');
+      const result = await repository.findByUniverse(
+        'universe-123',
+        'resolved',
+      );
 
       expect(result).toBeDefined();
     });
@@ -252,7 +289,9 @@ describe('PredictionRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: { message: 'Insert failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.create({
@@ -271,7 +310,9 @@ describe('PredictionRepository', () => {
 
   describe('update', () => {
     it('should update prediction successfully', async () => {
-      const result = await repository.update('pred-123', { status: 'resolved' });
+      const result = await repository.update('pred-123', {
+        status: 'resolved',
+      });
 
       expect(result).toEqual(mockPrediction);
     });
@@ -280,11 +321,13 @@ describe('PredictionRepository', () => {
       const mockClient = createMockClient({
         update: { data: null, error: { message: 'Update failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.update('pred-123', { status: 'resolved' })).rejects.toThrow(
-        'Update failed',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.update('pred-123', { status: 'resolved' }),
+      ).rejects.toThrow('Update failed');
     });
   });
 

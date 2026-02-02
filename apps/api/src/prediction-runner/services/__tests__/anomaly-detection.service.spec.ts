@@ -34,7 +34,8 @@ describe('AnomalyDetectionService', () => {
           lt: jest.fn().mockReturnValue(chain),
           lte: jest.fn().mockReturnValue(chain),
           eq: jest.fn().mockReturnValue(chain),
-          then: (resolve: (v: unknown) => void) => resolve(finalResult ?? { data: [], error: null }),
+          then: (resolve: (v: unknown) => void) =>
+            resolve(finalResult ?? { data: [], error: null }),
         };
       });
       chain.gte = jest.fn().mockReturnValue(chain);
@@ -109,7 +110,10 @@ describe('AnomalyDetectionService', () => {
         accuracy_threshold_pct: 30,
       };
 
-      const result = await service.detectAnomalies(mockExecutionContext, customConfig);
+      const result = await service.detectAnomalies(
+        mockExecutionContext,
+        customConfig,
+      );
 
       expect(result).toBeDefined();
     });
@@ -123,7 +127,9 @@ describe('AnomalyDetectionService', () => {
 
   describe('detectSignalRateAnomalies', () => {
     it('should return empty array when not enough samples', async () => {
-      const result = await service.detectSignalRateAnomalies(DEFAULT_ANOMALY_CONFIG);
+      const result = await service.detectSignalRateAnomalies(
+        DEFAULT_ANOMALY_CONFIG,
+      );
 
       expect(Array.isArray(result)).toBe(true);
     });
@@ -131,21 +137,57 @@ describe('AnomalyDetectionService', () => {
     it('should detect increase anomaly', async () => {
       // Mock data with significant increase
       const baselineSignals = [
-        { source_id: 'source-1', sources: { id: 'source-1', name: 'Source 1' } },
-        { source_id: 'source-1', sources: { id: 'source-1', name: 'Source 1' } },
+        {
+          source_id: 'source-1',
+          sources: { id: 'source-1', name: 'Source 1' },
+        },
+        {
+          source_id: 'source-1',
+          sources: { id: 'source-1', name: 'Source 1' },
+        },
       ];
 
       const currentSignals = [
-        { source_id: 'source-1', sources: { id: 'source-1', name: 'Source 1' } },
-        { source_id: 'source-1', sources: { id: 'source-1', name: 'Source 1' } },
-        { source_id: 'source-1', sources: { id: 'source-1', name: 'Source 1' } },
-        { source_id: 'source-1', sources: { id: 'source-1', name: 'Source 1' } },
-        { source_id: 'source-1', sources: { id: 'source-1', name: 'Source 1' } },
-        { source_id: 'source-1', sources: { id: 'source-1', name: 'Source 1' } },
-        { source_id: 'source-1', sources: { id: 'source-1', name: 'Source 1' } },
-        { source_id: 'source-1', sources: { id: 'source-1', name: 'Source 1' } },
-        { source_id: 'source-1', sources: { id: 'source-1', name: 'Source 1' } },
-        { source_id: 'source-1', sources: { id: 'source-1', name: 'Source 1' } },
+        {
+          source_id: 'source-1',
+          sources: { id: 'source-1', name: 'Source 1' },
+        },
+        {
+          source_id: 'source-1',
+          sources: { id: 'source-1', name: 'Source 1' },
+        },
+        {
+          source_id: 'source-1',
+          sources: { id: 'source-1', name: 'Source 1' },
+        },
+        {
+          source_id: 'source-1',
+          sources: { id: 'source-1', name: 'Source 1' },
+        },
+        {
+          source_id: 'source-1',
+          sources: { id: 'source-1', name: 'Source 1' },
+        },
+        {
+          source_id: 'source-1',
+          sources: { id: 'source-1', name: 'Source 1' },
+        },
+        {
+          source_id: 'source-1',
+          sources: { id: 'source-1', name: 'Source 1' },
+        },
+        {
+          source_id: 'source-1',
+          sources: { id: 'source-1', name: 'Source 1' },
+        },
+        {
+          source_id: 'source-1',
+          sources: { id: 'source-1', name: 'Source 1' },
+        },
+        {
+          source_id: 'source-1',
+          sources: { id: 'source-1', name: 'Source 1' },
+        },
       ];
 
       let callCount = 0;
@@ -164,9 +206,13 @@ describe('AnomalyDetectionService', () => {
           }),
         }),
       };
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await service.detectSignalRateAnomalies(DEFAULT_ANOMALY_CONFIG);
+      const result = await service.detectSignalRateAnomalies(
+        DEFAULT_ANOMALY_CONFIG,
+      );
 
       expect(Array.isArray(result)).toBe(true);
     });
@@ -175,9 +221,13 @@ describe('AnomalyDetectionService', () => {
       const mockClient = createMockClient({
         select: { data: null, error: { message: 'DB error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await service.detectSignalRateAnomalies(DEFAULT_ANOMALY_CONFIG);
+      const result = await service.detectSignalRateAnomalies(
+        DEFAULT_ANOMALY_CONFIG,
+      );
 
       expect(result).toEqual([]);
     });
@@ -185,7 +235,9 @@ describe('AnomalyDetectionService', () => {
 
   describe('detectAccuracyAnomalies', () => {
     it('should return empty array when not enough predictions', async () => {
-      const result = await service.detectAccuracyAnomalies(DEFAULT_ANOMALY_CONFIG);
+      const result = await service.detectAccuracyAnomalies(
+        DEFAULT_ANOMALY_CONFIG,
+      );
 
       expect(Array.isArray(result)).toBe(true);
     });
@@ -194,9 +246,13 @@ describe('AnomalyDetectionService', () => {
       const mockClient = createMockClient({
         select: { data: null, error: { message: 'DB error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await service.detectAccuracyAnomalies(DEFAULT_ANOMALY_CONFIG);
+      const result = await service.detectAccuracyAnomalies(
+        DEFAULT_ANOMALY_CONFIG,
+      );
 
       expect(result).toEqual([]);
     });
@@ -239,19 +295,28 @@ describe('AnomalyDetectionService', () => {
               lt: jest.fn().mockReturnThis(),
               lte: jest.fn().mockImplementation(() => {
                 callCount++;
-                const data = callCount === 1 ? baselinePredictions : currentPredictions;
+                const data =
+                  callCount === 1 ? baselinePredictions : currentPredictions;
                 return Promise.resolve({ data, error: null });
               }),
             })),
           }),
         }),
       };
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await service.detectAccuracyAnomalies(DEFAULT_ANOMALY_CONFIG);
+      const result = await service.detectAccuracyAnomalies(
+        DEFAULT_ANOMALY_CONFIG,
+      );
 
       // Should not detect anomaly for accuracy improvement
-      expect(result.every((a) => a.deviation_pct < 0 || a.deviation_pct === undefined)).toBe(true);
+      expect(
+        result.every(
+          (a) => a.deviation_pct < 0 || a.deviation_pct === undefined,
+        ),
+      ).toBe(true);
     });
   });
 
@@ -282,7 +347,9 @@ describe('AnomalyDetectionService', () => {
     });
 
     it('should handle alert creation failures gracefully', async () => {
-      alertService.createAlert.mockRejectedValue(new Error('Alert creation failed'));
+      alertService.createAlert.mockRejectedValue(
+        new Error('Alert creation failed'),
+      );
 
       // Should not throw, just return 0 alerts created
       const result = await service.detectAnomalies(mockExecutionContext);

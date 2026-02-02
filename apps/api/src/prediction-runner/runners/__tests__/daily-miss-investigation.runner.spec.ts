@@ -4,14 +4,17 @@ import { MissInvestigationService } from '../../services/miss-investigation.serv
 import { SourceResearchService } from '../../services/source-research.service';
 import { LearningQueueRepository } from '../../repositories/learning-queue.repository';
 import { SupabaseService } from '@/supabase/supabase.service';
-import { MissInvestigation, DailyInvestigationSummary } from '../../interfaces/miss-investigation.interface';
+import {
+  MissInvestigation,
+  DailyInvestigationSummary,
+} from '../../interfaces/miss-investigation.interface';
 
 describe('DailyMissInvestigationRunner', () => {
   let runner: DailyMissInvestigationRunner;
   let missInvestigationService: jest.Mocked<MissInvestigationService>;
   let sourceResearchService: jest.Mocked<SourceResearchService>;
   let learningQueueRepository: jest.Mocked<LearningQueueRepository>;
-  let supabaseService: jest.Mocked<SupabaseService>;
+  let _supabaseService: jest.Mocked<SupabaseService>;
 
   // Mock prediction with minimal required fields
   const mockPrediction = {
@@ -46,7 +49,11 @@ describe('DailyMissInvestigationRunner', () => {
       description: 'Test description',
       scope: 'target',
       config: {},
-      evidence: { missType: 'direction_wrong', investigationLevel: 'predictor', keyFindings: ['Finding 1'] },
+      evidence: {
+        missType: 'direction_wrong',
+        investigationLevel: 'predictor',
+        keyFindings: ['Finding 1'],
+      },
     },
     investigatedAt: '2024-01-16T12:00:00Z',
   };
@@ -111,14 +118,18 @@ describe('DailyMissInvestigationRunner', () => {
         {
           provide: SupabaseService,
           useValue: {
-            getServiceClient: jest.fn().mockReturnValue(createMockSupabaseClient()),
+            getServiceClient: jest
+              .fn()
+              .mockReturnValue(createMockSupabaseClient()),
           },
         },
       ],
     }).compile();
 
     module.useLogger(false);
-    runner = module.get<DailyMissInvestigationRunner>(DailyMissInvestigationRunner);
+    runner = module.get<DailyMissInvestigationRunner>(
+      DailyMissInvestigationRunner,
+    );
     missInvestigationService = module.get(MissInvestigationService);
     sourceResearchService = module.get(SourceResearchService);
     learningQueueRepository = module.get(LearningQueueRepository);
@@ -134,16 +145,25 @@ describe('DailyMissInvestigationRunner', () => {
       const result = await runner.runInvestigationForDate('2024-01-15');
 
       expect(result).toEqual(mockSummary);
-      expect(missInvestigationService.identifyMisses).toHaveBeenCalledWith('2024-01-15', undefined);
+      expect(missInvestigationService.identifyMisses).toHaveBeenCalledWith(
+        '2024-01-15',
+        undefined,
+      );
       expect(missInvestigationService.investigateMiss).toHaveBeenCalled();
       expect(missInvestigationService.generateDailySummary).toHaveBeenCalled();
     });
 
     it('should run investigation with universe filter', async () => {
-      const result = await runner.runInvestigationForDate('2024-01-15', 'universe-123');
+      const result = await runner.runInvestigationForDate(
+        '2024-01-15',
+        'universe-123',
+      );
 
       expect(result).toEqual(mockSummary);
-      expect(missInvestigationService.identifyMisses).toHaveBeenCalledWith('2024-01-15', 'universe-123');
+      expect(missInvestigationService.identifyMisses).toHaveBeenCalledWith(
+        '2024-01-15',
+        'universe-123',
+      );
     });
 
     it('should return null when already running', async () => {
@@ -186,13 +206,19 @@ describe('DailyMissInvestigationRunner', () => {
     });
 
     it('should handle errors from service', async () => {
-      missInvestigationService.identifyMisses.mockRejectedValue(new Error('Service failed'));
+      missInvestigationService.identifyMisses.mockRejectedValue(
+        new Error('Service failed'),
+      );
 
-      await expect(runner.runInvestigationForDate('2024-01-15')).rejects.toThrow('Service failed');
+      await expect(
+        runner.runInvestigationForDate('2024-01-15'),
+      ).rejects.toThrow('Service failed');
     });
 
     it('should reset isRunning flag after error', async () => {
-      missInvestigationService.identifyMisses.mockRejectedValueOnce(new Error('Service failed'));
+      missInvestigationService.identifyMisses.mockRejectedValueOnce(
+        new Error('Service failed'),
+      );
 
       try {
         await runner.runInvestigationForDate('2024-01-15');
@@ -219,7 +245,9 @@ describe('DailyMissInvestigationRunner', () => {
     });
 
     it('should handle learning queue errors gracefully', async () => {
-      learningQueueRepository.create.mockRejectedValue(new Error('Queue failed'));
+      learningQueueRepository.create.mockRejectedValue(
+        new Error('Queue failed'),
+      );
 
       // Should not throw, just log error
       const result = await runner.runInvestigationForDate('2024-01-15');
@@ -234,14 +262,22 @@ describe('DailyMissInvestigationRunner', () => {
         ...mockInvestigation,
         investigationLevel: 'source' as const,
       };
-      missInvestigationService.investigateMiss.mockResolvedValue(sourceInvestigation);
+      missInvestigationService.investigateMiss.mockResolvedValue(
+        sourceInvestigation,
+      );
 
       const researchResult = {
         predictability: 'predictable' as const,
         discoveredDrivers: ['earnings surprise'],
         signalsWeHad: [],
         signalTypesNeeded: ['earnings'],
-        suggestedSources: [{ name: 'bloomberg', type: 'news' as const, description: 'Financial news' }],
+        suggestedSources: [
+          {
+            name: 'bloomberg',
+            type: 'news' as const,
+            description: 'Financial news',
+          },
+        ],
         reasoning: 'Earnings report was released before market close',
       };
       sourceResearchService.researchMissBatch.mockResolvedValue(
@@ -259,7 +295,9 @@ describe('DailyMissInvestigationRunner', () => {
         investigationLevel: 'source',
         suggestedLearning: undefined,
       };
-      missInvestigationService.investigateMiss.mockResolvedValue(sourceInvestigation);
+      missInvestigationService.investigateMiss.mockResolvedValue(
+        sourceInvestigation,
+      );
 
       const researchResult = {
         predictability: 'unpredictable' as const,
@@ -290,7 +328,10 @@ describe('DailyMissInvestigationRunner', () => {
       const result = await runner.manualRun('2024-01-15', 'universe-123');
 
       expect(result).toEqual(mockSummary);
-      expect(missInvestigationService.identifyMisses).toHaveBeenCalledWith('2024-01-15', 'universe-123');
+      expect(missInvestigationService.identifyMisses).toHaveBeenCalledWith(
+        '2024-01-15',
+        'universe-123',
+      );
     });
   });
 
@@ -308,7 +349,11 @@ describe('DailyMissInvestigationRunner', () => {
       const servicePromise = new Promise<MissType>((resolve) => {
         resolveService = resolve;
       });
-      missInvestigationService.identifyMisses.mockReturnValue(servicePromise as unknown as ReturnType<typeof missInvestigationService.identifyMisses>);
+      missInvestigationService.identifyMisses.mockReturnValue(
+        servicePromise as unknown as ReturnType<
+          typeof missInvestigationService.identifyMisses
+        >,
+      );
 
       // Start the run
       const runPromise = runner.runInvestigationForDate('2024-01-15');
@@ -331,7 +376,11 @@ describe('DailyMissInvestigationRunner', () => {
         mockMiss,
         { ...mockMiss, prediction: { ...mockPrediction, id: 'pred-456' } },
       ];
-      missInvestigationService.identifyMisses.mockResolvedValue(misses as unknown as Awaited<ReturnType<typeof missInvestigationService.identifyMisses>>);
+      missInvestigationService.identifyMisses.mockResolvedValue(
+        misses as unknown as Awaited<
+          ReturnType<typeof missInvestigationService.identifyMisses>
+        >,
+      );
 
       await runner.runInvestigationForDate('2024-01-15');
 
@@ -340,7 +389,12 @@ describe('DailyMissInvestigationRunner', () => {
   });
 
   describe('miss type mapping', () => {
-    const missTypes = ['missed_opportunity', 'direction_wrong', 'magnitude_wrong', 'false_positive'] as const;
+    const missTypes = [
+      'missed_opportunity',
+      'direction_wrong',
+      'magnitude_wrong',
+      'false_positive',
+    ] as const;
 
     missTypes.forEach((missType) => {
       it(`should handle ${missType} miss type`, async () => {
@@ -350,7 +404,11 @@ describe('DailyMissInvestigationRunner', () => {
           actualDirection: 'up' as const,
           actualMagnitude: 5,
         };
-        missInvestigationService.identifyMisses.mockResolvedValue([missWithType] as unknown as Awaited<ReturnType<typeof missInvestigationService.identifyMisses>>);
+        missInvestigationService.identifyMisses.mockResolvedValue([
+          missWithType,
+        ] as unknown as Awaited<
+          ReturnType<typeof missInvestigationService.identifyMisses>
+        >);
 
         const result = await runner.runInvestigationForDate('2024-01-15');
 

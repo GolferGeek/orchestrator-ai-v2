@@ -35,16 +35,28 @@ describe('StrategyRepository', () => {
   };
 
   const createMockClient = (overrides?: {
-    single?: { data: unknown | null; error: { message: string; code?: string } | null };
-    list?: { data: unknown[] | null; error: { message: string } | null };
-    insert?: { data: unknown | null; error: { message: string } | null };
-    update?: { data: unknown | null; error: { message: string } | null };
+    single?: {
+      data: unknown;
+      error: { message: string; code?: string } | null;
+    };
+    list?: { data: unknown; error: { message: string } | null };
+    insert?: { data: unknown; error: { message: string } | null };
+    update?: { data: unknown; error: { message: string } | null };
     delete?: { error: { message: string } | null };
   }) => {
-    const singleResult = overrides?.single ?? { data: mockStrategy, error: null };
+    const singleResult = overrides?.single ?? {
+      data: mockStrategy,
+      error: null,
+    };
     const listResult = overrides?.list ?? { data: [mockStrategy], error: null };
-    const insertResult = overrides?.insert ?? { data: mockStrategy, error: null };
-    const updateResult = overrides?.update ?? { data: mockStrategy, error: null };
+    const insertResult = overrides?.insert ?? {
+      data: mockStrategy,
+      error: null,
+    };
+    const updateResult = overrides?.update ?? {
+      data: mockStrategy,
+      error: null,
+    };
     const deleteResult = overrides?.delete ?? { error: null };
 
     const createChain = () => {
@@ -140,7 +152,9 @@ describe('StrategyRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findAll();
 
@@ -151,9 +165,13 @@ describe('StrategyRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(repository.findAll()).rejects.toThrow('Failed to fetch strategies: Query failed');
+      await expect(repository.findAll()).rejects.toThrow(
+        'Failed to fetch strategies: Query failed',
+      );
     });
   });
 
@@ -166,9 +184,14 @@ describe('StrategyRepository', () => {
 
     it('should return null when strategy not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('nonexistent');
 
@@ -179,7 +202,9 @@ describe('StrategyRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findById('strategy-123')).rejects.toThrow(
         'Failed to fetch strategy: Database error',
@@ -196,11 +221,18 @@ describe('StrategyRepository', () => {
 
     it('should throw NotFoundException when strategy not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(repository.findByIdOrThrow('nonexistent')).rejects.toThrow(NotFoundException);
+      await expect(repository.findByIdOrThrow('nonexistent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -213,9 +245,14 @@ describe('StrategyRepository', () => {
 
     it('should return null when strategy not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findBySlug('nonexistent');
 
@@ -226,7 +263,9 @@ describe('StrategyRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findBySlug('test-strategy')).rejects.toThrow(
         'Failed to fetch strategy by slug: Database error',
@@ -243,11 +282,18 @@ describe('StrategyRepository', () => {
 
     it('should throw NotFoundException when strategy not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(repository.findBySlugOrThrow('nonexistent')).rejects.toThrow(NotFoundException);
+      await expect(repository.findBySlugOrThrow('nonexistent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -256,7 +302,9 @@ describe('StrategyRepository', () => {
       const mockClient = createMockClient({
         list: { data: [mockSystemStrategy], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findSystemStrategies();
 
@@ -267,7 +315,9 @@ describe('StrategyRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findSystemStrategies();
 
@@ -278,7 +328,9 @@ describe('StrategyRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findSystemStrategies()).rejects.toThrow(
         'Failed to fetch system strategies: Query failed',
@@ -322,7 +374,9 @@ describe('StrategyRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.create({
@@ -337,7 +391,9 @@ describe('StrategyRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: { message: 'Insert failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.create({
@@ -351,7 +407,9 @@ describe('StrategyRepository', () => {
 
   describe('update', () => {
     it('should update non-system strategy', async () => {
-      const result = await repository.update('strategy-123', { name: 'Updated Name' });
+      const result = await repository.update('strategy-123', {
+        name: 'Updated Name',
+      });
 
       expect(result).toEqual(mockStrategy);
     });
@@ -361,7 +419,9 @@ describe('StrategyRepository', () => {
         single: { data: mockSystemStrategy, error: null },
         update: { data: mockSystemStrategy, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.update('system-strategy-123', {
         name: 'New Name',
@@ -375,22 +435,26 @@ describe('StrategyRepository', () => {
       const mockClient = createMockClient({
         update: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.update('strategy-123', { name: 'Updated' })).rejects.toThrow(
-        'Update succeeded but no strategy returned',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.update('strategy-123', { name: 'Updated' }),
+      ).rejects.toThrow('Update succeeded but no strategy returned');
     });
 
     it('should throw error on update failure', async () => {
       const mockClient = createMockClient({
         update: { data: null, error: { message: 'Update failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.update('strategy-123', { name: 'Updated' })).rejects.toThrow(
-        'Failed to update strategy: Update failed',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.update('strategy-123', { name: 'Updated' }),
+      ).rejects.toThrow('Failed to update strategy: Update failed');
     });
   });
 
@@ -403,7 +467,9 @@ describe('StrategyRepository', () => {
       const mockClient = createMockClient({
         single: { data: mockSystemStrategy, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.delete('system-strategy-123')).rejects.toThrow(
         'Cannot delete system strategies',
@@ -414,7 +480,9 @@ describe('StrategyRepository', () => {
       const mockClient = createMockClient({
         delete: { error: { message: 'Delete failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.delete('strategy-123')).rejects.toThrow(
         'Failed to delete strategy: Delete failed',
@@ -431,7 +499,9 @@ describe('StrategyRepository', () => {
         const mockClient = createMockClient({
           single: { data: strategyWithRisk, error: null },
         });
-        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+          mockClient,
+        );
 
         const result = await repository.findById('strategy-123');
 
@@ -467,7 +537,9 @@ describe('StrategyRepository', () => {
       const mockClient = createMockClient({
         single: { data: strategyWithParams, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('strategy-123');
 
@@ -483,7 +555,9 @@ describe('StrategyRepository', () => {
       const mockClient = createMockClient({
         single: { data: strategyWithMinParams, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('strategy-123');
 

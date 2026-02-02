@@ -83,14 +83,26 @@ describe('SignalGeneratorRunner', () => {
       expect(result.total_signals).toBe(3);
       expect(result.errors).toEqual([]);
       expect(targetRepository.findAllActive).toHaveBeenCalled();
-      expect(articleProcessorService.processTarget).toHaveBeenCalledWith('target-123');
+      expect(articleProcessorService.processTarget).toHaveBeenCalledWith(
+        'target-123',
+      );
     });
 
     it('should process multiple targets', async () => {
       const targets = [
         mockTarget,
-        { ...mockTarget, id: 'target-456', symbol: 'MSFT', name: 'Microsoft Corp' },
-        { ...mockTarget, id: 'target-789', symbol: 'GOOGL', name: 'Alphabet Inc' },
+        {
+          ...mockTarget,
+          id: 'target-456',
+          symbol: 'MSFT',
+          name: 'Microsoft Corp',
+        },
+        {
+          ...mockTarget,
+          id: 'target-789',
+          symbol: 'GOOGL',
+          name: 'Alphabet Inc',
+        },
       ];
       targetRepository.findAllActive.mockResolvedValue(targets);
 
@@ -141,7 +153,9 @@ describe('SignalGeneratorRunner', () => {
     });
 
     it('should handle errors from article processor', async () => {
-      articleProcessorService.processTarget.mockRejectedValue(new Error('Processing failed'));
+      articleProcessorService.processTarget.mockRejectedValue(
+        new Error('Processing failed'),
+      );
 
       const result = await runner.generateSignalsForAllTargets();
 
@@ -186,7 +200,12 @@ describe('SignalGeneratorRunner', () => {
     it('should continue processing other targets when one fails', async () => {
       const targets = [
         mockTarget,
-        { ...mockTarget, id: 'target-456', symbol: 'MSFT', name: 'Microsoft Corp' },
+        {
+          ...mockTarget,
+          id: 'target-456',
+          symbol: 'MSFT',
+          name: 'Microsoft Corp',
+        },
       ];
       targetRepository.findAllActive.mockResolvedValue(targets);
 
@@ -203,7 +222,9 @@ describe('SignalGeneratorRunner', () => {
     });
 
     it('should reset isRunning flag after error', async () => {
-      targetRepository.findAllActive.mockRejectedValueOnce(new Error('Database error'));
+      targetRepository.findAllActive.mockRejectedValueOnce(
+        new Error('Database error'),
+      );
 
       try {
         await runner.generateSignalsForAllTargets();
@@ -225,11 +246,15 @@ describe('SignalGeneratorRunner', () => {
       expect(result.articles_processed).toBe(5);
       expect(result.signals_created).toBe(3);
       expect(result.errors).toEqual([]);
-      expect(articleProcessorService.processTarget).toHaveBeenCalledWith('target-123');
+      expect(articleProcessorService.processTarget).toHaveBeenCalledWith(
+        'target-123',
+      );
     });
 
     it('should handle errors gracefully', async () => {
-      articleProcessorService.processTarget.mockRejectedValue(new Error('Target processing failed'));
+      articleProcessorService.processTarget.mockRejectedValue(
+        new Error('Target processing failed'),
+      );
 
       const result = await runner.generateSignalsForTarget('target-123');
 
@@ -318,13 +343,32 @@ describe('SignalGeneratorRunner', () => {
     it('should aggregate results from multiple targets', async () => {
       const targets = [
         mockTarget,
-        { ...mockTarget, id: 'target-456', symbol: 'MSFT', name: 'Microsoft Corp' },
+        {
+          ...mockTarget,
+          id: 'target-456',
+          symbol: 'MSFT',
+          name: 'Microsoft Corp',
+        },
       ];
       targetRepository.findAllActive.mockResolvedValue(targets);
 
       articleProcessorService.processTarget
-        .mockResolvedValueOnce({ subscription_id: 'sub-1', target_id: 'target-123', articles_processed: 10, signals_created: 5, signals_skipped: 2, errors: ['Error 1'] })
-        .mockResolvedValueOnce({ subscription_id: 'sub-2', target_id: 'target-456', articles_processed: 20, signals_created: 8, signals_skipped: 3, errors: ['Error 2'] });
+        .mockResolvedValueOnce({
+          subscription_id: 'sub-1',
+          target_id: 'target-123',
+          articles_processed: 10,
+          signals_created: 5,
+          signals_skipped: 2,
+          errors: ['Error 1'],
+        })
+        .mockResolvedValueOnce({
+          subscription_id: 'sub-2',
+          target_id: 'target-456',
+          articles_processed: 20,
+          signals_created: 8,
+          signals_skipped: 3,
+          errors: ['Error 2'],
+        });
 
       const result = await runner.generateSignalsForAllTargets();
 

@@ -32,7 +32,11 @@ describe('BackpressureService', () => {
 
     it('should block crawl when global limit reached', () => {
       // Fill up global limit
-      for (let i = 0; i < DEFAULT_BACKPRESSURE_CONFIG.maxConcurrentCrawlsGlobal; i++) {
+      for (
+        let i = 0;
+        i < DEFAULT_BACKPRESSURE_CONFIG.maxConcurrentCrawlsGlobal;
+        i++
+      ) {
         service.recordCrawlStart(`source-${i}`);
       }
 
@@ -54,7 +58,9 @@ describe('BackpressureService', () => {
 
     it('should block crawl when queue depth threshold exceeded', () => {
       // Fill up queue
-      service.incrementQueueDepth(DEFAULT_BACKPRESSURE_CONFIG.queueDepthThreshold);
+      service.incrementQueueDepth(
+        DEFAULT_BACKPRESSURE_CONFIG.queueDepthThreshold,
+      );
 
       const result = service.canStartCrawl('source-123');
 
@@ -64,7 +70,11 @@ describe('BackpressureService', () => {
 
     it('should suggest delay when blocked', () => {
       // Fill up global limit
-      for (let i = 0; i < DEFAULT_BACKPRESSURE_CONFIG.maxConcurrentCrawlsGlobal; i++) {
+      for (
+        let i = 0;
+        i < DEFAULT_BACKPRESSURE_CONFIG.maxConcurrentCrawlsGlobal;
+        i++
+      ) {
         service.recordCrawlStart(`source-${i}`);
       }
 
@@ -225,7 +235,9 @@ describe('BackpressureService', () => {
       const status = service.isUnderBackpressure();
 
       expect(status.currentCrawls).toBe(2);
-      expect(status.maxCrawls).toBe(DEFAULT_BACKPRESSURE_CONFIG.maxConcurrentCrawlsGlobal);
+      expect(status.maxCrawls).toBe(
+        DEFAULT_BACKPRESSURE_CONFIG.maxConcurrentCrawlsGlobal,
+      );
     });
 
     it('should return queue depth', () => {
@@ -239,7 +251,9 @@ describe('BackpressureService', () => {
     it('should return available tokens', () => {
       const status = service.isUnderBackpressure();
 
-      expect(status.availableTokens).toBe(DEFAULT_BACKPRESSURE_CONFIG.maxTokens);
+      expect(status.availableTokens).toBe(
+        DEFAULT_BACKPRESSURE_CONFIG.maxTokens,
+      );
     });
   });
 

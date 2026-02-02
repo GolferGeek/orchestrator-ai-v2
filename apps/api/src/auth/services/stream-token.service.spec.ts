@@ -1,5 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { HttpException, HttpStatus, UnauthorizedException } from '@nestjs/common';
+import {
+  HttpException,
+  HttpStatus,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { StreamTokenService, StreamTokenClaims } from './stream-token.service';
 import * as jwt from 'jsonwebtoken';
 
@@ -128,7 +132,9 @@ describe('StreamTokenService', () => {
       const expectedMinExpiry = before + 300 * 1000;
       const expectedMaxExpiry = after + 300 * 1000;
 
-      expect(result.expiresAt.getTime()).toBeGreaterThanOrEqual(expectedMinExpiry);
+      expect(result.expiresAt.getTime()).toBeGreaterThanOrEqual(
+        expectedMinExpiry,
+      );
       expect(result.expiresAt.getTime()).toBeLessThanOrEqual(expectedMaxExpiry);
     });
   });
@@ -157,7 +163,9 @@ describe('StreamTokenService', () => {
     });
 
     it('should throw UnauthorizedException for invalid token', () => {
-      expect(() => service.verifyToken('invalid-token')).toThrow(UnauthorizedException);
+      expect(() => service.verifyToken('invalid-token')).toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('should throw UnauthorizedException for expired token', () => {
@@ -177,7 +185,9 @@ describe('StreamTokenService', () => {
         },
       );
 
-      expect(() => service.verifyToken(expiredToken)).toThrow(UnauthorizedException);
+      expect(() => service.verifyToken(expiredToken)).toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('should throw UnauthorizedException for wrong audience', () => {
@@ -195,7 +205,9 @@ describe('StreamTokenService', () => {
         },
       );
 
-      expect(() => service.verifyToken(wrongAudienceToken)).toThrow(UnauthorizedException);
+      expect(() => service.verifyToken(wrongAudienceToken)).toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('should throw UnauthorizedException for wrong issuer', () => {
@@ -213,7 +225,9 @@ describe('StreamTokenService', () => {
         },
       );
 
-      expect(() => service.verifyToken(wrongIssuerToken)).toThrow(UnauthorizedException);
+      expect(() => service.verifyToken(wrongIssuerToken)).toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('should throw UnauthorizedException for token with missing required claims', () => {
@@ -230,14 +244,18 @@ describe('StreamTokenService', () => {
         },
       );
 
-      expect(() => service.verifyToken(incompleteToken)).toThrow(UnauthorizedException);
+      expect(() => service.verifyToken(incompleteToken)).toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('should throw UnauthorizedException for tampered token', () => {
       const { token } = service.issueToken(validParams);
       const tamperedToken = token.slice(0, -5) + 'xxxxx'; // Corrupt the signature
 
-      expect(() => service.verifyToken(tamperedToken)).toThrow(UnauthorizedException);
+      expect(() => service.verifyToken(tamperedToken)).toThrow(
+        UnauthorizedException,
+      );
     });
   });
 
@@ -324,7 +342,9 @@ describe('StreamTokenService', () => {
       try {
         service.issueToken(validParams);
       } catch (error) {
-        expect((error as HttpException).getStatus()).toBe(HttpStatus.TOO_MANY_REQUESTS);
+        expect((error as HttpException).getStatus()).toBe(
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
       }
     });
 

@@ -18,7 +18,12 @@ describe('SourceResearchService', () => {
       status: 'resolved',
       outcome_value: -5,
       predicted_at: '2024-01-01T10:00:00Z',
-      target: { id: 'target-123', symbol: 'AAPL', name: 'Apple', target_type: 'stock' },
+      target: {
+        id: 'target-123',
+        symbol: 'AAPL',
+        name: 'Apple',
+        target_type: 'stock',
+      },
       consumedPredictors: [
         {
           id: 'predictor-1',
@@ -51,7 +56,8 @@ describe('SourceResearchService', () => {
           { name: 'Bloomberg', type: 'news', description: 'Real-time news' },
         ],
         predictability: 'predictable',
-        reasoning: 'Clear signals from earnings report would have indicated direction',
+        reasoning:
+          'Clear signals from earnings report would have indicated direction',
       },
     ],
   });
@@ -82,7 +88,10 @@ describe('SourceResearchService', () => {
     it('should research multiple misses in a batch', async () => {
       const investigations = [mockInvestigation];
 
-      const result = await service.researchMissBatch(investigations, '2024-01-01');
+      const result = await service.researchMissBatch(
+        investigations,
+        '2024-01-01',
+      );
 
       expect(llmGenerationService.generateResponse).toHaveBeenCalled();
       expect(result).toBeDefined();
@@ -99,18 +108,26 @@ describe('SourceResearchService', () => {
     it('should parse research result correctly', async () => {
       const investigations = [mockInvestigation];
 
-      const result = await service.researchMissBatch(investigations, '2024-01-01');
+      const result = await service.researchMissBatch(
+        investigations,
+        '2024-01-01',
+      );
 
       const research = result.get('inv-123');
       expect(research).toBeDefined();
-      expect(research?.discoveredDrivers).toContain('Earnings miss announcement');
+      expect(research?.discoveredDrivers).toContain(
+        'Earnings miss announcement',
+      );
       expect(research?.predictability).toBe('predictable');
     });
 
     it('should include suggested sources', async () => {
       const investigations = [mockInvestigation];
 
-      const result = await service.researchMissBatch(investigations, '2024-01-01');
+      const result = await service.researchMissBatch(
+        investigations,
+        '2024-01-01',
+      );
 
       const research = result.get('inv-123');
       expect(research?.suggestedSources.length).toBeGreaterThan(0);
@@ -120,7 +137,10 @@ describe('SourceResearchService', () => {
     it('should map source types correctly', async () => {
       const investigations = [mockInvestigation];
 
-      const result = await service.researchMissBatch(investigations, '2024-01-01');
+      const result = await service.researchMissBatch(
+        investigations,
+        '2024-01-01',
+      );
 
       const research = result.get('inv-123');
       expect(research?.suggestedSources[0]?.type).toBe('sec_filing');
@@ -138,9 +158,14 @@ describe('SourceResearchService', () => {
     });
 
     it('should handle invalid JSON response', async () => {
-      (llmGenerationService.generateResponse as jest.Mock).mockResolvedValue('not valid json');
+      (llmGenerationService.generateResponse as jest.Mock).mockResolvedValue(
+        'not valid json',
+      );
 
-      const result = await service.researchMissBatch([mockInvestigation], '2024-01-01');
+      const result = await service.researchMissBatch(
+        [mockInvestigation],
+        '2024-01-01',
+      );
 
       // Should return empty map when parsing fails
       expect(result.size).toBe(0);
@@ -148,9 +173,14 @@ describe('SourceResearchService', () => {
 
     it('should handle markdown code blocks in response', async () => {
       const markdownResponse = '```json\n' + mockLLMResponse + '\n```';
-      (llmGenerationService.generateResponse as jest.Mock).mockResolvedValue(markdownResponse);
+      (llmGenerationService.generateResponse as jest.Mock).mockResolvedValue(
+        markdownResponse,
+      );
 
-      const result = await service.researchMissBatch([mockInvestigation], '2024-01-01');
+      const result = await service.researchMissBatch(
+        [mockInvestigation],
+        '2024-01-01',
+      );
 
       expect(result.size).toBe(1);
     });
@@ -163,13 +193,20 @@ describe('SourceResearchService', () => {
         signalsWeHad: [],
         signalTypesNeeded: ['earnings_report'],
         suggestedSources: [
-          { name: 'SEC EDGAR', type: 'sec_filing' as const, description: 'Filing source' },
+          {
+            name: 'SEC EDGAR',
+            type: 'sec_filing' as const,
+            description: 'Filing source',
+          },
         ],
         predictability: 'predictable' as const,
         reasoning: 'Clear earnings signal',
       };
 
-      const result = service.generateSourceLevelLearning(mockInvestigation, research);
+      const result = service.generateSourceLevelLearning(
+        mockInvestigation,
+        research,
+      );
 
       expect(result).toBeDefined();
       expect(result?.type).toBe('rule');
@@ -187,7 +224,10 @@ describe('SourceResearchService', () => {
         reasoning: 'Completely unexpected',
       };
 
-      const result = service.generateSourceLevelLearning(mockInvestigation, research);
+      const result = service.generateSourceLevelLearning(
+        mockInvestigation,
+        research,
+      );
 
       expect(result).toBeNull();
     });
@@ -202,7 +242,10 @@ describe('SourceResearchService', () => {
         reasoning: 'No clear source',
       };
 
-      const result = service.generateSourceLevelLearning(mockInvestigation, research);
+      const result = service.generateSourceLevelLearning(
+        mockInvestigation,
+        research,
+      );
 
       expect(result).toBeNull();
     });
@@ -213,16 +256,27 @@ describe('SourceResearchService', () => {
         signalsWeHad: [],
         signalTypesNeeded: ['earnings_report'],
         suggestedSources: [
-          { name: 'Bloomberg', type: 'news' as const, description: 'News feed' },
+          {
+            name: 'Bloomberg',
+            type: 'news' as const,
+            description: 'News feed',
+          },
         ],
         predictability: 'predictable' as const,
         reasoning: 'Earnings signals were clear',
       };
 
-      const result = service.generateSourceLevelLearning(mockInvestigation, research);
+      const result = service.generateSourceLevelLearning(
+        mockInvestigation,
+        research,
+      );
 
       expect(result?.evidence?.keyFindings).toBeDefined();
-      expect(result?.evidence?.keyFindings.some((f) => f.includes('Discovered drivers'))).toBe(true);
+      expect(
+        result?.evidence?.keyFindings.some((f) =>
+          f.includes('Discovered drivers'),
+        ),
+      ).toBe(true);
     });
 
     it('should include suggested test', () => {
@@ -231,13 +285,21 @@ describe('SourceResearchService', () => {
         signalsWeHad: [],
         signalTypesNeeded: ['earnings_report'],
         suggestedSources: [
-          { name: 'SEC EDGAR', type: 'sec_filing' as const, url: 'https://sec.gov', description: 'Filings' },
+          {
+            name: 'SEC EDGAR',
+            type: 'sec_filing' as const,
+            url: 'https://sec.gov',
+            description: 'Filings',
+          },
         ],
         predictability: 'predictable' as const,
         reasoning: 'Clear signal',
       };
 
-      const result = service.generateSourceLevelLearning(mockInvestigation, research);
+      const result = service.generateSourceLevelLearning(
+        mockInvestigation,
+        research,
+      );
 
       expect(result?.suggestedTest).toBeDefined();
       expect(result?.suggestedTest?.type).toBe('backtest');
@@ -247,33 +309,60 @@ describe('SourceResearchService', () => {
   describe('predictability mapping', () => {
     it('should map predictable correctly', async () => {
       const response = JSON.stringify({
-        results: [{ ...JSON.parse(mockLLMResponse).results[0], predictability: 'predictable' }],
+        results: [
+          {
+            ...JSON.parse(mockLLMResponse).results[0],
+            predictability: 'predictable',
+          },
+        ],
       });
-      (llmGenerationService.generateResponse as jest.Mock).mockResolvedValue(response);
+      (llmGenerationService.generateResponse as jest.Mock).mockResolvedValue(
+        response,
+      );
 
-      const result = await service.researchMissBatch([mockInvestigation], '2024-01-01');
+      const result = await service.researchMissBatch(
+        [mockInvestigation],
+        '2024-01-01',
+      );
 
       expect(result.get('inv-123')?.predictability).toBe('predictable');
     });
 
     it('should map difficult correctly', async () => {
       const response = JSON.stringify({
-        results: [{ ...JSON.parse(mockLLMResponse).results[0], predictability: 'hard' }],
+        results: [
+          { ...JSON.parse(mockLLMResponse).results[0], predictability: 'hard' },
+        ],
       });
-      (llmGenerationService.generateResponse as jest.Mock).mockResolvedValue(response);
+      (llmGenerationService.generateResponse as jest.Mock).mockResolvedValue(
+        response,
+      );
 
-      const result = await service.researchMissBatch([mockInvestigation], '2024-01-01');
+      const result = await service.researchMissBatch(
+        [mockInvestigation],
+        '2024-01-01',
+      );
 
       expect(result.get('inv-123')?.predictability).toBe('difficult');
     });
 
     it('should map unpredictable correctly', async () => {
       const response = JSON.stringify({
-        results: [{ ...JSON.parse(mockLLMResponse).results[0], predictability: 'black swan' }],
+        results: [
+          {
+            ...JSON.parse(mockLLMResponse).results[0],
+            predictability: 'black swan',
+          },
+        ],
       });
-      (llmGenerationService.generateResponse as jest.Mock).mockResolvedValue(response);
+      (llmGenerationService.generateResponse as jest.Mock).mockResolvedValue(
+        response,
+      );
 
-      const result = await service.researchMissBatch([mockInvestigation], '2024-01-01');
+      const result = await service.researchMissBatch(
+        [mockInvestigation],
+        '2024-01-01',
+      );
 
       expect(result.get('inv-123')?.predictability).toBe('unpredictable');
     });
@@ -282,42 +371,75 @@ describe('SourceResearchService', () => {
   describe('source type mapping', () => {
     it('should map sec to sec_filing', async () => {
       const response = JSON.stringify({
-        results: [{
-          ...JSON.parse(mockLLMResponse).results[0],
-          suggestedSources: [{ name: 'SEC', type: 'sec', description: 'SEC filings' }],
-        }],
+        results: [
+          {
+            ...JSON.parse(mockLLMResponse).results[0],
+            suggestedSources: [
+              { name: 'SEC', type: 'sec', description: 'SEC filings' },
+            ],
+          },
+        ],
       });
-      (llmGenerationService.generateResponse as jest.Mock).mockResolvedValue(response);
+      (llmGenerationService.generateResponse as jest.Mock).mockResolvedValue(
+        response,
+      );
 
-      const result = await service.researchMissBatch([mockInvestigation], '2024-01-01');
+      const result = await service.researchMissBatch(
+        [mockInvestigation],
+        '2024-01-01',
+      );
 
-      expect(result.get('inv-123')?.suggestedSources[0]?.type).toBe('sec_filing');
+      expect(result.get('inv-123')?.suggestedSources[0]?.type).toBe(
+        'sec_filing',
+      );
     });
 
     it('should map twitter to social', async () => {
       const response = JSON.stringify({
-        results: [{
-          ...JSON.parse(mockLLMResponse).results[0],
-          suggestedSources: [{ name: 'Twitter', type: 'twitter', description: 'Social feed' }],
-        }],
+        results: [
+          {
+            ...JSON.parse(mockLLMResponse).results[0],
+            suggestedSources: [
+              { name: 'Twitter', type: 'twitter', description: 'Social feed' },
+            ],
+          },
+        ],
       });
-      (llmGenerationService.generateResponse as jest.Mock).mockResolvedValue(response);
+      (llmGenerationService.generateResponse as jest.Mock).mockResolvedValue(
+        response,
+      );
 
-      const result = await service.researchMissBatch([mockInvestigation], '2024-01-01');
+      const result = await service.researchMissBatch(
+        [mockInvestigation],
+        '2024-01-01',
+      );
 
       expect(result.get('inv-123')?.suggestedSources[0]?.type).toBe('social');
     });
 
     it('should map unknown types to other', async () => {
       const response = JSON.stringify({
-        results: [{
-          ...JSON.parse(mockLLMResponse).results[0],
-          suggestedSources: [{ name: 'Custom', type: 'unknown_type', description: 'Custom source' }],
-        }],
+        results: [
+          {
+            ...JSON.parse(mockLLMResponse).results[0],
+            suggestedSources: [
+              {
+                name: 'Custom',
+                type: 'unknown_type',
+                description: 'Custom source',
+              },
+            ],
+          },
+        ],
       });
-      (llmGenerationService.generateResponse as jest.Mock).mockResolvedValue(response);
+      (llmGenerationService.generateResponse as jest.Mock).mockResolvedValue(
+        response,
+      );
 
-      const result = await service.researchMissBatch([mockInvestigation], '2024-01-01');
+      const result = await service.researchMissBatch(
+        [mockInvestigation],
+        '2024-01-01',
+      );
 
       expect(result.get('inv-123')?.suggestedSources[0]?.type).toBe('other');
     });
@@ -332,20 +454,44 @@ describe('SourceResearchService', () => {
           id: 'inv-456',
           prediction: {
             ...mockInvestigation.prediction,
-            target: { id: 'target-456', symbol: 'MSFT', name: 'Microsoft', target_type: 'stock' },
+            target: {
+              id: 'target-456',
+              symbol: 'MSFT',
+              name: 'Microsoft',
+              target_type: 'stock',
+            },
           },
         } as unknown as MissInvestigation,
       ];
 
       const response = JSON.stringify({
         results: [
-          { symbol: 'AAPL', discoveredDrivers: ['Apple news'], signalTypesNeeded: [], suggestedSources: [], predictability: 'predictable', reasoning: '' },
-          { symbol: 'MSFT', discoveredDrivers: ['Microsoft news'], signalTypesNeeded: [], suggestedSources: [], predictability: 'difficult', reasoning: '' },
+          {
+            symbol: 'AAPL',
+            discoveredDrivers: ['Apple news'],
+            signalTypesNeeded: [],
+            suggestedSources: [],
+            predictability: 'predictable',
+            reasoning: '',
+          },
+          {
+            symbol: 'MSFT',
+            discoveredDrivers: ['Microsoft news'],
+            signalTypesNeeded: [],
+            suggestedSources: [],
+            predictability: 'difficult',
+            reasoning: '',
+          },
         ],
       });
-      (llmGenerationService.generateResponse as jest.Mock).mockResolvedValue(response);
+      (llmGenerationService.generateResponse as jest.Mock).mockResolvedValue(
+        response,
+      );
 
-      const result = await service.researchMissBatch(investigations, '2024-01-01');
+      const result = await service.researchMissBatch(
+        investigations,
+        '2024-01-01',
+      );
 
       expect(result.size).toBe(2);
       expect(result.get('inv-123')).toBeDefined();
@@ -355,12 +501,24 @@ describe('SourceResearchService', () => {
     it('should handle missing symbols in response gracefully', async () => {
       const response = JSON.stringify({
         results: [
-          { symbol: 'UNKNOWN', discoveredDrivers: [], signalTypesNeeded: [], suggestedSources: [], predictability: 'difficult', reasoning: '' },
+          {
+            symbol: 'UNKNOWN',
+            discoveredDrivers: [],
+            signalTypesNeeded: [],
+            suggestedSources: [],
+            predictability: 'difficult',
+            reasoning: '',
+          },
         ],
       });
-      (llmGenerationService.generateResponse as jest.Mock).mockResolvedValue(response);
+      (llmGenerationService.generateResponse as jest.Mock).mockResolvedValue(
+        response,
+      );
 
-      const result = await service.researchMissBatch([mockInvestigation], '2024-01-01');
+      const result = await service.researchMissBatch(
+        [mockInvestigation],
+        '2024-01-01',
+      );
 
       // Should skip results for unknown symbols
       expect(result.size).toBe(0);

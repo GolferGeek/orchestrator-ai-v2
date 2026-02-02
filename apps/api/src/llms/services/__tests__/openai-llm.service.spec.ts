@@ -6,7 +6,11 @@ import { DictionaryPseudonymizerService } from '../../pii/dictionary-pseudonymiz
 import { RunMetadataService } from '../../run-metadata.service';
 import { ProviderConfigService } from '../../provider-config.service';
 import { LLMPricingService } from '../../llm-pricing.service';
-import { LLMServiceConfig, GenerateResponseParams, ImageGenerationParams } from '../llm-interfaces';
+import {
+  LLMServiceConfig,
+  GenerateResponseParams,
+  ImageGenerationParams,
+} from '../llm-interfaces';
 import { LLMError } from '../llm-error-handling';
 
 // Mock the OpenAI SDK
@@ -164,7 +168,10 @@ describe('OpenAILLMService', () => {
         },
       };
 
-      const response = await service.generateResponse(mockExecutionContext, params);
+      const response = await service.generateResponse(
+        mockExecutionContext,
+        params,
+      );
 
       expect(response.content).toBe('Hello! How can I assist you today?');
       expect(response.metadata.provider).toBe('openai');
@@ -181,7 +188,10 @@ describe('OpenAILLMService', () => {
         },
       };
 
-      const response = await service.generateResponse(mockExecutionContext, params);
+      const response = await service.generateResponse(
+        mockExecutionContext,
+        params,
+      );
 
       expect(response.metadata.usage.inputTokens).toBe(50);
       expect(response.metadata.usage.outputTokens).toBe(25);
@@ -198,7 +208,10 @@ describe('OpenAILLMService', () => {
         },
       };
 
-      const response = await service.generateResponse(mockExecutionContext, params);
+      const response = await service.generateResponse(
+        mockExecutionContext,
+        params,
+      );
 
       expect(response.metadata.providerSpecific).toMatchObject({
         finish_reason: 'stop',
@@ -231,7 +244,10 @@ describe('OpenAILLMService', () => {
         },
       };
 
-      const response = await service.generateResponse(mockExecutionContext, params);
+      const response = await service.generateResponse(
+        mockExecutionContext,
+        params,
+      );
 
       expect(llmPricingService.calculateCostSync).toHaveBeenCalledWith(
         'openai',
@@ -299,6 +315,7 @@ describe('OpenAILLMService', () => {
 
   describe('error handling', () => {
     it('should throw LLMError on API failure', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const OpenAI = require('openai').default;
       OpenAI.mockImplementation(() => ({
         chat: {
@@ -332,6 +349,7 @@ describe('OpenAILLMService', () => {
     });
 
     it('should throw error when response has no content', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const OpenAI = require('openai').default;
       OpenAI.mockImplementation(() => ({
         chat: {
@@ -351,7 +369,11 @@ describe('OpenAILLMService', () => {
                   finish_reason: 'stop',
                 },
               ],
-              usage: { prompt_tokens: 50, completion_tokens: 0, total_tokens: 50 },
+              usage: {
+                prompt_tokens: 50,
+                completion_tokens: 0,
+                total_tokens: 50,
+              },
             }),
           },
         },
@@ -384,6 +406,7 @@ describe('OpenAILLMService', () => {
   describe('generateImage', () => {
     beforeEach(() => {
       // Reset OpenAI mock to default behavior for image tests
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const OpenAI = require('openai').default;
       OpenAI.mockImplementation(() => ({
         chat: {
@@ -400,7 +423,11 @@ describe('OpenAILLMService', () => {
                   finish_reason: 'stop',
                 },
               ],
-              usage: { prompt_tokens: 50, completion_tokens: 25, total_tokens: 75 },
+              usage: {
+                prompt_tokens: 50,
+                completion_tokens: 25,
+                total_tokens: 75,
+              },
             }),
           },
         },
@@ -447,6 +474,7 @@ describe('OpenAILLMService', () => {
     });
 
     it('should return error response on image generation failure', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const OpenAI = require('openai').default;
       OpenAI.mockImplementation(() => ({
         chat: { completions: { create: jest.fn() } },
@@ -468,7 +496,10 @@ describe('OpenAILLMService', () => {
         prompt: 'A sunset',
       };
 
-      const response = await imageService.generateImage(mockExecutionContext, params);
+      const response = await imageService.generateImage(
+        mockExecutionContext,
+        params,
+      );
 
       expect(response.images).toHaveLength(0);
       expect(response.metadata.status).toBe('error');
@@ -490,7 +521,10 @@ describe('OpenAILLMService', () => {
         prompt: 'A sunset',
       };
 
-      const response = await imageService.generateImage(mockExecutionContext, params);
+      const response = await imageService.generateImage(
+        mockExecutionContext,
+        params,
+      );
 
       expect(response.images[0]?.revisedPrompt).toBe('A beautiful sunset');
     });
@@ -519,6 +553,7 @@ describe('OpenAILLMService', () => {
 
   describe('model-specific handling', () => {
     it('should handle o1 model temperature restrictions', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const OpenAI = require('openai').default;
       const createMock = jest.fn().mockResolvedValue({
         id: 'chatcmpl-123',
@@ -579,6 +614,7 @@ describe('OpenAILLMService', () => {
   describe('LangSmith integration', () => {
     beforeEach(() => {
       // Reset OpenAI mock to default behavior
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const OpenAI = require('openai').default;
       OpenAI.mockImplementation(() => ({
         chat: {
@@ -595,7 +631,11 @@ describe('OpenAILLMService', () => {
                   finish_reason: 'stop',
                 },
               ],
-              usage: { prompt_tokens: 50, completion_tokens: 25, total_tokens: 75 },
+              usage: {
+                prompt_tokens: 50,
+                completion_tokens: 25,
+                total_tokens: 75,
+              },
               system_fingerprint: 'fp_123',
             }),
           },
@@ -625,9 +665,14 @@ describe('OpenAILLMService', () => {
         },
       };
 
-      const response = await langsmithService.generateResponse(mockExecutionContext, params);
+      const response = await langsmithService.generateResponse(
+        mockExecutionContext,
+        params,
+      );
 
-      expect(response.metadata.langsmithRunId).toMatch(/^openai-\d+-[a-z0-9]+$/);
+      expect(response.metadata.langsmithRunId).toMatch(
+        /^openai-\d+-[a-z0-9]+$/,
+      );
 
       delete process.env.LANGSMITH_API_KEY;
       delete process.env.LANGSMITH_TRACING;

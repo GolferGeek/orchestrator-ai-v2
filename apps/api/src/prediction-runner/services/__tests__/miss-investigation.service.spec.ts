@@ -15,7 +15,12 @@ describe('MissInvestigationService', () => {
     status: 'resolved',
     outcome_value: -5, // Opposite direction
     predicted_at: '2024-01-01T10:00:00Z',
-    target: { id: 'target-123', symbol: 'AAPL', name: 'Apple', target_type: 'stock' },
+    target: {
+      id: 'target-123',
+      symbol: 'AAPL',
+      name: 'Apple',
+      target_type: 'stock',
+    },
   };
 
   const mockPredictors = [
@@ -31,7 +36,12 @@ describe('MissInvestigationService', () => {
         id: 'sig-123',
         content: 'Test signal content',
         direction: 'bullish',
-        source: { id: 'source-123', name: 'TestSource', source_type: 'news', url: 'http://test.com' },
+        source: {
+          id: 'source-123',
+          name: 'TestSource',
+          source_type: 'news',
+          url: 'http://test.com',
+        },
       },
     },
   ];
@@ -49,7 +59,12 @@ describe('MissInvestigationService', () => {
         id: 'sig-456',
         content: 'Bearish signal',
         direction: 'bearish',
-        source: { id: 'source-456', name: 'BearSource', source_type: 'news', url: null },
+        source: {
+          id: 'source-456',
+          name: 'BearSource',
+          source_type: 'news',
+          url: null,
+        },
       },
     },
   ];
@@ -62,7 +77,12 @@ describe('MissInvestigationService', () => {
       disposition: 'rejected',
       detected_at: '2024-01-01T08:00:00Z',
       evaluation_result: { analyst_slug: 'analyst-1' },
-      source: { id: 'source-789', name: 'RejectSource', source_type: 'news', url: null },
+      source: {
+        id: 'source-789',
+        name: 'RejectSource',
+        source_type: 'news',
+        url: null,
+      },
     },
   ];
 
@@ -70,16 +90,31 @@ describe('MissInvestigationService', () => {
     predictions?: { data: unknown[] | null; error: { message: string } | null };
     predictors?: { data: unknown[] | null; error: { message: string } | null };
     signals?: { data: unknown[] | null; error: { message: string } | null };
-    singlePrediction?: { data: unknown | null; error: { message: string; code?: string } | null };
+    singlePrediction?: {
+      data: unknown;
+      error: { message: string; code?: string } | null;
+    };
   }) => {
-    const predictionsResult = overrides?.predictions ?? { data: [mockPrediction], error: null };
-    const predictorsResult = overrides?.predictors ?? { data: mockPredictors, error: null };
-    const signalsResult = overrides?.signals ?? { data: mockSignals, error: null };
-    const singlePredResult = overrides?.singlePrediction ?? { data: mockPrediction, error: null };
+    const predictionsResult = overrides?.predictions ?? {
+      data: [mockPrediction],
+      error: null,
+    };
+    const predictorsResult = overrides?.predictors ?? {
+      data: mockPredictors,
+      error: null,
+    };
+    const signalsResult = overrides?.signals ?? {
+      data: mockSignals,
+      error: null,
+    };
+    const singlePredResult = overrides?.singlePrediction ?? {
+      data: mockPrediction,
+      error: null,
+    };
 
-    let queryCount = 0;
+    let _queryCount = 0;
     let predictorQueryCount = 0;
-    let signalQueryCount = 0;
+    let _signalQueryCount = 0;
 
     const createChain = (fromTable: string) => {
       const chainableResult: Record<string, unknown> = {
@@ -95,7 +130,7 @@ describe('MissInvestigationService', () => {
         single: jest.fn(),
         then: (resolve: (v: unknown) => void) => {
           if (fromTable === 'predictions') {
-            queryCount++;
+            _queryCount++;
             return resolve(predictionsResult);
           } else if (fromTable === 'predictors') {
             predictorQueryCount++;
@@ -107,7 +142,7 @@ describe('MissInvestigationService', () => {
               return resolve({ data: mockUnusedPredictors, error: null });
             }
           } else if (fromTable === 'signals') {
-            signalQueryCount++;
+            _signalQueryCount++;
             return resolve(signalsResult);
           }
           return resolve({ data: [], error: null });
@@ -133,7 +168,9 @@ describe('MissInvestigationService', () => {
 
     return {
       schema: jest.fn().mockReturnValue({
-        from: jest.fn().mockImplementation((table: string) => createChain(table)),
+        from: jest
+          .fn()
+          .mockImplementation((table: string) => createChain(table)),
       }),
     };
   };
@@ -190,7 +227,9 @@ describe('MissInvestigationService', () => {
       const mockClient = createMockClient({
         predictions: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await service.identifyMisses('2024-01-01');
 
@@ -201,7 +240,9 @@ describe('MissInvestigationService', () => {
       const mockClient = createMockClient({
         predictions: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(service.identifyMisses('2024-01-01')).rejects.toBeDefined();
     });
@@ -217,9 +258,14 @@ describe('MissInvestigationService', () => {
 
     it('should return null for non-existent prediction', async () => {
       const mockClient = createMockClient({
-        singlePrediction: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        singlePrediction: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await service.investigateMissById('nonexistent');
 
@@ -228,9 +274,14 @@ describe('MissInvestigationService', () => {
 
     it('should return null for prediction without outcome', async () => {
       const mockClient = createMockClient({
-        singlePrediction: { data: { ...mockPrediction, outcome_value: null }, error: null },
+        singlePrediction: {
+          data: { ...mockPrediction, outcome_value: null },
+          error: null,
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await service.investigateMissById('pred-123');
 
@@ -240,9 +291,14 @@ describe('MissInvestigationService', () => {
     it('should return null for correct prediction (not a miss)', async () => {
       // Predicted up, outcome positive = correct
       const mockClient = createMockClient({
-        singlePrediction: { data: { ...mockPrediction, outcome_value: 5 }, error: null },
+        singlePrediction: {
+          data: { ...mockPrediction, outcome_value: 5 },
+          error: null,
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await service.investigateMissById('pred-123');
 
@@ -283,7 +339,9 @@ describe('MissInvestigationService', () => {
       );
 
       // When unused predictors would have helped, level should be 'predictor'
-      expect(['predictor', 'signal', 'source', 'unpredictable']).toContain(result.investigationLevel);
+      expect(['predictor', 'signal', 'source', 'unpredictable']).toContain(
+        result.investigationLevel,
+      );
     });
 
     it('should generate suggested learning when unused predictors found', async () => {
@@ -312,7 +370,11 @@ describe('MissInvestigationService', () => {
           id: 'inv-1',
           prediction: mockPrediction as never,
           missType: 'direction_wrong' as const,
-          predicted: { direction: 'up' as const, magnitude: 'medium', confidence: 0.8 },
+          predicted: {
+            direction: 'up' as const,
+            magnitude: 'medium',
+            confidence: 0.8,
+          },
           actual: { direction: 'down' as const, magnitude: 5 },
           investigationLevel: 'predictor' as const,
           unusedPredictors: [],
@@ -323,7 +385,11 @@ describe('MissInvestigationService', () => {
           id: 'inv-2',
           prediction: mockPrediction as never,
           missType: 'missed_opportunity' as const,
-          predicted: { direction: 'flat' as const, magnitude: 'small', confidence: 0.6 },
+          predicted: {
+            direction: 'flat' as const,
+            magnitude: 'small',
+            confidence: 0.6,
+          },
           actual: { direction: 'up' as const, magnitude: 3 },
           investigationLevel: 'signal' as const,
           unusedPredictors: [],
@@ -332,7 +398,10 @@ describe('MissInvestigationService', () => {
         },
       ];
 
-      const result = await service.generateDailySummary('2024-01-01', investigations);
+      const result = await service.generateDailySummary(
+        '2024-01-01',
+        investigations,
+      );
 
       expect(result.date).toBe('2024-01-01');
       expect(result.totalMisses).toBe(2);
@@ -356,7 +425,11 @@ describe('MissInvestigationService', () => {
           id: 'inv-1',
           prediction: mockPrediction as never,
           missType: 'direction_wrong' as const,
-          predicted: { direction: 'up' as const, magnitude: 'medium', confidence: 0.8 },
+          predicted: {
+            direction: 'up' as const,
+            magnitude: 'medium',
+            confidence: 0.8,
+          },
           actual: { direction: 'down' as const, magnitude: 5 },
           investigationLevel: 'source' as const,
           unusedPredictors: [],
@@ -367,7 +440,11 @@ describe('MissInvestigationService', () => {
             signalsWeHad: [],
             signalTypesNeeded: ['earnings_report'],
             suggestedSources: [
-              { name: 'SEC EDGAR', type: 'sec_filing' as const, description: 'Filing source' },
+              {
+                name: 'SEC EDGAR',
+                type: 'sec_filing' as const,
+                description: 'Filing source',
+              },
             ],
             predictability: 'predictable' as const,
             reasoning: 'Test',
@@ -375,7 +452,10 @@ describe('MissInvestigationService', () => {
         },
       ];
 
-      const result = await service.generateDailySummary('2024-01-01', investigations);
+      const result = await service.generateDailySummary(
+        '2024-01-01',
+        investigations,
+      );
 
       expect(result.topSourceGaps.length).toBeGreaterThanOrEqual(0);
     });
@@ -391,7 +471,9 @@ describe('MissInvestigationService', () => {
       const mockClient = createMockClient({
         predictions: { data: [flatPrediction], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await service.identifyMisses('2024-01-01');
 
@@ -409,7 +491,9 @@ describe('MissInvestigationService', () => {
       const mockClient = createMockClient({
         predictions: { data: [falsePosPreiction], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await service.identifyMisses('2024-01-01');
 

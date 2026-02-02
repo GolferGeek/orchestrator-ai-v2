@@ -26,10 +26,13 @@ describe('TargetRepository', () => {
   };
 
   const createMockClient = (overrides?: {
-    single?: { data: unknown | null; error: { message: string; code?: string } | null };
+    single?: {
+      data: unknown;
+      error: { message: string; code?: string } | null;
+    };
     list?: { data: unknown[] | null; error: { message: string } | null };
-    insert?: { data: unknown | null; error: { message: string } | null };
-    update?: { data: unknown | null; error: { message: string } | null };
+    insert?: { data: unknown; error: { message: string } | null };
+    update?: { data: unknown; error: { message: string } | null };
     delete?: { error: { message: string } | null };
   }) => {
     const singleResult = overrides?.single ?? { data: mockTarget, error: null };
@@ -131,7 +134,9 @@ describe('TargetRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findAll('universe-123');
 
@@ -142,7 +147,9 @@ describe('TargetRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findAll('universe-123')).rejects.toThrow(
         'Failed to fetch targets: Query failed',
@@ -159,9 +166,14 @@ describe('TargetRepository', () => {
 
     it('should return null when target not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('nonexistent');
 
@@ -172,7 +184,9 @@ describe('TargetRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findById('target-123')).rejects.toThrow(
         'Failed to fetch target: Database error',
@@ -189,11 +203,18 @@ describe('TargetRepository', () => {
 
     it('should throw NotFoundException when target not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(repository.findByIdOrThrow('nonexistent')).rejects.toThrow(NotFoundException);
+      await expect(repository.findByIdOrThrow('nonexistent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -206,9 +227,14 @@ describe('TargetRepository', () => {
 
     it('should return null when target not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findBySymbol('universe-123', 'INVALID');
 
@@ -219,11 +245,13 @@ describe('TargetRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.findBySymbol('universe-123', 'AAPL')).rejects.toThrow(
-        'Failed to fetch target by symbol: Database error',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.findBySymbol('universe-123', 'AAPL'),
+      ).rejects.toThrow('Failed to fetch target by symbol: Database error');
     });
   });
 
@@ -261,7 +289,9 @@ describe('TargetRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.create({
@@ -277,7 +307,9 @@ describe('TargetRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: { message: 'Insert failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.create({
@@ -292,7 +324,9 @@ describe('TargetRepository', () => {
 
   describe('update', () => {
     it('should update target successfully', async () => {
-      const result = await repository.update('target-123', { name: 'Updated Name' });
+      const result = await repository.update('target-123', {
+        name: 'Updated Name',
+      });
 
       expect(result).toEqual(mockTarget);
     });
@@ -313,22 +347,26 @@ describe('TargetRepository', () => {
       const mockClient = createMockClient({
         update: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.update('target-123', { name: 'Updated' })).rejects.toThrow(
-        'Update succeeded but no target returned',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.update('target-123', { name: 'Updated' }),
+      ).rejects.toThrow('Update succeeded but no target returned');
     });
 
     it('should throw error on update failure', async () => {
       const mockClient = createMockClient({
         update: { data: null, error: { message: 'Update failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.update('target-123', { name: 'Updated' })).rejects.toThrow(
-        'Failed to update target: Update failed',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.update('target-123', { name: 'Updated' }),
+      ).rejects.toThrow('Failed to update target: Update failed');
     });
   });
 
@@ -343,22 +381,26 @@ describe('TargetRepository', () => {
       const mockClient = createMockClient({
         update: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.updateCurrentPrice('target-123', 155.0)).rejects.toThrow(
-        'Update succeeded but no target returned',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.updateCurrentPrice('target-123', 155.0),
+      ).rejects.toThrow('Update succeeded but no target returned');
     });
 
     it('should throw error on update failure', async () => {
       const mockClient = createMockClient({
         update: { data: null, error: { message: 'Update failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.updateCurrentPrice('target-123', 155.0)).rejects.toThrow(
-        'Failed to update target current price: Update failed',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.updateCurrentPrice('target-123', 155.0),
+      ).rejects.toThrow('Failed to update target current price: Update failed');
     });
   });
 
@@ -371,7 +413,9 @@ describe('TargetRepository', () => {
       const mockClient = createMockClient({
         delete: { error: { message: 'Delete failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.delete('target-123')).rejects.toThrow(
         'Failed to delete target: Delete failed',
@@ -390,7 +434,9 @@ describe('TargetRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findActiveByUniverse('universe-123');
 
@@ -401,11 +447,13 @@ describe('TargetRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.findActiveByUniverse('universe-123')).rejects.toThrow(
-        'Failed to fetch active targets: Query failed',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.findActiveByUniverse('universe-123'),
+      ).rejects.toThrow('Failed to fetch active targets: Query failed');
     });
   });
 
@@ -420,7 +468,9 @@ describe('TargetRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findAllActive();
 
@@ -431,7 +481,9 @@ describe('TargetRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findAllActive()).rejects.toThrow(
         'Failed to fetch all active targets: Query failed',
@@ -448,7 +500,9 @@ describe('TargetRepository', () => {
         const mockClient = createMockClient({
           single: { data: targetWithType, error: null },
         });
-        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+          mockClient,
+        );
 
         const result = await repository.findById('target-123');
 

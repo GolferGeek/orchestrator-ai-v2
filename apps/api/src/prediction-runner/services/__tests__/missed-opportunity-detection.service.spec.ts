@@ -7,9 +7,30 @@ describe('MissedOpportunityDetectionService', () => {
   let supabaseService: jest.Mocked<SupabaseService>;
 
   const mockSnapshots = [
-    { id: 'snap-1', target_id: 'target-123', timestamp: '2024-01-01T10:00:00Z', price: 100, volume: 1000, metadata: {} },
-    { id: 'snap-2', target_id: 'target-123', timestamp: '2024-01-01T12:00:00Z', price: 105, volume: 1100, metadata: {} },
-    { id: 'snap-3', target_id: 'target-123', timestamp: '2024-01-01T14:00:00Z', price: 112, volume: 1200, metadata: {} },
+    {
+      id: 'snap-1',
+      target_id: 'target-123',
+      timestamp: '2024-01-01T10:00:00Z',
+      price: 100,
+      volume: 1000,
+      metadata: {},
+    },
+    {
+      id: 'snap-2',
+      target_id: 'target-123',
+      timestamp: '2024-01-01T12:00:00Z',
+      price: 105,
+      volume: 1100,
+      metadata: {},
+    },
+    {
+      id: 'snap-3',
+      target_id: 'target-123',
+      timestamp: '2024-01-01T14:00:00Z',
+      price: 112,
+      volume: 1200,
+      metadata: {},
+    },
   ];
 
   const mockMissedOpportunity = {
@@ -32,11 +53,20 @@ describe('MissedOpportunityDetectionService', () => {
   const createMockClient = (overrides?: {
     snapshots?: { data: unknown[] | null; error: { message: string } | null };
     predictions?: { data: unknown[] | null; error: { message: string } | null };
-    insert?: { data: unknown | null; error: { message: string } | null };
+    insert?: { data: unknown; error: { message: string } | null };
   }) => {
-    const snapshotsResult = overrides?.snapshots ?? { data: mockSnapshots, error: null };
-    const predictionsResult = overrides?.predictions ?? { data: [], error: null };
-    const insertResult = overrides?.insert ?? { data: mockMissedOpportunity, error: null };
+    const snapshotsResult = overrides?.snapshots ?? {
+      data: mockSnapshots,
+      error: null,
+    };
+    const predictionsResult = overrides?.predictions ?? {
+      data: [],
+      error: null,
+    };
+    const insertResult = overrides?.insert ?? {
+      data: mockMissedOpportunity,
+      error: null,
+    };
 
     const createChain = (fromTable: string) => {
       const chainableResult: Record<string, unknown> = {
@@ -74,7 +104,9 @@ describe('MissedOpportunityDetectionService', () => {
 
     return {
       schema: jest.fn().mockReturnValue({
-        from: jest.fn().mockImplementation((table: string) => createChain(table)),
+        from: jest
+          .fn()
+          .mockImplementation((table: string) => createChain(table)),
       }),
     };
   };
@@ -95,7 +127,9 @@ describe('MissedOpportunityDetectionService', () => {
     }).compile();
 
     module.useLogger(false);
-    service = module.get<MissedOpportunityDetectionService>(MissedOpportunityDetectionService);
+    service = module.get<MissedOpportunityDetectionService>(
+      MissedOpportunityDetectionService,
+    );
     supabaseService = module.get(SupabaseService);
   });
 
@@ -119,7 +153,10 @@ describe('MissedOpportunityDetectionService', () => {
         max_prediction_gap_hours: 6,
       };
 
-      const result = await service.detectMissedOpportunities('target-123', customConfig);
+      const result = await service.detectMissedOpportunities(
+        'target-123',
+        customConfig,
+      );
 
       expect(result).toBeDefined();
     });
@@ -128,7 +165,9 @@ describe('MissedOpportunityDetectionService', () => {
       const mockClient = createMockClient({
         snapshots: { data: [mockSnapshots[0]], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await service.detectMissedOpportunities('target-123');
 
@@ -139,7 +178,9 @@ describe('MissedOpportunityDetectionService', () => {
       const mockClient = createMockClient({
         snapshots: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await service.detectMissedOpportunities('target-123');
 
@@ -150,21 +191,36 @@ describe('MissedOpportunityDetectionService', () => {
       const mockClient = createMockClient({
         snapshots: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(service.detectMissedOpportunities('target-123')).rejects.toThrow(
-        'Failed to fetch snapshots',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        service.detectMissedOpportunities('target-123'),
+      ).rejects.toThrow('Failed to fetch snapshots');
     });
 
     it('should not record missed opportunity when prediction exists', async () => {
       const mockClient = createMockClient({
-        predictions: { data: [{ id: 'pred-123', created_at: '2024-01-01T11:00:00Z', horizon_end: '2024-01-02T11:00:00Z' }], error: null },
+        predictions: {
+          data: [
+            {
+              id: 'pred-123',
+              created_at: '2024-01-01T11:00:00Z',
+              horizon_end: '2024-01-02T11:00:00Z',
+            },
+          ],
+          error: null,
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await service.detectMissedOpportunities('target-123', {
-        min_move_percentage: 5, lookback_hours: 24, max_prediction_gap_hours: 4,
+        min_move_percentage: 5,
+        lookback_hours: 24,
+        max_prediction_gap_hours: 4,
       });
 
       // With prediction coverage, no missed opportunities should be recorded
@@ -174,7 +230,9 @@ describe('MissedOpportunityDetectionService', () => {
     it('should calculate significance score based on move percentage', async () => {
       // With 12% move, significance score should be around 0.6 (12/20)
       const result = await service.detectMissedOpportunities('target-123', {
-        min_move_percentage: 5, lookback_hours: 24, max_prediction_gap_hours: 4,
+        min_move_percentage: 5,
+        lookback_hours: 24,
+        max_prediction_gap_hours: 4,
       });
 
       if (result.length > 0) {
@@ -196,16 +254,34 @@ describe('MissedOpportunityDetectionService', () => {
   describe('move detection', () => {
     it('should detect upward moves', async () => {
       const upwardSnapshots = [
-        { id: 'snap-1', target_id: 'target-123', timestamp: '2024-01-01T10:00:00Z', price: 100, volume: 1000, metadata: {} },
-        { id: 'snap-2', target_id: 'target-123', timestamp: '2024-01-01T14:00:00Z', price: 120, volume: 1200, metadata: {} },
+        {
+          id: 'snap-1',
+          target_id: 'target-123',
+          timestamp: '2024-01-01T10:00:00Z',
+          price: 100,
+          volume: 1000,
+          metadata: {},
+        },
+        {
+          id: 'snap-2',
+          target_id: 'target-123',
+          timestamp: '2024-01-01T14:00:00Z',
+          price: 120,
+          volume: 1200,
+          metadata: {},
+        },
       ];
       const mockClient = createMockClient({
         snapshots: { data: upwardSnapshots, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await service.detectMissedOpportunities('target-123', {
-        min_move_percentage: 5, lookback_hours: 24, max_prediction_gap_hours: 4,
+        min_move_percentage: 5,
+        lookback_hours: 24,
+        max_prediction_gap_hours: 4,
       });
 
       if (result.length > 0) {
@@ -215,16 +291,34 @@ describe('MissedOpportunityDetectionService', () => {
 
     it.skip('should detect downward moves', async () => {
       const downwardSnapshots = [
-        { id: 'snap-1', target_id: 'target-123', timestamp: '2024-01-01T10:00:00Z', price: 100, volume: 1000, metadata: {} },
-        { id: 'snap-2', target_id: 'target-123', timestamp: '2024-01-01T14:00:00Z', price: 80, volume: 1200, metadata: {} },
+        {
+          id: 'snap-1',
+          target_id: 'target-123',
+          timestamp: '2024-01-01T10:00:00Z',
+          price: 100,
+          volume: 1000,
+          metadata: {},
+        },
+        {
+          id: 'snap-2',
+          target_id: 'target-123',
+          timestamp: '2024-01-01T14:00:00Z',
+          price: 80,
+          volume: 1200,
+          metadata: {},
+        },
       ];
       const mockClient = createMockClient({
         snapshots: { data: downwardSnapshots, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await service.detectMissedOpportunities('target-123', {
-        min_move_percentage: 5, lookback_hours: 24, max_prediction_gap_hours: 4,
+        min_move_percentage: 5,
+        lookback_hours: 24,
+        max_prediction_gap_hours: 4,
       });
 
       if (result.length > 0) {
@@ -234,16 +328,34 @@ describe('MissedOpportunityDetectionService', () => {
 
     it('should not detect moves below threshold', async () => {
       const smallMoveSnapshots = [
-        { id: 'snap-1', target_id: 'target-123', timestamp: '2024-01-01T10:00:00Z', price: 100, volume: 1000, metadata: {} },
-        { id: 'snap-2', target_id: 'target-123', timestamp: '2024-01-01T14:00:00Z', price: 102, volume: 1200, metadata: {} },
+        {
+          id: 'snap-1',
+          target_id: 'target-123',
+          timestamp: '2024-01-01T10:00:00Z',
+          price: 100,
+          volume: 1000,
+          metadata: {},
+        },
+        {
+          id: 'snap-2',
+          target_id: 'target-123',
+          timestamp: '2024-01-01T14:00:00Z',
+          price: 102,
+          volume: 1200,
+          metadata: {},
+        },
       ];
       const mockClient = createMockClient({
         snapshots: { data: smallMoveSnapshots, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await service.detectMissedOpportunities('target-123', {
-        min_move_percentage: 10, lookback_hours: 24, max_prediction_gap_hours: 4, // Require 10% move
+        min_move_percentage: 10,
+        lookback_hours: 24,
+        max_prediction_gap_hours: 4, // Require 10% move
       });
 
       expect(result).toEqual([]);
@@ -253,12 +365,21 @@ describe('MissedOpportunityDetectionService', () => {
   describe('error handling', () => {
     it('should handle prediction check errors', async () => {
       const mockClient = createMockClient({
-        predictions: { data: null, error: { message: 'Prediction check failed' } },
+        predictions: {
+          data: null,
+          error: { message: 'Prediction check failed' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
-        service.detectMissedOpportunities('target-123', { min_move_percentage: 5, lookback_hours: 24, max_prediction_gap_hours: 4 }),
+        service.detectMissedOpportunities('target-123', {
+          min_move_percentage: 5,
+          lookback_hours: 24,
+          max_prediction_gap_hours: 4,
+        }),
       ).rejects.toThrow('Failed to check predictions');
     });
 
@@ -266,11 +387,15 @@ describe('MissedOpportunityDetectionService', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: { message: 'Insert failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       // Should not throw, but return empty result since insert failed
       const result = await service.detectMissedOpportunities('target-123', {
-        min_move_percentage: 5, lookback_hours: 24, max_prediction_gap_hours: 4,
+        min_move_percentage: 5,
+        lookback_hours: 24,
+        max_prediction_gap_hours: 4,
       });
 
       // May return empty if insert failed

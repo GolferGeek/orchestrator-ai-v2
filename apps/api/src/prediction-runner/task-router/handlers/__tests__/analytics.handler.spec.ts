@@ -624,7 +624,9 @@ describe('AnalyticsHandler', () => {
     });
 
     it('should return promotion funnel data', async () => {
-      analyticsService.getPromotionFunnel.mockResolvedValue(mockPromotionFunnel);
+      analyticsService.getPromotionFunnel.mockResolvedValue(
+        mockPromotionFunnel,
+      );
 
       const payload: DashboardRequestPayload = {
         action: 'promotion-funnel',
@@ -727,7 +729,9 @@ describe('AnalyticsHandler', () => {
     });
 
     it('should handle mixed case action names', async () => {
-      analyticsService.getPromotionFunnel.mockResolvedValue(mockPromotionFunnel);
+      analyticsService.getPromotionFunnel.mockResolvedValue(
+        mockPromotionFunnel,
+      );
 
       const payload: DashboardRequestPayload = {
         action: 'Promotion-Funnel',

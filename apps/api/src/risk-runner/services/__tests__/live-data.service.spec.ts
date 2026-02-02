@@ -1,5 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { LiveDataService, DataSource, CreateDataSourceParams } from '../live-data.service';
+import {
+  LiveDataService,
+  DataSource,
+  CreateDataSourceParams,
+} from '../live-data.service';
 import { SupabaseService } from '@/supabase/supabase.service';
 
 describe('LiveDataService', () => {
@@ -39,7 +43,9 @@ describe('LiveDataService', () => {
     };
 
     const chain: Record<string, jest.Mock> = {};
-    chain.single = jest.fn().mockResolvedValue(overrides?.single ?? defaultResult);
+    chain.single = jest
+      .fn()
+      .mockResolvedValue(overrides?.single ?? defaultResult);
     chain.limit = jest.fn().mockReturnValue(chain);
     chain.range = jest.fn().mockReturnValue(chain);
     chain.order = jest.fn().mockReturnValue(chain);
@@ -131,7 +137,9 @@ describe('LiveDataService', () => {
         config: { endpoint: 'https://api.example.com', method: 'GET' },
         description: 'Test description',
         schedule: 'daily',
-        dimensionMapping: { field1: { sourceField: 'value', transform: 'normalize' } },
+        dimensionMapping: {
+          field1: { sourceField: 'value', transform: 'normalize' },
+        },
         subjectFilter: { subjectTypes: ['stock'] },
         autoReanalyze: false,
         reanalyzeThreshold: 0.2,
@@ -145,7 +153,9 @@ describe('LiveDataService', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Insert failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const params: CreateDataSourceParams = {
         scopeId: 'scope-123',
@@ -168,9 +178,14 @@ describe('LiveDataService', () => {
 
     it('should return null when not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { code: 'PGRST116', message: 'Not found' } },
+        single: {
+          data: null,
+          error: { code: 'PGRST116', message: 'Not found' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await service.getDataSource('nonexistent');
       expect(result).toBeNull();
@@ -185,7 +200,9 @@ describe('LiveDataService', () => {
         data: [mockDataSource],
         error: null,
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await service.listDataSources('scope-123');
       expect(Array.isArray(result)).toBe(true);
@@ -233,7 +250,9 @@ describe('LiveDataService', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Update failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         service.updateDataSource('ds-123', { name: 'New Name' }),
@@ -250,7 +269,9 @@ describe('LiveDataService', () => {
       const mockClient = createMockClient({
         delete: { error: { message: 'Delete failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(service.deleteDataSource('ds-123')).rejects.toThrow(
         'Failed to delete data source',
@@ -263,7 +284,9 @@ describe('LiveDataService', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { code: 'PGRST116' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(service.fetchData('nonexistent')).rejects.toThrow(
         'Data source not found',
@@ -276,7 +299,9 @@ describe('LiveDataService', () => {
       const mockClient = createMockClient({
         single: { data: mockDataSource, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       // Will fail due to subsequent DB operations, but we verify it tries to fetch
       try {
@@ -308,7 +333,9 @@ describe('LiveDataService', () => {
         ],
         error: null,
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await service.getFetchHistory('ds-123');
       expect(Array.isArray(result)).toBe(true);
@@ -328,7 +355,9 @@ describe('LiveDataService', () => {
         data: [mockDataSource],
         error: null,
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await service.getSourcesDueForFetch();
       expect(Array.isArray(result)).toBe(true);
@@ -349,7 +378,9 @@ describe('LiveDataService', () => {
         data: sources,
         error: null,
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await service.getHealthSummary('scope-123');
 

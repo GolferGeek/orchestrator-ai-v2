@@ -41,12 +41,15 @@ describe('CrawlerSourceRepository', () => {
   };
 
   const createMockClient = (overrides?: {
-    single?: { data: unknown | null; error: { message: string; code?: string } | null };
-    list?: { data: unknown[] | null; error: { message: string } | null };
-    insert?: { data: unknown | null; error: { message: string } | null };
-    update?: { data: unknown | null; error: { message: string } | null };
+    single?: {
+      data: unknown;
+      error: { message: string; code?: string } | null;
+    };
+    list?: { data: unknown; error: { message: string } | null };
+    insert?: { data: unknown; error: { message: string } | null };
+    update?: { data: unknown; error: { message: string } | null };
     delete?: { error: { message: string } | null };
-    rpc?: { data: unknown[] | null; error: { message: string } | null };
+    rpc?: { data: unknown; error: { message: string } | null };
   }) => {
     const singleResult = overrides?.single ?? { data: mockSource, error: null };
     const listResult = overrides?.list ?? { data: [mockSource], error: null };
@@ -151,7 +154,9 @@ describe('CrawlerSourceRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findAll('test-org');
 
@@ -162,7 +167,9 @@ describe('CrawlerSourceRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findAll('test-org')).rejects.toThrow(
         'Failed to fetch sources: Query failed',
@@ -179,9 +186,14 @@ describe('CrawlerSourceRepository', () => {
 
     it('should return null when source not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('nonexistent');
 
@@ -192,7 +204,9 @@ describe('CrawlerSourceRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findById('source-123')).rejects.toThrow(
         'Failed to fetch source: Database error',
@@ -209,28 +223,46 @@ describe('CrawlerSourceRepository', () => {
 
     it('should throw NotFoundException when source not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(repository.findByIdOrThrow('nonexistent')).rejects.toThrow(NotFoundException);
+      await expect(repository.findByIdOrThrow('nonexistent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
   describe('findByUrl', () => {
     it('should return source when found', async () => {
-      const result = await repository.findByUrl('test-org', 'https://example.com/feed.xml');
+      const result = await repository.findByUrl(
+        'test-org',
+        'https://example.com/feed.xml',
+      );
 
       expect(result).toEqual(mockSource);
     });
 
     it('should return null when source not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.findByUrl('test-org', 'https://nonexistent.com/feed.xml');
+      const result = await repository.findByUrl(
+        'test-org',
+        'https://nonexistent.com/feed.xml',
+      );
 
       expect(result).toBeNull();
     });
@@ -239,11 +271,13 @@ describe('CrawlerSourceRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.findByUrl('test-org', 'https://example.com/feed.xml')).rejects.toThrow(
-        'Failed to fetch source by URL: Database error',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.findByUrl('test-org', 'https://example.com/feed.xml'),
+      ).rejects.toThrow('Failed to fetch source by URL: Database error');
     });
   });
 
@@ -260,12 +294,21 @@ describe('CrawlerSourceRepository', () => {
     });
 
     it('should create new source when URL does not exist', async () => {
-      const newSource = { ...mockSource, id: 'new-source-123', url: 'https://new.com/feed.xml' };
+      const newSource = {
+        ...mockSource,
+        id: 'new-source-123',
+        url: 'https://new.com/feed.xml',
+      };
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
         insert: { data: newSource, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findOrCreate({
         organization_slug: 'test-org',
@@ -295,7 +338,9 @@ describe('CrawlerSourceRepository', () => {
       const mockClient = createMockClient({
         rpc: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findDueForCrawl(15);
 
@@ -306,7 +351,9 @@ describe('CrawlerSourceRepository', () => {
       const mockClient = createMockClient({
         rpc: { data: null, error: { message: 'RPC failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findDueForCrawl(15)).rejects.toThrow(
         'Failed to fetch sources due for crawl: RPC failed',
@@ -325,11 +372,17 @@ describe('CrawlerSourceRepository', () => {
 
   describe('findAllForDashboard', () => {
     it('should return all sources including inactive', async () => {
-      const inactiveSource = { ...mockSource, id: 'inactive-123', is_active: false };
+      const inactiveSource = {
+        ...mockSource,
+        id: 'inactive-123',
+        is_active: false,
+      };
       const mockClient = createMockClient({
         list: { data: [mockSource, inactiveSource], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findAllForDashboard('test-org');
 
@@ -340,7 +393,9 @@ describe('CrawlerSourceRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findAllForDashboard('test-org')).rejects.toThrow(
         'Failed to fetch all sources for dashboard: Query failed',
@@ -366,7 +421,9 @@ describe('CrawlerSourceRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.create({
@@ -382,7 +439,9 @@ describe('CrawlerSourceRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: { message: 'Insert failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.create({
@@ -401,9 +460,13 @@ describe('CrawlerSourceRepository', () => {
       const mockClient = createMockClient({
         update: { data: updatedSource, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.update('source-123', { name: 'Updated Name' });
+      const result = await repository.update('source-123', {
+        name: 'Updated Name',
+      });
 
       expect(result).toEqual(updatedSource);
     });
@@ -412,22 +475,26 @@ describe('CrawlerSourceRepository', () => {
       const mockClient = createMockClient({
         update: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.update('source-123', { name: 'Updated' })).rejects.toThrow(
-        'Update succeeded but no source returned',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.update('source-123', { name: 'Updated' }),
+      ).rejects.toThrow('Update succeeded but no source returned');
     });
 
     it('should throw error on update failure', async () => {
       const mockClient = createMockClient({
         update: { data: null, error: { message: 'Update failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.update('source-123', { name: 'Updated' })).rejects.toThrow(
-        'Failed to update source: Update failed',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.update('source-123', { name: 'Updated' }),
+      ).rejects.toThrow('Failed to update source: Update failed');
     });
   });
 
@@ -440,7 +507,9 @@ describe('CrawlerSourceRepository', () => {
       const mockClient = createMockClient({
         delete: { error: { message: 'Delete failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.delete('source-123')).rejects.toThrow(
         'Failed to delete source: Delete failed',
@@ -450,7 +519,9 @@ describe('CrawlerSourceRepository', () => {
 
   describe('markCrawlSuccess', () => {
     it('should mark crawl as successful', async () => {
-      await expect(repository.markCrawlSuccess('source-123')).resolves.toBeUndefined();
+      await expect(
+        repository.markCrawlSuccess('source-123'),
+      ).resolves.toBeUndefined();
     });
   });
 
@@ -465,9 +536,14 @@ describe('CrawlerSourceRepository', () => {
       const sourceWithErrors = { ...mockSource, consecutive_errors: 2 };
       const mockClient = createMockClient({
         single: { data: sourceWithErrors, error: null },
-        update: { data: { ...sourceWithErrors, consecutive_errors: 3 }, error: null },
+        update: {
+          data: { ...sourceWithErrors, consecutive_errors: 3 },
+          error: null,
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await repository.markCrawlError('source-123', 'Error');
 
@@ -477,18 +553,29 @@ describe('CrawlerSourceRepository', () => {
 
     it('should throw if source not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.markCrawlError('nonexistent', 'Error')).rejects.toThrow(
-        NotFoundException,
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.markCrawlError('nonexistent', 'Error'),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
   describe('source types', () => {
-    const sourceTypes = ['web', 'rss', 'twitter_search', 'api', 'test_db'] as const;
+    const sourceTypes = [
+      'web',
+      'rss',
+      'twitter_search',
+      'api',
+      'test_db',
+    ] as const;
 
     sourceTypes.forEach((sourceType) => {
       it(`should handle ${sourceType} source type`, async () => {
@@ -496,7 +583,9 @@ describe('CrawlerSourceRepository', () => {
         const mockClient = createMockClient({
           single: { data: sourceWithType, error: null },
         });
-        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+          mockClient,
+        );
 
         const result = await repository.findById('source-123');
 
@@ -514,7 +603,9 @@ describe('CrawlerSourceRepository', () => {
         const mockClient = createMockClient({
           single: { data: sourceWithStatus, error: null },
         });
-        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+          mockClient,
+        );
 
         const result = await repository.findById('source-123');
 

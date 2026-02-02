@@ -1,6 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { TestTargetMirrorService } from '../test-target-mirror.service';
-import { TestTargetMirrorRepository, TestTargetMirror } from '../../repositories/test-target-mirror.repository';
+import {
+  TestTargetMirrorRepository,
+  TestTargetMirror,
+} from '../../repositories/test-target-mirror.repository';
 import { TargetRepository } from '../../repositories/target.repository';
 import { Target } from '../../interfaces/target.interface';
 
@@ -92,17 +95,25 @@ describe('TestTargetMirrorService', () => {
 
   describe('ensureMirror', () => {
     it('should return existing mirror if already exists', async () => {
-      (testTargetMirrorRepository.findByRealTarget as jest.Mock).mockResolvedValue(mockMirror);
-      (targetRepository.findById as jest.Mock).mockResolvedValue(mockTestTarget);
+      (
+        testTargetMirrorRepository.findByRealTarget as jest.Mock
+      ).mockResolvedValue(mockMirror);
+      (targetRepository.findById as jest.Mock).mockResolvedValue(
+        mockTestTarget,
+      );
 
       const result = await service.ensureMirror('prod-target-123', 'test-org');
 
-      expect(testTargetMirrorRepository.findByRealTarget).toHaveBeenCalledWith('prod-target-123');
+      expect(testTargetMirrorRepository.findByRealTarget).toHaveBeenCalledWith(
+        'prod-target-123',
+      );
       expect(result).toEqual(mockTestTarget);
     });
 
     it('should create mirror if it does not exist', async () => {
-      (testTargetMirrorRepository.findByRealTarget as jest.Mock).mockResolvedValue(null);
+      (
+        testTargetMirrorRepository.findByRealTarget as jest.Mock
+      ).mockResolvedValue(null);
       (targetRepository.findBySymbol as jest.Mock).mockResolvedValue(null);
 
       const result = await service.ensureMirror('prod-target-123', 'test-org');
@@ -118,8 +129,12 @@ describe('TestTargetMirrorService', () => {
     });
 
     it('should use existing test target if found by symbol', async () => {
-      (testTargetMirrorRepository.findByRealTarget as jest.Mock).mockResolvedValue(null);
-      (targetRepository.findBySymbol as jest.Mock).mockResolvedValue(mockTestTarget);
+      (
+        testTargetMirrorRepository.findByRealTarget as jest.Mock
+      ).mockResolvedValue(null);
+      (targetRepository.findBySymbol as jest.Mock).mockResolvedValue(
+        mockTestTarget,
+      );
 
       const result = await service.ensureMirror('prod-target-123', 'test-org');
 
@@ -129,27 +144,35 @@ describe('TestTargetMirrorService', () => {
     });
 
     it('should throw error for test target ID (already a test target)', async () => {
-      (targetRepository.findByIdOrThrow as jest.Mock).mockResolvedValue(mockTestTarget);
-
-      await expect(service.ensureMirror('test-target-123', 'test-org')).rejects.toThrow(
-        'is already a test target',
+      (targetRepository.findByIdOrThrow as jest.Mock).mockResolvedValue(
+        mockTestTarget,
       );
+
+      await expect(
+        service.ensureMirror('test-target-123', 'test-org'),
+      ).rejects.toThrow('is already a test target');
     });
 
     it('should throw error when test target not found for existing mirror', async () => {
-      (testTargetMirrorRepository.findByRealTarget as jest.Mock).mockResolvedValue(mockMirror);
+      (
+        testTargetMirrorRepository.findByRealTarget as jest.Mock
+      ).mockResolvedValue(mockMirror);
       (targetRepository.findById as jest.Mock).mockResolvedValue(null);
 
-      await expect(service.ensureMirror('prod-target-123', 'test-org')).rejects.toThrow(
-        'Test target test-target-123 not found',
-      );
+      await expect(
+        service.ensureMirror('prod-target-123', 'test-org'),
+      ).rejects.toThrow('Test target test-target-123 not found');
     });
   });
 
   describe('getMirror', () => {
     it('should return test target if mirror exists', async () => {
-      (testTargetMirrorRepository.findByRealTarget as jest.Mock).mockResolvedValue(mockMirror);
-      (targetRepository.findById as jest.Mock).mockResolvedValue(mockTestTarget);
+      (
+        testTargetMirrorRepository.findByRealTarget as jest.Mock
+      ).mockResolvedValue(mockMirror);
+      (targetRepository.findById as jest.Mock).mockResolvedValue(
+        mockTestTarget,
+      );
 
       const result = await service.getMirror('prod-target-123');
 
@@ -157,7 +180,9 @@ describe('TestTargetMirrorService', () => {
     });
 
     it('should return null if no mirror exists', async () => {
-      (testTargetMirrorRepository.findByRealTarget as jest.Mock).mockResolvedValue(null);
+      (
+        testTargetMirrorRepository.findByRealTarget as jest.Mock
+      ).mockResolvedValue(null);
 
       const result = await service.getMirror('prod-target-123');
 
@@ -165,7 +190,9 @@ describe('TestTargetMirrorService', () => {
     });
 
     it('should return null if test target not found', async () => {
-      (testTargetMirrorRepository.findByRealTarget as jest.Mock).mockResolvedValue(mockMirror);
+      (
+        testTargetMirrorRepository.findByRealTarget as jest.Mock
+      ).mockResolvedValue(mockMirror);
       (targetRepository.findById as jest.Mock).mockResolvedValue(null);
 
       const result = await service.getMirror('prod-target-123');
@@ -176,8 +203,12 @@ describe('TestTargetMirrorService', () => {
 
   describe('getTestSymbol', () => {
     it('should return test symbol if mirror exists', async () => {
-      (testTargetMirrorRepository.findByRealTarget as jest.Mock).mockResolvedValue(mockMirror);
-      (targetRepository.findById as jest.Mock).mockResolvedValue(mockTestTarget);
+      (
+        testTargetMirrorRepository.findByRealTarget as jest.Mock
+      ).mockResolvedValue(mockMirror);
+      (targetRepository.findById as jest.Mock).mockResolvedValue(
+        mockTestTarget,
+      );
 
       const result = await service.getTestSymbol('prod-target-123');
 
@@ -185,7 +216,9 @@ describe('TestTargetMirrorService', () => {
     });
 
     it('should return null if no mirror exists', async () => {
-      (testTargetMirrorRepository.findByRealTarget as jest.Mock).mockResolvedValue(null);
+      (
+        testTargetMirrorRepository.findByRealTarget as jest.Mock
+      ).mockResolvedValue(null);
 
       const result = await service.getTestSymbol('prod-target-123');
 
@@ -195,8 +228,12 @@ describe('TestTargetMirrorService', () => {
 
   describe('getProductionTarget', () => {
     it('should return production target from test target ID', async () => {
-      (testTargetMirrorRepository.findByTestTarget as jest.Mock).mockResolvedValue(mockMirror);
-      (targetRepository.findById as jest.Mock).mockResolvedValue(mockProductionTarget);
+      (
+        testTargetMirrorRepository.findByTestTarget as jest.Mock
+      ).mockResolvedValue(mockMirror);
+      (targetRepository.findById as jest.Mock).mockResolvedValue(
+        mockProductionTarget,
+      );
 
       const result = await service.getProductionTarget('test-target-123');
 
@@ -204,7 +241,9 @@ describe('TestTargetMirrorService', () => {
     });
 
     it('should return null if no mirror exists', async () => {
-      (testTargetMirrorRepository.findByTestTarget as jest.Mock).mockResolvedValue(null);
+      (
+        testTargetMirrorRepository.findByTestTarget as jest.Mock
+      ).mockResolvedValue(null);
 
       const result = await service.getProductionTarget('test-target-123');
 
@@ -214,20 +253,35 @@ describe('TestTargetMirrorService', () => {
 
   describe('getProductionTargetBySymbol', () => {
     it('should return production target from test symbol', async () => {
-      (targetRepository.findBySymbol as jest.Mock).mockResolvedValue(mockTestTarget);
-      (testTargetMirrorRepository.findByTestTarget as jest.Mock).mockResolvedValue(mockMirror);
-      (targetRepository.findById as jest.Mock).mockResolvedValue(mockProductionTarget);
+      (targetRepository.findBySymbol as jest.Mock).mockResolvedValue(
+        mockTestTarget,
+      );
+      (
+        testTargetMirrorRepository.findByTestTarget as jest.Mock
+      ).mockResolvedValue(mockMirror);
+      (targetRepository.findById as jest.Mock).mockResolvedValue(
+        mockProductionTarget,
+      );
 
-      const result = await service.getProductionTargetBySymbol('universe-123', 'T_AAPL');
+      const result = await service.getProductionTargetBySymbol(
+        'universe-123',
+        'T_AAPL',
+      );
 
-      expect(targetRepository.findBySymbol).toHaveBeenCalledWith('universe-123', 'T_AAPL');
+      expect(targetRepository.findBySymbol).toHaveBeenCalledWith(
+        'universe-123',
+        'T_AAPL',
+      );
       expect(result).toEqual(mockProductionTarget);
     });
 
     it('should return null if test target not found', async () => {
       (targetRepository.findBySymbol as jest.Mock).mockResolvedValue(null);
 
-      const result = await service.getProductionTargetBySymbol('universe-123', 'T_AAPL');
+      const result = await service.getProductionTargetBySymbol(
+        'universe-123',
+        'T_AAPL',
+      );
 
       expect(result).toBeNull();
     });
@@ -241,7 +295,9 @@ describe('TestTargetMirrorService', () => {
 
   describe('listMirrors', () => {
     it('should return list of mirrors with targets', async () => {
-      (testTargetMirrorRepository.findAll as jest.Mock).mockResolvedValue([mockMirror]);
+      (testTargetMirrorRepository.findAll as jest.Mock).mockResolvedValue([
+        mockMirror,
+      ]);
       (targetRepository.findById as jest.Mock)
         .mockResolvedValueOnce(mockProductionTarget)
         .mockResolvedValueOnce(mockTestTarget);
@@ -255,7 +311,9 @@ describe('TestTargetMirrorService', () => {
     });
 
     it('should filter out mirrors with missing production targets', async () => {
-      (testTargetMirrorRepository.findAll as jest.Mock).mockResolvedValue([mockMirror]);
+      (testTargetMirrorRepository.findAll as jest.Mock).mockResolvedValue([
+        mockMirror,
+      ]);
       (targetRepository.findById as jest.Mock).mockResolvedValue(null);
 
       const result = await service.listMirrors();
@@ -276,7 +334,9 @@ describe('TestTargetMirrorService', () => {
     it('should delete mirror mapping', async () => {
       await service.deleteMirror('mirror-123');
 
-      expect(testTargetMirrorRepository.delete).toHaveBeenCalledWith('mirror-123');
+      expect(testTargetMirrorRepository.delete).toHaveBeenCalledWith(
+        'mirror-123',
+      );
     });
   });
 
@@ -320,8 +380,12 @@ describe('TestTargetMirrorService', () => {
         ...mockProductionTarget,
         context: null,
       };
-      (targetRepository.findByIdOrThrow as jest.Mock).mockResolvedValue(targetWithNullContext);
-      (testTargetMirrorRepository.findByRealTarget as jest.Mock).mockResolvedValue(null);
+      (targetRepository.findByIdOrThrow as jest.Mock).mockResolvedValue(
+        targetWithNullContext,
+      );
+      (
+        testTargetMirrorRepository.findByRealTarget as jest.Mock
+      ).mockResolvedValue(null);
       (targetRepository.findBySymbol as jest.Mock).mockResolvedValue(null);
 
       await service.ensureMirror('prod-target-123', 'test-org');
@@ -338,8 +402,12 @@ describe('TestTargetMirrorService', () => {
         ...mockProductionTarget,
         is_active: false,
       };
-      (targetRepository.findByIdOrThrow as jest.Mock).mockResolvedValue(inactiveTarget);
-      (testTargetMirrorRepository.findByRealTarget as jest.Mock).mockResolvedValue(null);
+      (targetRepository.findByIdOrThrow as jest.Mock).mockResolvedValue(
+        inactiveTarget,
+      );
+      (
+        testTargetMirrorRepository.findByRealTarget as jest.Mock
+      ).mockResolvedValue(null);
       (targetRepository.findBySymbol as jest.Mock).mockResolvedValue(null);
 
       await service.ensureMirror('prod-target-123', 'test-org');
@@ -352,7 +420,9 @@ describe('TestTargetMirrorService', () => {
     });
 
     it('should include proper metadata in created test target', async () => {
-      (testTargetMirrorRepository.findByRealTarget as jest.Mock).mockResolvedValue(null);
+      (
+        testTargetMirrorRepository.findByRealTarget as jest.Mock
+      ).mockResolvedValue(null);
       (targetRepository.findBySymbol as jest.Mock).mockResolvedValue(null);
 
       await service.ensureMirror('prod-target-123', 'test-org');

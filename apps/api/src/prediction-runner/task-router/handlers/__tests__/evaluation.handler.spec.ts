@@ -47,9 +47,9 @@ describe('EvaluationHandler', () => {
     timeframe_hours: 24,
     predicted_at: '2024-01-15T09:00:00Z',
     expires_at: '2024-01-16T09:00:00Z',
-    entry_price: 185.50,
-    target_price: 190.00,
-    stop_loss: 182.00,
+    entry_price: 185.5,
+    target_price: 190.0,
+    stop_loss: 182.0,
     analyst_ensemble: { 'technical-tina': 0.6, 'sentiment-sam': 0.4 },
     llm_ensemble: { claude: 0.5, gpt: 0.5 },
     status: 'resolved',
@@ -164,7 +164,11 @@ describe('EvaluationHandler', () => {
     it('should filter by fromDate', async () => {
       const predictions = [
         { ...mockPrediction, predicted_at: '2024-01-20T09:00:00Z' },
-        { ...mockPrediction, id: 'pred-2', predicted_at: '2024-01-05T09:00:00Z' },
+        {
+          ...mockPrediction,
+          id: 'pred-2',
+          predicted_at: '2024-01-05T09:00:00Z',
+        },
       ];
       predictionRepository.findByTarget.mockResolvedValue(predictions);
 
@@ -185,7 +189,11 @@ describe('EvaluationHandler', () => {
     it('should filter by toDate', async () => {
       const predictions = [
         { ...mockPrediction, predicted_at: '2024-01-10T09:00:00Z' },
-        { ...mockPrediction, id: 'pred-2', predicted_at: '2024-01-25T09:00:00Z' },
+        {
+          ...mockPrediction,
+          id: 'pred-2',
+          predicted_at: '2024-01-25T09:00:00Z',
+        },
       ];
       predictionRepository.findByTarget.mockResolvedValue(predictions);
 

@@ -5,12 +5,15 @@ import {
   PriceDataPoint,
 } from '../test-price-data-router.service';
 import { TestPriceDataService } from '../test-price-data.service';
-import { TestPriceDataRepository, TestPriceData } from '../../repositories/test-price-data.repository';
+import {
+  TestPriceDataRepository,
+  TestPriceData,
+} from '../../repositories/test-price-data.repository';
 
 describe('TestPriceDataRouterService', () => {
   let service: TestPriceDataRouterService;
   let testPriceDataService: jest.Mocked<TestPriceDataService>;
-  let testPriceDataRepository: jest.Mocked<TestPriceDataRepository>;
+  let _testPriceDataRepository: jest.Mocked<TestPriceDataRepository>;
 
   const mockTestPriceData: TestPriceData = {
     id: 'price-123',
@@ -53,8 +56,14 @@ describe('TestPriceDataRouterService', () => {
           useValue: {
             getLatestPrice: jest.fn().mockResolvedValue(mockTestPriceData),
             getPriceRange: jest.fn().mockResolvedValue([mockTestPriceData]),
-            generatePriceHistory: jest.fn().mockResolvedValue([mockTestPriceData]),
-            importFromJSON: jest.fn().mockResolvedValue({ created_count: 10, failed_count: 0, errors: [] }),
+            generatePriceHistory: jest
+              .fn()
+              .mockResolvedValue([mockTestPriceData]),
+            importFromJSON: jest.fn().mockResolvedValue({
+              created_count: 10,
+              failed_count: 0,
+              errors: [],
+            }),
           },
         },
         {
@@ -68,7 +77,9 @@ describe('TestPriceDataRouterService', () => {
     }).compile();
 
     module.useLogger(false);
-    service = module.get<TestPriceDataRouterService>(TestPriceDataRouterService);
+    service = module.get<TestPriceDataRouterService>(
+      TestPriceDataRouterService,
+    );
     testPriceDataService = module.get(TestPriceDataService);
     testPriceDataRepository = module.get(TestPriceDataRepository);
   });
@@ -125,7 +136,9 @@ describe('TestPriceDataRouterService', () => {
       service.setExternalFetcher(mockExternalFetcher);
 
       // Verify by attempting to use it
-      expect(() => service.setExternalFetcher(mockExternalFetcher)).not.toThrow();
+      expect(() =>
+        service.setExternalFetcher(mockExternalFetcher),
+      ).not.toThrow();
     });
   });
 
@@ -133,14 +146,19 @@ describe('TestPriceDataRouterService', () => {
     it('should route test symbols to test price data', async () => {
       const result = await service.getLatestPrice('T_AAPL', 'test-org');
 
-      expect(testPriceDataService.getLatestPrice).toHaveBeenCalledWith('T_AAPL', 'test-org');
+      expect(testPriceDataService.getLatestPrice).toHaveBeenCalledWith(
+        'T_AAPL',
+        'test-org',
+      );
       expect(result.is_test_route).toBe(true);
       expect(result.data).toBeDefined();
     });
 
     it('should route regular symbols to external API', async () => {
       service.setExternalFetcher(mockExternalFetcher);
-      (mockExternalFetcher.getLatestPrice as jest.Mock).mockResolvedValue(mockPriceDataPoint);
+      (mockExternalFetcher.getLatestPrice as jest.Mock).mockResolvedValue(
+        mockPriceDataPoint,
+      );
 
       const result = await service.getLatestPrice('AAPL', 'test-org');
 
@@ -158,7 +176,9 @@ describe('TestPriceDataRouterService', () => {
     });
 
     it('should return error when test price data not found', async () => {
-      (testPriceDataService.getLatestPrice as jest.Mock).mockResolvedValue(null);
+      (testPriceDataService.getLatestPrice as jest.Mock).mockResolvedValue(
+        null,
+      );
 
       const result = await service.getLatestPrice('T_AAPL', 'test-org');
 
@@ -209,7 +229,12 @@ describe('TestPriceDataRouterService', () => {
     const endDate = new Date('2024-01-31');
 
     it('should route test symbols to test price data', async () => {
-      const result = await service.getPriceRange('T_AAPL', 'test-org', startDate, endDate);
+      const result = await service.getPriceRange(
+        'T_AAPL',
+        'test-org',
+        startDate,
+        endDate,
+      );
 
       expect(testPriceDataService.getPriceRange).toHaveBeenCalledWith(
         'T_AAPL',
@@ -223,17 +248,33 @@ describe('TestPriceDataRouterService', () => {
 
     it('should route regular symbols to external API', async () => {
       service.setExternalFetcher(mockExternalFetcher);
-      (mockExternalFetcher.getPriceRange as jest.Mock).mockResolvedValue([mockPriceDataPoint]);
+      (mockExternalFetcher.getPriceRange as jest.Mock).mockResolvedValue([
+        mockPriceDataPoint,
+      ]);
 
-      const result = await service.getPriceRange('AAPL', 'test-org', startDate, endDate);
+      const result = await service.getPriceRange(
+        'AAPL',
+        'test-org',
+        startDate,
+        endDate,
+      );
 
-      expect(mockExternalFetcher.getPriceRange).toHaveBeenCalledWith('AAPL', startDate, endDate);
+      expect(mockExternalFetcher.getPriceRange).toHaveBeenCalledWith(
+        'AAPL',
+        startDate,
+        endDate,
+      );
       expect(result.is_test_route).toBe(false);
       expect(result.data).toEqual([mockPriceDataPoint]);
     });
 
     it('should return error when no external fetcher configured for range', async () => {
-      const result = await service.getPriceRange('AAPL', 'test-org', startDate, endDate);
+      const result = await service.getPriceRange(
+        'AAPL',
+        'test-org',
+        startDate,
+        endDate,
+      );
 
       expect(result.is_test_route).toBe(false);
       expect(result.data).toBeNull();
@@ -243,7 +284,12 @@ describe('TestPriceDataRouterService', () => {
     it('should return empty array with error when test price range not found', async () => {
       (testPriceDataService.getPriceRange as jest.Mock).mockResolvedValue([]);
 
-      const result = await service.getPriceRange('T_AAPL', 'test-org', startDate, endDate);
+      const result = await service.getPriceRange(
+        'T_AAPL',
+        'test-org',
+        startDate,
+        endDate,
+      );
 
       expect(result.is_test_route).toBe(true);
       expect(result.data).toEqual([]);
@@ -255,7 +301,12 @@ describe('TestPriceDataRouterService', () => {
         new Error('Range fetch error'),
       );
 
-      const result = await service.getPriceRange('T_AAPL', 'test-org', startDate, endDate);
+      const result = await service.getPriceRange(
+        'T_AAPL',
+        'test-org',
+        startDate,
+        endDate,
+      );
 
       expect(result.is_test_route).toBe(true);
       expect(result.data).toBeNull();
@@ -268,7 +319,12 @@ describe('TestPriceDataRouterService', () => {
         new Error('External range error'),
       );
 
-      const result = await service.getPriceRange('AAPL', 'test-org', startDate, endDate);
+      const result = await service.getPriceRange(
+        'AAPL',
+        'test-org',
+        startDate,
+        endDate,
+      );
 
       expect(result.is_test_route).toBe(false);
       expect(result.data).toBeNull();
@@ -333,14 +389,16 @@ describe('TestPriceDataRouterService', () => {
 
       expect(result.is_test_route).toBe(false);
       expect(result.data).toBeNull();
-      expect(result.error).toContain('Cannot generate test prices for non-test symbol');
+      expect(result.error).toContain(
+        'Cannot generate test prices for non-test symbol',
+      );
       expect(result.error).toContain('Use T_AAPL instead');
     });
 
     it('should handle generation errors', async () => {
-      (testPriceDataService.generatePriceHistory as jest.Mock).mockRejectedValue(
-        new Error('Generation failed'),
-      );
+      (
+        testPriceDataService.generatePriceHistory as jest.Mock
+      ).mockRejectedValue(new Error('Generation failed'));
 
       const result = await service.generateTestPriceHistory(
         'T_AAPL',
@@ -390,7 +448,9 @@ describe('TestPriceDataRouterService', () => {
 
     it('should seed test price data from real data', async () => {
       service.setExternalFetcher(mockExternalFetcher);
-      (mockExternalFetcher.getPriceRange as jest.Mock).mockResolvedValue([mockPriceDataPoint]);
+      (mockExternalFetcher.getPriceRange as jest.Mock).mockResolvedValue([
+        mockPriceDataPoint,
+      ]);
 
       const result = await service.seedTestPriceFromReal(
         'AAPL',
@@ -399,7 +459,11 @@ describe('TestPriceDataRouterService', () => {
         endDate,
       );
 
-      expect(mockExternalFetcher.getPriceRange).toHaveBeenCalledWith('AAPL', startDate, endDate);
+      expect(mockExternalFetcher.getPriceRange).toHaveBeenCalledWith(
+        'AAPL',
+        startDate,
+        endDate,
+      );
       expect(testPriceDataService.importFromJSON).toHaveBeenCalled();
       expect(result.is_test_route).toBe(true);
     });
@@ -437,7 +501,9 @@ describe('TestPriceDataRouterService', () => {
 
     it('should handle import errors', async () => {
       service.setExternalFetcher(mockExternalFetcher);
-      (mockExternalFetcher.getPriceRange as jest.Mock).mockResolvedValue([mockPriceDataPoint]);
+      (mockExternalFetcher.getPriceRange as jest.Mock).mockResolvedValue([
+        mockPriceDataPoint,
+      ]);
       (testPriceDataService.importFromJSON as jest.Mock).mockRejectedValue(
         new Error('Import failed'),
       );
@@ -456,7 +522,9 @@ describe('TestPriceDataRouterService', () => {
 
     it('should include scenario ID when provided', async () => {
       service.setExternalFetcher(mockExternalFetcher);
-      (mockExternalFetcher.getPriceRange as jest.Mock).mockResolvedValue([mockPriceDataPoint]);
+      (mockExternalFetcher.getPriceRange as jest.Mock).mockResolvedValue([
+        mockPriceDataPoint,
+      ]);
 
       await service.seedTestPriceFromReal(
         'AAPL',
@@ -475,7 +543,9 @@ describe('TestPriceDataRouterService', () => {
 
     it('should transform real symbol to test symbol during import', async () => {
       service.setExternalFetcher(mockExternalFetcher);
-      (mockExternalFetcher.getPriceRange as jest.Mock).mockResolvedValue([mockPriceDataPoint]);
+      (mockExternalFetcher.getPriceRange as jest.Mock).mockResolvedValue([
+        mockPriceDataPoint,
+      ]);
 
       await service.seedTestPriceFromReal(
         'AAPL',
@@ -484,7 +554,8 @@ describe('TestPriceDataRouterService', () => {
         endDate,
       );
 
-      const importCall = (testPriceDataService.importFromJSON as jest.Mock).mock.calls[0];
+      const importCall = (testPriceDataService.importFromJSON as jest.Mock).mock
+        .calls[0];
       expect(importCall[0][0].symbol).toBe('T_AAPL');
     });
   });
@@ -507,8 +578,13 @@ describe('TestPriceDataRouterService', () => {
     });
 
     it('should handle volume in test price data', async () => {
-      const priceWithVolume: TestPriceData = { ...mockTestPriceData, volume: 500000 };
-      (testPriceDataService.getLatestPrice as jest.Mock).mockResolvedValue(priceWithVolume);
+      const priceWithVolume: TestPriceData = {
+        ...mockTestPriceData,
+        volume: 500000,
+      };
+      (testPriceDataService.getLatestPrice as jest.Mock).mockResolvedValue(
+        priceWithVolume,
+      );
 
       const result = await service.getLatestPrice('T_AAPL', 'test-org');
 

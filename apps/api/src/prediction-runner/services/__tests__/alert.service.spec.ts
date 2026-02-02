@@ -14,7 +14,7 @@ import { ObservabilityEventsService } from '@/observability/observability-events
 describe('AlertService', () => {
   let service: AlertService;
   let supabaseService: jest.Mocked<SupabaseService>;
-  let observabilityEventsService: jest.Mocked<ObservabilityEventsService>;
+  let _observabilityEventsService: jest.Mocked<ObservabilityEventsService>;
 
   const mockExecutionContext = createMockExecutionContext({
     orgSlug: 'test-org',
@@ -44,8 +44,12 @@ describe('AlertService', () => {
     };
 
     const chain: Record<string, jest.Mock> = {};
-    chain.single = jest.fn().mockResolvedValue(overrides?.single ?? defaultResult);
-    chain.maybeSingle = jest.fn().mockResolvedValue(overrides?.maybeSingle ?? { data: null, error: null });
+    chain.single = jest
+      .fn()
+      .mockResolvedValue(overrides?.single ?? defaultResult);
+    chain.maybeSingle = jest
+      .fn()
+      .mockResolvedValue(overrides?.maybeSingle ?? { data: null, error: null });
     chain.limit = jest.fn().mockReturnValue(chain);
     chain.range = jest.fn().mockReturnValue(chain);
     chain.order = jest.fn().mockReturnValue(chain);
@@ -108,7 +112,7 @@ describe('AlertService', () => {
     it('should not create alert when below threshold', async () => {
       const belowThreshold = { ...failureContext, consecutiveErrors: 2 };
 
-      const result = await service.checkAndCreateCrawlFailureAlert(
+      const _result = await service.checkAndCreateCrawlFailureAlert(
         mockExecutionContext,
         belowThreshold,
       );
@@ -121,9 +125,11 @@ describe('AlertService', () => {
         maybeSingle: { data: null, error: null }, // No existing alert
         single: { data: mockAlert, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await service.checkAndCreateCrawlFailureAlert(
+      const _result = await service.checkAndCreateCrawlFailureAlert(
         mockExecutionContext,
         failureContext,
       );
@@ -136,9 +142,11 @@ describe('AlertService', () => {
       const mockClient = createMockClient({
         maybeSingle: { data: mockAlert, error: null }, // Existing alert
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await service.checkAndCreateCrawlFailureAlert(
+      const _result = await service.checkAndCreateCrawlFailureAlert(
         mockExecutionContext,
         failureContext,
       );
@@ -153,7 +161,7 @@ describe('AlertService', () => {
         crawl_degraded_window_hours: 12,
       };
 
-      const result = await service.checkAndCreateCrawlFailureAlert(
+      const _result = await service.checkAndCreateCrawlFailureAlert(
         mockExecutionContext,
         failureContext,
         customConfig,
@@ -173,7 +181,9 @@ describe('AlertService', () => {
         maybeSingle: { data: null, error: null },
         single: { data: { ...mockAlert, severity: 'critical' }, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await service.checkAndCreateCrawlFailureAlert(
         mockExecutionContext,
@@ -196,7 +206,9 @@ describe('AlertService', () => {
       const mockClient = createMockClient({
         maybeSingle: { data: mockAlert, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await service.resolveCrawlFailureAlert(
         mockExecutionContext,
@@ -209,7 +221,7 @@ describe('AlertService', () => {
     it('should not resolve if no previous errors', async () => {
       const noErrors = { ...successContext, previousConsecutiveErrors: 0 };
 
-      const result = await service.resolveCrawlFailureAlert(
+      const _result = await service.resolveCrawlFailureAlert(
         mockExecutionContext,
         noErrors,
       );
@@ -229,7 +241,7 @@ describe('AlertService', () => {
         details: { test: true },
       };
 
-      const result = await service.createAlert(alertData);
+      const _result = await service.createAlert(alertData);
 
       expect(result).toBeDefined();
       expect(supabaseService.getServiceClient).toHaveBeenCalled();
@@ -251,7 +263,7 @@ describe('AlertService', () => {
           details: {},
         };
 
-        const result = await service.createAlert(alertData);
+        const _result = await service.createAlert(alertData);
         expect(result).toBeDefined();
       }
     });
@@ -274,7 +286,7 @@ describe('AlertService', () => {
           details: {},
         };
 
-        const result = await service.createAlert(alertData);
+        const _result = await service.createAlert(alertData);
         expect(result).toBeDefined();
       }
     });
@@ -288,9 +300,11 @@ describe('AlertService', () => {
         data: [mockAlert],
         error: null,
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await service.listAlerts(mockExecutionContext);
+      const _result = await service.listAlerts(mockExecutionContext);
 
       expect(Array.isArray(result)).toBe(true);
     });
@@ -306,12 +320,16 @@ describe('AlertService', () => {
     });
 
     it('should apply type filter', async () => {
-      await service.listAlerts(mockExecutionContext, { alert_type: 'crawl.failure.threshold' });
+      await service.listAlerts(mockExecutionContext, {
+        alert_type: 'crawl.failure.threshold',
+      });
       expect(supabaseService.getServiceClient).toHaveBeenCalled();
     });
 
     it('should apply source_id filter', async () => {
-      await service.listAlerts(mockExecutionContext, { source_id: 'source-123' });
+      await service.listAlerts(mockExecutionContext, {
+        source_id: 'source-123',
+      });
       expect(supabaseService.getServiceClient).toHaveBeenCalled();
     });
 
@@ -329,22 +347,29 @@ describe('AlertService', () => {
     });
 
     it('should handle array filters for status', async () => {
-      await service.listAlerts(mockExecutionContext, { status: ['active', 'acknowledged'] });
+      await service.listAlerts(mockExecutionContext, {
+        status: ['active', 'acknowledged'],
+      });
       expect(supabaseService.getServiceClient).toHaveBeenCalled();
     });
   });
 
   describe('getAlertById', () => {
     it('should get alert by ID', async () => {
-      const result = await service.getAlertById('alert-123');
+      const _result = await service.getAlertById('alert-123');
       expect(result).toBeDefined();
     });
 
     it('should throw NotFoundException when not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { code: 'PGRST116', message: 'Not found' } },
+        single: {
+          data: null,
+          error: { code: 'PGRST116', message: 'Not found' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(service.getAlertById('nonexistent')).rejects.toThrow();
     });
@@ -352,7 +377,7 @@ describe('AlertService', () => {
 
   describe('acknowledgeAlert', () => {
     it('should acknowledge an alert', async () => {
-      const result = await service.acknowledgeAlert(
+      const _result = await service.acknowledgeAlert(
         mockExecutionContext,
         'alert-123',
       );
@@ -364,7 +389,7 @@ describe('AlertService', () => {
 
   describe('resolveAlert', () => {
     it('should resolve an alert', async () => {
-      const result = await service.resolveAlert(
+      const _result = await service.resolveAlert(
         mockExecutionContext,
         'alert-123',
       );
@@ -374,7 +399,7 @@ describe('AlertService', () => {
     });
 
     it('should resolve an alert with resolution note', async () => {
-      const result = await service.resolveAlert(
+      const _result = await service.resolveAlert(
         mockExecutionContext,
         'alert-123',
         'Issue was resolved manually',
@@ -398,9 +423,11 @@ describe('AlertService', () => {
         ],
         error: null,
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await service.getAlertCounts();
+      const _result = await service.getAlertCounts();
 
       expect(result).toHaveProperty('active');
       expect(result).toHaveProperty('acknowledged');
@@ -419,9 +446,11 @@ describe('AlertService', () => {
           error: null,
         }),
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await service.getActiveAlertsForUniverse('universe-123');
+      const _result = await service.getActiveAlertsForUniverse('universe-123');
 
       expect(Array.isArray(result)).toBe(true);
     });

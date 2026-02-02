@@ -155,7 +155,6 @@ const redConfidence = computed(() => {
 
 const redChallengesList = computed(() => {
   const red = redChallenges.value;
-  console.log('[RiskDebateSummary] Red challenges data:', JSON.stringify(red, null, 2));
   const challenges = red.challenges || [];
   if (!Array.isArray(challenges)) return [];
   // Normalize challenge format - could be strings or objects

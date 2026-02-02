@@ -89,7 +89,9 @@ describe('TestPriceDataService', () => {
     });
 
     it('should reject symbol with lowercase t_', () => {
-      expect(() => service.validateSymbol('t_AAPL')).toThrow(BadRequestException);
+      expect(() => service.validateSymbol('t_AAPL')).toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -124,7 +126,9 @@ describe('TestPriceDataService', () => {
         volume: 1000000,
       };
 
-      await expect(service.createPriceData(data)).rejects.toThrow(BadRequestException);
+      await expect(service.createPriceData(data)).rejects.toThrow(
+        BadRequestException,
+      );
       expect(repository.create).not.toHaveBeenCalled();
     });
   });
@@ -184,7 +188,9 @@ describe('TestPriceDataService', () => {
         },
       ];
 
-      await expect(service.bulkCreatePriceData(records)).rejects.toThrow(BadRequestException);
+      await expect(service.bulkCreatePriceData(records)).rejects.toThrow(
+        BadRequestException,
+      );
       expect(repository.bulkCreate).not.toHaveBeenCalled();
     });
 
@@ -221,7 +227,10 @@ describe('TestPriceDataService', () => {
       );
 
       expect(repository.bulkCreate).toHaveBeenCalled();
-      expect(repository.findBySymbol).toHaveBeenCalledWith('T_AAPL', 'test-org');
+      expect(repository.findBySymbol).toHaveBeenCalledWith(
+        'T_AAPL',
+        'test-org',
+      );
       expect(result).toBeDefined();
     });
 
@@ -239,7 +248,9 @@ describe('TestPriceDataService', () => {
         'scenario-123',
       );
 
-      const bulkCreateCall = repository.bulkCreate.mock.calls[0]?.[0] as Array<{ scenario_id?: string }>;
+      const bulkCreateCall = repository.bulkCreate.mock.calls[0]?.[0] as Array<{
+        scenario_id?: string;
+      }>;
       expect(bulkCreateCall?.[0]?.scenario_id).toBe('scenario-123');
     });
 
@@ -324,10 +335,15 @@ describe('TestPriceDataService', () => {
       );
 
       const bulkCreateCall = repository.bulkCreate.mock.calls[0]?.[0] as Array<{
-        metadata?: { generated?: boolean; generation_params?: { volatility?: number } };
+        metadata?: {
+          generated?: boolean;
+          generation_params?: { volatility?: number };
+        };
       }>;
       expect(bulkCreateCall?.[0]?.metadata?.generated).toBe(true);
-      expect(bulkCreateCall?.[0]?.metadata?.generation_params?.volatility).toBe(0.03);
+      expect(bulkCreateCall?.[0]?.metadata?.generation_params?.volatility).toBe(
+        0.03,
+      );
     });
   });
 
@@ -374,7 +390,9 @@ describe('TestPriceDataService', () => {
 
       await service.importFromCSV(csvData, 'test-org', 'scenario-123');
 
-      const bulkCreateCall = repository.bulkCreate.mock.calls[0]?.[0] as Array<{ scenario_id?: string }>;
+      const bulkCreateCall = repository.bulkCreate.mock.calls[0]?.[0] as Array<{
+        scenario_id?: string;
+      }>;
       expect(bulkCreateCall?.[0]?.scenario_id).toBe('scenario-123');
     });
 
@@ -409,7 +427,9 @@ describe('TestPriceDataService', () => {
 
       await service.importFromCSV(csvData, 'test-org');
 
-      const bulkCreateCall = repository.bulkCreate.mock.calls[0]?.[0] as Array<{ symbol?: string }>;
+      const bulkCreateCall = repository.bulkCreate.mock.calls[0]?.[0] as Array<{
+        symbol?: string;
+      }>;
       expect(bulkCreateCall?.[0]?.symbol).toBe('T_AAPL');
     });
 
@@ -427,7 +447,9 @@ describe('TestPriceDataService', () => {
 
       await service.importFromCSV(csvData, 'test-org');
 
-      const bulkCreateCall = repository.bulkCreate.mock.calls[0]?.[0] as Array<{ volume?: number }>;
+      const bulkCreateCall = repository.bulkCreate.mock.calls[0]?.[0] as Array<{
+        volume?: number;
+      }>;
       expect(bulkCreateCall?.[0]?.volume).toBe(0);
     });
   });
@@ -466,7 +488,9 @@ describe('TestPriceDataService', () => {
 
       await service.importFromJSON(jsonData, 'test-org', 'scenario-123');
 
-      const bulkCreateCall = repository.bulkCreate.mock.calls[0]?.[0] as Array<{ scenario_id?: string }>;
+      const bulkCreateCall = repository.bulkCreate.mock.calls[0]?.[0] as Array<{
+        scenario_id?: string;
+      }>;
       expect(bulkCreateCall?.[0]?.scenario_id).toBe('scenario-123');
     });
 
@@ -482,9 +506,9 @@ describe('TestPriceDataService', () => {
         },
       ];
 
-      await expect(service.importFromJSON(jsonData, 'test-org')).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        service.importFromJSON(jsonData, 'test-org'),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('should default volume to 0 when not provided', async () => {
@@ -501,7 +525,9 @@ describe('TestPriceDataService', () => {
 
       await service.importFromJSON(jsonData, 'test-org');
 
-      const bulkCreateCall = repository.bulkCreate.mock.calls[0]?.[0] as Array<{ volume?: number }>;
+      const bulkCreateCall = repository.bulkCreate.mock.calls[0]?.[0] as Array<{
+        volume?: number;
+      }>;
       expect(bulkCreateCall?.[0]?.volume).toBe(0);
     });
   });
@@ -510,7 +536,10 @@ describe('TestPriceDataService', () => {
     it('should get latest price for valid symbol', async () => {
       const result = await service.getLatestPrice('T_AAPL', 'test-org');
 
-      expect(repository.findLatestPrice).toHaveBeenCalledWith('T_AAPL', 'test-org');
+      expect(repository.findLatestPrice).toHaveBeenCalledWith(
+        'T_AAPL',
+        'test-org',
+      );
       expect(result).toEqual(mockPriceData);
     });
 
@@ -534,7 +563,12 @@ describe('TestPriceDataService', () => {
       const startDate = new Date('2024-01-01');
       const endDate = new Date('2024-01-31');
 
-      const result = await service.getPriceRange('T_AAPL', 'test-org', startDate, endDate);
+      const result = await service.getPriceRange(
+        'T_AAPL',
+        'test-org',
+        startDate,
+        endDate,
+      );
 
       expect(repository.findByDateRange).toHaveBeenCalledWith(
         'T_AAPL',
@@ -556,7 +590,10 @@ describe('TestPriceDataService', () => {
     it('should get all price data for symbol', async () => {
       const result = await service.getAllPriceData('T_AAPL', 'test-org');
 
-      expect(repository.findBySymbol).toHaveBeenCalledWith('T_AAPL', 'test-org');
+      expect(repository.findBySymbol).toHaveBeenCalledWith(
+        'T_AAPL',
+        'test-org',
+      );
       expect(result).toEqual([mockPriceData]);
     });
 
@@ -580,7 +617,9 @@ describe('TestPriceDataService', () => {
     it('should reject filter with invalid symbol', async () => {
       const filter = { symbol: 'AAPL' };
 
-      await expect(service.getPriceDataByFilter(filter)).rejects.toThrow(BadRequestException);
+      await expect(service.getPriceDataByFilter(filter)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should allow filter without symbol', async () => {
@@ -597,7 +636,10 @@ describe('TestPriceDataService', () => {
     it('should delete price data for symbol', async () => {
       const result = await service.deletePriceData('T_AAPL', 'test-org');
 
-      expect(repository.deleteBySymbol).toHaveBeenCalledWith('T_AAPL', 'test-org');
+      expect(repository.deleteBySymbol).toHaveBeenCalledWith(
+        'T_AAPL',
+        'test-org',
+      );
       expect(result).toBe(5);
     });
 
@@ -621,7 +663,10 @@ describe('TestPriceDataService', () => {
     it('should count price data for symbol', async () => {
       const result = await service.countPriceData('T_AAPL', 'test-org');
 
-      expect(repository.countBySymbol).toHaveBeenCalledWith('T_AAPL', 'test-org');
+      expect(repository.countBySymbol).toHaveBeenCalledWith(
+        'T_AAPL',
+        'test-org',
+      );
       expect(result).toBe(100);
     });
 

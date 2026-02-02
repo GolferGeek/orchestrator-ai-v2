@@ -12,8 +12,8 @@ import { Signal } from '../../interfaces/signal.interface';
 describe('BatchSignalProcessorRunner', () => {
   let runner: BatchSignalProcessorRunner;
   let signalRepository: jest.Mocked<SignalRepository>;
-  let targetRepository: jest.Mocked<TargetRepository>;
-  let universeRepository: jest.Mocked<UniverseRepository>;
+  let _targetRepository: jest.Mocked<TargetRepository>;
+  let _universeRepository: jest.Mocked<UniverseRepository>;
   let signalDetectionService: jest.Mocked<SignalDetectionService>;
   let fastPathService: jest.Mocked<FastPathService>;
 
@@ -38,7 +38,7 @@ describe('BatchSignalProcessorRunner', () => {
     updated_at: new Date().toISOString(),
   };
 
-  const mockUniverse = {
+  const _mockUniverse = {
     id: 'universe-1',
     name: 'Test Universe',
     domain: 'stocks',
@@ -51,7 +51,7 @@ describe('BatchSignalProcessorRunner', () => {
     updated_at: new Date().toISOString(),
   };
 
-  const mockTarget = {
+  const _mockTarget = {
     id: 'target-1',
     universe_id: 'universe-1',
     symbol: 'AAPL',
@@ -112,7 +112,11 @@ describe('BatchSignalProcessorRunner', () => {
             }),
             createTierContext: jest.fn().mockResolvedValue({
               context: {},
-              resolved: { tier: 'bronze', provider: 'anthropic', model: 'claude-haiku-4' },
+              resolved: {
+                tier: 'bronze',
+                provider: 'anthropic',
+                model: 'claude-haiku-4',
+              },
             }),
           },
         },

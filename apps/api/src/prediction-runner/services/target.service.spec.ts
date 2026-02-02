@@ -260,7 +260,9 @@ describe('TargetService', () => {
 
     it('should return system defaults when no universe config', async () => {
       const universeWithoutConfig = { ...mockUniverse, llm_config: null };
-      universeRepository.findByIdOrThrow.mockResolvedValue(universeWithoutConfig);
+      universeRepository.findByIdOrThrow.mockResolvedValue(
+        universeWithoutConfig,
+      );
 
       const result = await service.getEffectiveLlmConfig(mockTarget);
 

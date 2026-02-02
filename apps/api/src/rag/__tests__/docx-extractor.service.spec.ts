@@ -86,9 +86,7 @@ describe('DocxExtractorService', () => {
       const result = await service.extractText(buffer);
 
       expect(typeof result).toBe('string');
-      expect(result).toBe(
-        'This is the extracted text from the DOCX document.',
-      );
+      expect(result).toBe('This is the extracted text from the DOCX document.');
     });
   });
 

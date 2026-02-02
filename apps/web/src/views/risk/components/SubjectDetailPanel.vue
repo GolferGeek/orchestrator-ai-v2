@@ -128,13 +128,32 @@
               <div class="debate-card red-team">
                 <h4>Red Team (Challenge)</h4>
                 <p class="risk-score">Risk: {{ formatScore(subject.debate.redChallenges?.riskScore || 0) }}</p>
-                <ul v-if="subject.debate.redChallenges?.challenges?.length">
-                  <li v-for="(challenge, idx) in subject.debate.redChallenges.challenges" :key="idx">{{ challenge }}</li>
-                </ul>
+                <div v-if="subject.debate.redChallenges?.challenges?.length" class="challenges-list">
+                  <div v-for="(challenge, idx) in subject.debate.redChallenges.challenges" :key="idx" class="challenge-item">
+                    <template v-if="typeof challenge === 'object' && challenge !== null">
+                      <span v-if="challenge.dimension" class="challenge-dimension">{{ challenge.dimension }}</span>
+                      <p class="challenge-text">{{ challenge.challenge || challenge.text || challenge.description }}</p>
+                      <p v-if="challenge.evidence" class="challenge-evidence">{{ challenge.evidence }}</p>
+                    </template>
+                    <template v-else>
+                      <p class="challenge-text">{{ challenge }}</p>
+                    </template>
+                  </div>
+                </div>
+                <div v-if="subject.debate.redChallenges?.blind_spots?.length" class="blind-spots">
+                  <strong>Blind Spots:</strong>
+                  <ul>
+                    <li v-for="(spot, idx) in subject.debate.redChallenges.blind_spots" :key="idx">
+                      {{ typeof spot === 'object' ? (spot.description || spot.text || JSON.stringify(spot)) : spot }}
+                    </li>
+                  </ul>
+                </div>
                 <div v-if="subject.debate.redChallenges?.hiddenRisks?.length" class="hidden-risks">
                   <strong>Hidden Risks:</strong>
                   <ul>
-                    <li v-for="(risk, idx) in subject.debate.redChallenges.hiddenRisks" :key="idx">{{ risk }}</li>
+                    <li v-for="(risk, idx) in subject.debate.redChallenges.hiddenRisks" :key="idx">
+                      {{ typeof risk === 'object' ? (risk.description || risk.text || JSON.stringify(risk)) : risk }}
+                    </li>
                   </ul>
                 </div>
               </div>
@@ -760,9 +779,51 @@ function formatTime(timestamp: string): string {
 
 .mitigating-factors,
 .hidden-risks,
+.blind-spots,
 .key-takeaways {
   margin-top: 0.5rem;
   font-size: 0.75rem;
+}
+
+/* Red Team Challenge Items */
+.challenges-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.challenge-item {
+  padding: 0.5rem;
+  background: rgba(239, 68, 68, 0.05);
+  border-radius: 4px;
+  border-left: 2px solid #ef4444;
+}
+
+.challenge-dimension {
+  display: inline-block;
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+  padding: 0.125rem 0.375rem;
+  border-radius: 3px;
+  margin-bottom: 0.25rem;
+}
+
+.challenge-text {
+  font-size: 0.8125rem;
+  color: var(--text-primary, #111827);
+  margin: 0.25rem 0;
+  line-height: 1.4;
+}
+
+.challenge-evidence {
+  font-size: 0.75rem;
+  color: var(--text-secondary, #6b7280);
+  margin: 0.25rem 0 0 0;
+  font-style: italic;
 }
 
 /* Alerts Section */

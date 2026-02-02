@@ -222,10 +222,16 @@ describe('OutcomeTrackingService', () => {
         pendingPredictions,
       );
       predictionRepository.update
-        .mockResolvedValueOnce({ ...mockPrediction, id: 'pred-1', status: 'expired' })
+        .mockResolvedValueOnce({
+          ...mockPrediction,
+          id: 'pred-1',
+          status: 'expired',
+        })
         .mockRejectedValueOnce(new Error('Update failed'));
 
-      await expect(service.expirePredictions()).rejects.toThrow('Update failed');
+      await expect(service.expirePredictions()).rejects.toThrow(
+        'Update failed',
+      );
     });
   });
 

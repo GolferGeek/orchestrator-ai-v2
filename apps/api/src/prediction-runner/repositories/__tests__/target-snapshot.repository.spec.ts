@@ -41,16 +41,28 @@ describe('TargetSnapshotRepository', () => {
   };
 
   const createMockClient = (overrides?: {
-    single?: { data: unknown | null; error: { message: string; code?: string } | null };
+    single?: {
+      data: unknown;
+      error: { message: string; code?: string } | null;
+    };
     list?: { data: unknown[] | null; error: { message: string } | null };
-    insert?: { data: unknown | null; error: { message: string } | null };
+    insert?: { data: unknown; error: { message: string } | null };
     insertBatch?: { data: unknown[] | null; error: { message: string } | null };
     delete?: { data?: unknown[] | null; error: { message: string } | null };
   }) => {
-    const singleResult = overrides?.single ?? { data: mockSnapshot, error: null };
+    const singleResult = overrides?.single ?? {
+      data: mockSnapshot,
+      error: null,
+    };
     const listResult = overrides?.list ?? { data: [mockSnapshot], error: null };
-    const insertResult = overrides?.insert ?? { data: mockSnapshot, error: null };
-    const insertBatchResult = overrides?.insertBatch ?? { data: [mockSnapshot], error: null };
+    const insertResult = overrides?.insert ?? {
+      data: mockSnapshot,
+      error: null,
+    };
+    const insertBatchResult = overrides?.insertBatch ?? {
+      data: [mockSnapshot],
+      error: null,
+    };
     const deleteResult = overrides?.delete ?? { data: [], error: null };
 
     const createChain = () => {
@@ -85,7 +97,8 @@ describe('TargetSnapshotRepository', () => {
           return {
             ...chainableResult,
             select: jest.fn().mockReturnValue({
-              then: (resolve: (v: unknown) => void) => resolve(insertBatchResult),
+              then: (resolve: (v: unknown) => void) =>
+                resolve(insertBatchResult),
             }),
           };
         }
@@ -155,9 +168,14 @@ describe('TargetSnapshotRepository', () => {
 
     it('should return null when snapshot not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('nonexistent');
 
@@ -168,7 +186,9 @@ describe('TargetSnapshotRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findById('snapshot-123')).rejects.toThrow(
         'Failed to fetch target snapshot: Database error',
@@ -185,9 +205,14 @@ describe('TargetSnapshotRepository', () => {
 
     it('should return null when no snapshots found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findLatest('target-123');
 
@@ -198,7 +223,9 @@ describe('TargetSnapshotRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findLatest('target-123')).rejects.toThrow(
         'Failed to fetch latest snapshot: Database error',
@@ -208,18 +235,29 @@ describe('TargetSnapshotRepository', () => {
 
   describe('findAtTime', () => {
     it('should return snapshot closest to specified time', async () => {
-      const result = await repository.findAtTime('target-123', '2024-01-01T10:00:00Z');
+      const result = await repository.findAtTime(
+        'target-123',
+        '2024-01-01T10:00:00Z',
+      );
 
       expect(result).toEqual(mockSnapshot);
     });
 
     it('should return null when no snapshot before time', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.findAtTime('target-123', '2020-01-01T00:00:00Z');
+      const result = await repository.findAtTime(
+        'target-123',
+        '2020-01-01T00:00:00Z',
+      );
 
       expect(result).toBeNull();
     });
@@ -228,11 +266,13 @@ describe('TargetSnapshotRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.findAtTime('target-123', '2024-01-01T10:00:00Z')).rejects.toThrow(
-        'Failed to fetch snapshot at time: Database error',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.findAtTime('target-123', '2024-01-01T10:00:00Z'),
+      ).rejects.toThrow('Failed to fetch snapshot at time: Database error');
     });
   });
 
@@ -248,9 +288,14 @@ describe('TargetSnapshotRepository', () => {
   describe('findInRange', () => {
     it('should return snapshots within time range', async () => {
       const mockClient = createMockClient({
-        list: { data: [mockEarlierSnapshot, mockSnapshot, mockLaterSnapshot], error: null },
+        list: {
+          data: [mockEarlierSnapshot, mockSnapshot, mockLaterSnapshot],
+          error: null,
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findInRange(
         'target-123',
@@ -265,7 +310,9 @@ describe('TargetSnapshotRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findInRange(
         'target-123',
@@ -280,10 +327,16 @@ describe('TargetSnapshotRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
-        repository.findInRange('target-123', '2024-01-01T00:00:00Z', '2024-01-02T00:00:00Z'),
+        repository.findInRange(
+          'target-123',
+          '2024-01-01T00:00:00Z',
+          '2024-01-02T00:00:00Z',
+        ),
       ).rejects.toThrow('Failed to fetch snapshots in range: Query failed');
     });
   });
@@ -293,7 +346,9 @@ describe('TargetSnapshotRepository', () => {
       const mockClient = createMockClient({
         list: { data: [mockSnapshot], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findRecent('target-123', 24);
 
@@ -304,7 +359,9 @@ describe('TargetSnapshotRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findRecent('target-123', 1);
 
@@ -360,7 +417,9 @@ describe('TargetSnapshotRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.create({
@@ -375,7 +434,9 @@ describe('TargetSnapshotRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: { message: 'Insert failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.create({
@@ -394,9 +455,14 @@ describe('TargetSnapshotRepository', () => {
         { target_id: 'target-123', value: 151, source: 'polygon' as const },
       ];
       const mockClient = createMockClient({
-        insertBatch: { data: [mockSnapshot, { ...mockSnapshot, id: 'snapshot-124' }], error: null },
+        insertBatch: {
+          data: [mockSnapshot, { ...mockSnapshot, id: 'snapshot-124' }],
+          error: null,
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.createBatch(snapshots);
 
@@ -407,7 +473,9 @@ describe('TargetSnapshotRepository', () => {
       const mockClient = createMockClient({
         insertBatch: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.createBatch([
         { target_id: 'target-123', value: 150, source: 'polygon' },
@@ -420,11 +488,17 @@ describe('TargetSnapshotRepository', () => {
       const mockClient = createMockClient({
         insertBatch: { data: null, error: { message: 'Batch insert failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
-        repository.createBatch([{ target_id: 'target-123', value: 150, source: 'polygon' }]),
-      ).rejects.toThrow('Failed to create target snapshots: Batch insert failed');
+        repository.createBatch([
+          { target_id: 'target-123', value: 150, source: 'polygon' },
+        ]),
+      ).rejects.toThrow(
+        'Failed to create target snapshots: Batch insert failed',
+      );
     });
   });
 
@@ -438,7 +512,9 @@ describe('TargetSnapshotRepository', () => {
       const mockClient = createMockClient({
         list: { data: snapshots, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const config = {
         min_change_percent: 5,
@@ -457,7 +533,9 @@ describe('TargetSnapshotRepository', () => {
       const mockClient = createMockClient({
         list: { data: [mockSnapshot], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const config = {
         min_change_percent: 5,
@@ -478,7 +556,9 @@ describe('TargetSnapshotRepository', () => {
       const mockClient = createMockClient({
         list: { data: snapshots, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const config = {
         min_change_percent: 10,
@@ -499,7 +579,9 @@ describe('TargetSnapshotRepository', () => {
       const mockClient = createMockClient({
         list: { data: snapshots, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const config = {
         min_change_percent: 10,
@@ -522,7 +604,9 @@ describe('TargetSnapshotRepository', () => {
       const mockClient = createMockClient({
         list: { data: snapshots, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const config = {
         min_change_percent: 10,
@@ -538,18 +622,29 @@ describe('TargetSnapshotRepository', () => {
 
   describe('getValueAtTime', () => {
     it('should return value at specified time', async () => {
-      const result = await repository.getValueAtTime('target-123', '2024-01-01T10:00:00Z');
+      const result = await repository.getValueAtTime(
+        'target-123',
+        '2024-01-01T10:00:00Z',
+      );
 
       expect(result).toBe(150.25);
     });
 
     it('should return null when no snapshot found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.getValueAtTime('target-123', '2020-01-01T00:00:00Z');
+      const result = await repository.getValueAtTime(
+        'target-123',
+        '2020-01-01T00:00:00Z',
+      );
 
       expect(result).toBeNull();
     });
@@ -572,9 +667,15 @@ describe('TargetSnapshotRepository', () => {
                 then: (resolve: (v: unknown) => void) => {
                   callCount++;
                   if (callCount === 1) {
-                    resolve({ data: { ...mockSnapshot, value: 100 }, error: null });
+                    resolve({
+                      data: { ...mockSnapshot, value: 100 },
+                      error: null,
+                    });
                   } else {
-                    resolve({ data: { ...mockSnapshot, value: 110 }, error: null });
+                    resolve({
+                      data: { ...mockSnapshot, value: 110 },
+                      error: null,
+                    });
                   }
                 },
               }),
@@ -588,7 +689,9 @@ describe('TargetSnapshotRepository', () => {
           }),
         }),
       };
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.calculateChange(
         'target-123',
@@ -617,7 +720,10 @@ describe('TargetSnapshotRepository', () => {
                 then: (resolve: (v: unknown) => void) => {
                   callCount++;
                   if (callCount === 1) {
-                    resolve({ data: null, error: { message: 'Not found', code: 'PGRST116' } });
+                    resolve({
+                      data: null,
+                      error: { message: 'Not found', code: 'PGRST116' },
+                    });
                   } else {
                     resolve({ data: mockSnapshot, error: null });
                   }
@@ -633,7 +739,9 @@ describe('TargetSnapshotRepository', () => {
           }),
         }),
       };
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.calculateChange(
         'target-123',
@@ -664,7 +772,10 @@ describe('TargetSnapshotRepository', () => {
                   if (callCount === 1) {
                     resolve({ data: mockSnapshot, error: null });
                   } else {
-                    resolve({ data: null, error: { message: 'Not found', code: 'PGRST116' } });
+                    resolve({
+                      data: null,
+                      error: { message: 'Not found', code: 'PGRST116' },
+                    });
                   }
                 },
               }),
@@ -678,7 +789,9 @@ describe('TargetSnapshotRepository', () => {
           }),
         }),
       };
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.calculateChange(
         'target-123',
@@ -698,7 +811,9 @@ describe('TargetSnapshotRepository', () => {
       const mockClient = createMockClient({
         delete: { data: [{ id: 'old-1' }, { id: 'old-2' }], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.cleanupOldSnapshots('target-123', 90);
 
@@ -709,7 +824,9 @@ describe('TargetSnapshotRepository', () => {
       const mockClient = createMockClient({
         delete: { data: [{ id: 'old-1' }], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.cleanupOldSnapshots('target-123');
 
@@ -720,7 +837,9 @@ describe('TargetSnapshotRepository', () => {
       const mockClient = createMockClient({
         delete: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.cleanupOldSnapshots('target-123', 90);
 
@@ -731,7 +850,9 @@ describe('TargetSnapshotRepository', () => {
       const mockClient = createMockClient({
         delete: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.cleanupOldSnapshots('target-123', 90);
 
@@ -742,11 +863,13 @@ describe('TargetSnapshotRepository', () => {
       const mockClient = createMockClient({
         delete: { error: { message: 'Delete failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.cleanupOldSnapshots('target-123', 90)).rejects.toThrow(
-        'Failed to cleanup snapshots: Delete failed',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.cleanupOldSnapshots('target-123', 90),
+      ).rejects.toThrow('Failed to cleanup snapshots: Delete failed');
     });
   });
 
@@ -759,7 +882,9 @@ describe('TargetSnapshotRepository', () => {
         const mockClient = createMockClient({
           single: { data: snapshotWithType, error: null },
         });
-        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+          mockClient,
+        );
 
         const result = await repository.findById('snapshot-123');
 
@@ -769,7 +894,13 @@ describe('TargetSnapshotRepository', () => {
   });
 
   describe('snapshot sources', () => {
-    const sources = ['polygon', 'coingecko', 'polymarket', 'manual', 'other'] as const;
+    const sources = [
+      'polygon',
+      'coingecko',
+      'polymarket',
+      'manual',
+      'other',
+    ] as const;
 
     sources.forEach((source) => {
       it(`should handle ${source} source`, async () => {
@@ -777,7 +908,9 @@ describe('TargetSnapshotRepository', () => {
         const mockClient = createMockClient({
           single: { data: snapshotWithSource, error: null },
         });
-        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+          mockClient,
+        );
 
         const result = await repository.findById('snapshot-123');
 
@@ -804,13 +937,18 @@ describe('TargetSnapshotRepository', () => {
       const mockClient = createMockClient({
         single: { data: snapshotWithFullMetadata, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('snapshot-123');
 
       expect(result?.metadata.high).toBe(155.0);
       expect(result?.metadata.market_cap).toBe(50000000000);
-      expect(result?.metadata.raw_response).toEqual({ provider: 'polygon', timestamp: 1704067200 });
+      expect(result?.metadata.raw_response).toEqual({
+        provider: 'polygon',
+        timestamp: 1704067200,
+      });
     });
 
     it('should handle empty metadata', async () => {
@@ -818,7 +956,9 @@ describe('TargetSnapshotRepository', () => {
       const mockClient = createMockClient({
         single: { data: snapshotWithEmptyMetadata, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('snapshot-123');
 

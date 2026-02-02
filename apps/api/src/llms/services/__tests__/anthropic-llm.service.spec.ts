@@ -1,6 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { createMockExecutionContext } from '@orchestrator-ai/transport-types';
-import { AnthropicLLMService, createAnthropicService } from '../anthropic-llm.service';
+import {
+  AnthropicLLMService,
+  createAnthropicService,
+} from '../anthropic-llm.service';
 import { PIIService } from '../../pii/pii.service';
 import { DictionaryPseudonymizerService } from '../../pii/dictionary-pseudonymizer.service';
 import { RunMetadataService } from '../../run-metadata.service';
@@ -141,7 +144,10 @@ describe('AnthropicLLMService', () => {
         },
       };
 
-      const response = await service.generateResponse(mockExecutionContext, params);
+      const response = await service.generateResponse(
+        mockExecutionContext,
+        params,
+      );
 
       expect(response.content).toBe('Hello! How can I help you?');
       expect(response.metadata.provider).toBe('anthropic');
@@ -158,7 +164,10 @@ describe('AnthropicLLMService', () => {
         },
       };
 
-      const response = await service.generateResponse(mockExecutionContext, params);
+      const response = await service.generateResponse(
+        mockExecutionContext,
+        params,
+      );
 
       expect(response.metadata.usage.inputTokens).toBe(50);
       expect(response.metadata.usage.outputTokens).toBe(25);
@@ -175,7 +184,10 @@ describe('AnthropicLLMService', () => {
         },
       };
 
-      const response = await service.generateResponse(mockExecutionContext, params);
+      const response = await service.generateResponse(
+        mockExecutionContext,
+        params,
+      );
 
       expect(response.metadata.providerSpecific).toMatchObject({
         stop_reason: 'end_turn',
@@ -209,7 +221,10 @@ describe('AnthropicLLMService', () => {
         },
       };
 
-      const response = await service.generateResponse(mockExecutionContext, params);
+      const response = await service.generateResponse(
+        mockExecutionContext,
+        params,
+      );
 
       expect(llmPricingService.calculateCostSync).toHaveBeenCalledWith(
         'anthropic',
@@ -224,6 +239,7 @@ describe('AnthropicLLMService', () => {
   describe('thinking extraction', () => {
     it('should extract thinking from <thinking> tags', async () => {
       // Get the mock to return content with thinking tags
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const Anthropic = require('@anthropic-ai/sdk').default;
       Anthropic.mockImplementation(() => ({
         messages: {
@@ -263,7 +279,10 @@ describe('AnthropicLLMService', () => {
         },
       };
 
-      const response = await newService.generateResponse(mockExecutionContext, params);
+      const response = await newService.generateResponse(
+        mockExecutionContext,
+        params,
+      );
 
       expect(response.content).toBe('The answer is 42.');
       expect(response.metadata.thinking).toBe('Let me analyze this...');
@@ -303,7 +322,9 @@ describe('AnthropicLLMService', () => {
           ...params,
           config: invalidConfig,
         }),
-      ).rejects.toThrow('AnthropicLLMService requires provider to be "anthropic"');
+      ).rejects.toThrow(
+        'AnthropicLLMService requires provider to be "anthropic"',
+      );
     });
 
     it('should throw error when API key is missing', () => {
@@ -341,6 +362,7 @@ describe('AnthropicLLMService', () => {
 
   describe('error handling', () => {
     it('should throw LLMError on API failure', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const Anthropic = require('@anthropic-ai/sdk').default;
       Anthropic.mockImplementation(() => ({
         messages: {
@@ -372,6 +394,7 @@ describe('AnthropicLLMService', () => {
     });
 
     it('should throw error when response has no content', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const Anthropic = require('@anthropic-ai/sdk').default;
       Anthropic.mockImplementation(() => ({
         messages: {
@@ -436,6 +459,7 @@ describe('AnthropicLLMService', () => {
   describe('LangSmith integration', () => {
     beforeEach(() => {
       // Reset Anthropic mock to default behavior
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const Anthropic = require('@anthropic-ai/sdk').default;
       Anthropic.mockImplementation(() => ({
         messages: {
@@ -475,9 +499,14 @@ describe('AnthropicLLMService', () => {
         },
       };
 
-      const response = await langsmithService.generateResponse(mockExecutionContext, params);
+      const response = await langsmithService.generateResponse(
+        mockExecutionContext,
+        params,
+      );
 
-      expect(response.metadata.langsmithRunId).toMatch(/^anthropic-\d+-[a-z0-9]+$/);
+      expect(response.metadata.langsmithRunId).toMatch(
+        /^anthropic-\d+-[a-z0-9]+$/,
+      );
 
       delete process.env.LANGSMITH_API_KEY;
       delete process.env.LANGSMITH_TRACING;
@@ -506,7 +535,10 @@ describe('AnthropicLLMService', () => {
         },
       };
 
-      const response = await noLangsmithService.generateResponse(mockExecutionContext, params);
+      const response = await noLangsmithService.generateResponse(
+        mockExecutionContext,
+        params,
+      );
 
       expect(response.metadata.langsmithRunId).toBeUndefined();
     });

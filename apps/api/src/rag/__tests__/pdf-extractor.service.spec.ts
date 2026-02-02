@@ -24,34 +24,34 @@ describe('PdfExtractorService', () => {
     mockParseBuffer.mockReset();
 
     // Set up default mock behavior
-    mockOn.mockImplementation((event: string, callback: Function) => {
-      if (event === 'pdfParser_dataReady') {
-        // Store the callback for later invocation
-        (mockParseBuffer as jest.Mock).mockImplementation(() => {
-          callback({
-            Pages: [
-              {
-                Texts: [
-                  { R: [{ T: 'Hello%20World' }] },
-                  { R: [{ T: 'Page%201%20content' }] },
-                ],
+    mockOn.mockImplementation(
+      (event: string, callback: (...args: unknown[]) => unknown) => {
+        if (event === 'pdfParser_dataReady') {
+          // Store the callback for later invocation
+          mockParseBuffer.mockImplementation(() => {
+            callback({
+              Pages: [
+                {
+                  Texts: [
+                    { R: [{ T: 'Hello%20World' }] },
+                    { R: [{ T: 'Page%201%20content' }] },
+                  ],
+                },
+                {
+                  Texts: [{ R: [{ T: 'Page%202%20content' }] }],
+                },
+              ],
+              Meta: {
+                Title: 'Test Document',
+                Author: 'Test Author',
+                CreationDate: '2024-01-01',
               },
-              {
-                Texts: [
-                  { R: [{ T: 'Page%202%20content' }] },
-                ],
-              },
-            ],
-            Meta: {
-              Title: 'Test Document',
-              Author: 'Test Author',
-              CreationDate: '2024-01-01',
-            },
+            });
           });
-        });
-      }
-      return { on: mockOn }; // For chaining
-    });
+        }
+        return { on: mockOn }; // For chaining
+      },
+    );
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [PdfExtractorService],
@@ -137,32 +137,38 @@ describe('PdfExtractorService', () => {
   describe('error handling', () => {
     it('should handle parsing errors', async () => {
       // Set up error mock
-      mockOn.mockImplementation((event: string, callback: Function) => {
-        if (event === 'pdfParser_dataError') {
-          mockParseBuffer.mockImplementation(() => {
-            callback({ parserError: new Error('Invalid PDF') });
-          });
-        }
-        return { on: mockOn };
-      });
+      mockOn.mockImplementation(
+        (event: string, callback: (...args: unknown[]) => unknown) => {
+          if (event === 'pdfParser_dataError') {
+            mockParseBuffer.mockImplementation(() => {
+              callback({ parserError: new Error('Invalid PDF') });
+            });
+          }
+          return { on: mockOn };
+        },
+      );
 
       const buffer = Buffer.from('invalid pdf');
 
-      await expect(service.extract(buffer)).rejects.toThrow('PDF parsing failed');
+      await expect(service.extract(buffer)).rejects.toThrow(
+        'PDF parsing failed',
+      );
     });
 
     it('should handle empty PDF', async () => {
-      mockOn.mockImplementation((event: string, callback: Function) => {
-        if (event === 'pdfParser_dataReady') {
-          mockParseBuffer.mockImplementation(() => {
-            callback({
-              Pages: [],
-              Meta: {},
+      mockOn.mockImplementation(
+        (event: string, callback: (...args: unknown[]) => unknown) => {
+          if (event === 'pdfParser_dataReady') {
+            mockParseBuffer.mockImplementation(() => {
+              callback({
+                Pages: [],
+                Meta: {},
+              });
             });
-          });
-        }
-        return { on: mockOn };
-      });
+          }
+          return { on: mockOn };
+        },
+      );
 
       const buffer = Buffer.from('empty pdf');
 
@@ -173,17 +179,19 @@ describe('PdfExtractorService', () => {
     });
 
     it('should handle PDF with no text', async () => {
-      mockOn.mockImplementation((event: string, callback: Function) => {
-        if (event === 'pdfParser_dataReady') {
-          mockParseBuffer.mockImplementation(() => {
-            callback({
-              Pages: [{ Texts: [] }],
-              Meta: { Title: 'Image-only PDF' },
+      mockOn.mockImplementation(
+        (event: string, callback: (...args: unknown[]) => unknown) => {
+          if (event === 'pdfParser_dataReady') {
+            mockParseBuffer.mockImplementation(() => {
+              callback({
+                Pages: [{ Texts: [] }],
+                Meta: { Title: 'Image-only PDF' },
+              });
             });
-          });
-        }
-        return { on: mockOn };
-      });
+          }
+          return { on: mockOn };
+        },
+      );
 
       const buffer = Buffer.from('image-only pdf');
 
@@ -196,17 +204,19 @@ describe('PdfExtractorService', () => {
 
   describe('metadata extraction', () => {
     it('should handle missing metadata fields', async () => {
-      mockOn.mockImplementation((event: string, callback: Function) => {
-        if (event === 'pdfParser_dataReady') {
-          mockParseBuffer.mockImplementation(() => {
-            callback({
-              Pages: [{ Texts: [{ R: [{ T: 'Content' }] }] }],
-              // No Meta field
+      mockOn.mockImplementation(
+        (event: string, callback: (...args: unknown[]) => unknown) => {
+          if (event === 'pdfParser_dataReady') {
+            mockParseBuffer.mockImplementation(() => {
+              callback({
+                Pages: [{ Texts: [{ R: [{ T: 'Content' }] }] }],
+                // No Meta field
+              });
             });
-          });
-        }
-        return { on: mockOn };
-      });
+          }
+          return { on: mockOn };
+        },
+      );
 
       const buffer = Buffer.from('no metadata pdf');
 

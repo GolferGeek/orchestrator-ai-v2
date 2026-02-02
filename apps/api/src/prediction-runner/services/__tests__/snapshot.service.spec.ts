@@ -37,8 +37,18 @@ describe('SnapshotService', () => {
   const mockLlmEnsemble: LlmEnsembleSnapshot = {
     tiers_used: ['gold', 'silver'],
     tier_results: {
-      gold: { direction: 'up', confidence: 0.9, model: 'gpt-4', provider: 'openai' },
-      silver: { direction: 'up', confidence: 0.85, model: 'claude', provider: 'anthropic' },
+      gold: {
+        direction: 'up',
+        confidence: 0.9,
+        model: 'gpt-4',
+        provider: 'openai',
+      },
+      silver: {
+        direction: 'up',
+        confidence: 0.85,
+        model: 'claude',
+        provider: 'anthropic',
+      },
     },
     agreement_level: 0.95,
   };
@@ -145,7 +155,9 @@ describe('SnapshotService', () => {
     it('should return snapshot for prediction', async () => {
       const result = await service.getSnapshot('pred-123');
 
-      expect(snapshotRepository.findByPredictionId).toHaveBeenCalledWith('pred-123');
+      expect(snapshotRepository.findByPredictionId).toHaveBeenCalledWith(
+        'pred-123',
+      );
       expect(result).toEqual(mockSnapshot);
     });
 

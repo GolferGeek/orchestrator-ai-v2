@@ -56,8 +56,18 @@ describe('SnapshotRepository', () => {
     llm_ensemble: {
       tiers_used: ['gold', 'silver'],
       tier_results: {
-        gold: { direction: 'up', confidence: 0.85, model: 'claude-3-opus', provider: 'anthropic' },
-        silver: { direction: 'up', confidence: 0.75, model: 'claude-3-sonnet', provider: 'anthropic' },
+        gold: {
+          direction: 'up',
+          confidence: 0.85,
+          model: 'claude-3-opus',
+          provider: 'anthropic',
+        },
+        silver: {
+          direction: 'up',
+          confidence: 0.75,
+          model: 'claude-3-sonnet',
+          provider: 'anthropic',
+        },
       },
       agreement_level: 0.9,
     },
@@ -105,11 +115,20 @@ describe('SnapshotRepository', () => {
   };
 
   const createMockClient = (overrides?: {
-    single?: { data: unknown | null; error: { message: string; code?: string } | null };
-    insert?: { data: unknown | null; error: { message: string } | null };
+    single?: {
+      data: unknown;
+      error: { message: string; code?: string } | null;
+    };
+    insert?: { data: unknown; error: { message: string } | null };
   }) => {
-    const singleResult = overrides?.single ?? { data: mockDbSnapshot, error: null };
-    const insertResult = overrides?.insert ?? { data: mockSnapshot, error: null };
+    const singleResult = overrides?.single ?? {
+      data: mockDbSnapshot,
+      error: null,
+    };
+    const insertResult = overrides?.insert ?? {
+      data: mockSnapshot,
+      error: null,
+    };
 
     const createChain = () => {
       const chainableResult: Record<string, unknown> = {
@@ -192,7 +211,9 @@ describe('SnapshotRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.create({
@@ -224,7 +245,9 @@ describe('SnapshotRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: { message: 'Insert failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.create({
@@ -269,9 +292,14 @@ describe('SnapshotRepository', () => {
 
     it('should return null when snapshot not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findByPredictionId('nonexistent');
 
@@ -282,7 +310,9 @@ describe('SnapshotRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findByPredictionId('pred-123')).rejects.toThrow(
         'Failed to fetch snapshot: Database error',

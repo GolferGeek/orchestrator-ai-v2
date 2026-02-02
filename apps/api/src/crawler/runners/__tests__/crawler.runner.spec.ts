@@ -141,10 +141,12 @@ describe('CrawlerRunner', () => {
         resolveFirst = resolve;
       });
 
-      crawlerSourceRepository.findDueForCrawl.mockImplementationOnce(async () => {
-        await firstPromise;
-        return [mockSourceDue];
-      });
+      crawlerSourceRepository.findDueForCrawl.mockImplementationOnce(
+        async () => {
+          await firstPromise;
+          return [mockSourceDue];
+        },
+      );
 
       // Start first run
       const firstRun = runner.crawlByFrequency(15);
@@ -221,7 +223,9 @@ describe('CrawlerRunner', () => {
     });
 
     it('should reset isRunning flag after error', async () => {
-      crawlerSourceRepository.findDueForCrawl.mockRejectedValueOnce(new Error('Database error'));
+      crawlerSourceRepository.findDueForCrawl.mockRejectedValueOnce(
+        new Error('Database error'),
+      );
 
       try {
         await runner.crawlByFrequency(15);
@@ -239,10 +243,14 @@ describe('CrawlerRunner', () => {
       const frequencies: CrawlFrequency[] = [5, 10, 15, 30, 60];
 
       for (const frequency of frequencies) {
-        crawlerSourceRepository.findDueForCrawl.mockResolvedValue([mockSourceDue]);
+        crawlerSourceRepository.findDueForCrawl.mockResolvedValue([
+          mockSourceDue,
+        ]);
         const result = await runner.crawlByFrequency(frequency);
         expect(result.total).toBe(1);
-        expect(crawlerSourceRepository.findDueForCrawl).toHaveBeenCalledWith(frequency);
+        expect(crawlerSourceRepository.findDueForCrawl).toHaveBeenCalledWith(
+          frequency,
+        );
       }
     });
   });
@@ -253,7 +261,9 @@ describe('CrawlerRunner', () => {
 
       expect(result.success).toBe(true);
       expect(result.articlesNew).toBe(5);
-      expect(crawlerSourceRepository.findById).toHaveBeenCalledWith('source-123');
+      expect(crawlerSourceRepository.findById).toHaveBeenCalledWith(
+        'source-123',
+      );
     });
 
     it('should return failure when source not found', async () => {
@@ -283,7 +293,9 @@ describe('CrawlerRunner', () => {
     });
 
     it('should handle exceptions gracefully', async () => {
-      crawlerSourceRepository.findById.mockRejectedValue(new Error('Database error'));
+      crawlerSourceRepository.findById.mockRejectedValue(
+        new Error('Database error'),
+      );
 
       const result = await runner.crawlSingleSource('source-123');
 
@@ -295,7 +307,9 @@ describe('CrawlerRunner', () => {
     it('should mark crawl success on successful crawl', async () => {
       await runner.crawlSingleSource('source-123');
 
-      expect(crawlerSourceRepository.markCrawlSuccess).toHaveBeenCalledWith('source-123');
+      expect(crawlerSourceRepository.markCrawlSuccess).toHaveBeenCalledWith(
+        'source-123',
+      );
     });
   });
 
@@ -326,7 +340,11 @@ describe('CrawlerRunner', () => {
         ok: true,
         json: async () => ({
           items: [
-            { url: 'https://example.com/api-item', title: 'API Item', content: 'API Content' },
+            {
+              url: 'https://example.com/api-item',
+              title: 'API Item',
+              content: 'API Content',
+            },
           ],
         }),
       });
@@ -353,7 +371,10 @@ describe('CrawlerRunner', () => {
     });
 
     it('should handle unsupported source type', async () => {
-      const unsupportedSource = { ...mockSource, source_type: 'unknown' as Source['source_type'] };
+      const unsupportedSource = {
+        ...mockSource,
+        source_type: 'unknown' as Source['source_type'],
+      };
       crawlerSourceRepository.findById.mockResolvedValue(unsupportedSource);
 
       const result = await runner.crawlSingleSource('source-123');

@@ -1,7 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { TestScenarioRepository } from '../test-scenario.repository';
 import { SupabaseService } from '@/supabase/supabase.service';
-import { TestScenario, TestScenarioSummary } from '../../interfaces/test-data.interface';
+import {
+  TestScenario,
+  TestScenarioSummary,
+} from '../../interfaces/test-data.interface';
 
 describe('TestScenarioRepository', () => {
   let repository: TestScenarioRepository;
@@ -35,17 +38,32 @@ describe('TestScenarioRepository', () => {
   };
 
   const createMockClient = (overrides?: {
-    single?: { data: unknown | null; error: { message: string; code?: string } | null };
+    single?: {
+      data: unknown;
+      error: { message: string; code?: string } | null;
+    };
     list?: { data: unknown[] | null; error: { message: string } | null };
-    insert?: { data: unknown | null; error: { message: string } | null };
-    update?: { data: unknown | null; error: { message: string } | null };
+    insert?: { data: unknown; error: { message: string } | null };
+    update?: { data: unknown; error: { message: string } | null };
     delete?: { error: { message: string } | null };
-    rpc?: { data: unknown | null; error: { message: string } | null };
+    rpc?: { data: unknown; error: { message: string } | null };
   }) => {
-    const singleResult = overrides?.single ?? { data: mockTestScenario, error: null };
-    const listResult = overrides?.list ?? { data: [mockTestScenario], error: null };
-    const insertResult = overrides?.insert ?? { data: mockTestScenario, error: null };
-    const updateResult = overrides?.update ?? { data: mockTestScenario, error: null };
+    const singleResult = overrides?.single ?? {
+      data: mockTestScenario,
+      error: null,
+    };
+    const listResult = overrides?.list ?? {
+      data: [mockTestScenario],
+      error: null,
+    };
+    const insertResult = overrides?.insert ?? {
+      data: mockTestScenario,
+      error: null,
+    };
+    const updateResult = overrides?.update ?? {
+      data: mockTestScenario,
+      error: null,
+    };
     const deleteResult = overrides?.delete ?? { error: null };
     const rpcResult = overrides?.rpc ?? {
       data: [{ table_name: 'signals', rows_deleted: 5 }],
@@ -149,9 +167,14 @@ describe('TestScenarioRepository', () => {
 
     it('should return null when scenario not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('nonexistent');
 
@@ -162,7 +185,9 @@ describe('TestScenarioRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findById('scenario-123')).rejects.toThrow(
         'Failed to fetch test scenario: Database error',
@@ -181,7 +206,9 @@ describe('TestScenarioRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findByOrganization('test-org');
 
@@ -192,7 +219,9 @@ describe('TestScenarioRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findByOrganization('test-org')).rejects.toThrow(
         'Failed to fetch test scenarios: Query failed',
@@ -211,7 +240,9 @@ describe('TestScenarioRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findActiveByOrganization('test-org');
 
@@ -222,11 +253,13 @@ describe('TestScenarioRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.findActiveByOrganization('test-org')).rejects.toThrow(
-        'Failed to fetch active test scenarios: Query failed',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.findActiveByOrganization('test-org'),
+      ).rejects.toThrow('Failed to fetch active test scenarios: Query failed');
     });
   });
 
@@ -241,7 +274,9 @@ describe('TestScenarioRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findByTarget('target-123');
 
@@ -252,7 +287,9 @@ describe('TestScenarioRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findByTarget('target-123')).rejects.toThrow(
         'Failed to fetch test scenarios by target: Query failed',
@@ -300,12 +337,14 @@ describe('TestScenarioRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.create({
           name: 'Test',
-          injection_points: ['signals'] as ('signals')[],
+          injection_points: ['signals'] as 'signals'[],
           organization_slug: 'test-org',
         }),
       ).rejects.toThrow('Create succeeded but no test scenario returned');
@@ -315,12 +354,14 @@ describe('TestScenarioRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: { message: 'Insert failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.create({
           name: 'Test',
-          injection_points: ['signals'] as ('signals')[],
+          injection_points: ['signals'] as 'signals'[],
           organization_slug: 'test-org',
         }),
       ).rejects.toThrow('Failed to create test scenario: Insert failed');
@@ -329,7 +370,9 @@ describe('TestScenarioRepository', () => {
 
   describe('update', () => {
     it('should update scenario successfully', async () => {
-      const result = await repository.update('scenario-123', { name: 'Updated Name' });
+      const result = await repository.update('scenario-123', {
+        name: 'Updated Name',
+      });
 
       expect(result).toEqual(mockTestScenario);
     });
@@ -338,22 +381,26 @@ describe('TestScenarioRepository', () => {
       const mockClient = createMockClient({
         update: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.update('scenario-123', { name: 'Updated' })).rejects.toThrow(
-        'Update succeeded but no test scenario returned',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.update('scenario-123', { name: 'Updated' }),
+      ).rejects.toThrow('Update succeeded but no test scenario returned');
     });
 
     it('should throw error on update failure', async () => {
       const mockClient = createMockClient({
         update: { data: null, error: { message: 'Update failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.update('scenario-123', { name: 'Updated' })).rejects.toThrow(
-        'Failed to update test scenario: Update failed',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.update('scenario-123', { name: 'Updated' }),
+      ).rejects.toThrow('Failed to update test scenario: Update failed');
     });
   });
 
@@ -386,7 +433,10 @@ describe('TestScenarioRepository', () => {
 
   describe('markFailed', () => {
     it('should mark scenario as failed with error message', async () => {
-      const result = await repository.markFailed('scenario-123', 'Processing error');
+      const result = await repository.markFailed(
+        'scenario-123',
+        'Processing error',
+      );
 
       expect(result).toBeDefined();
     });
@@ -401,7 +451,9 @@ describe('TestScenarioRepository', () => {
       const mockClient = createMockClient({
         delete: { error: { message: 'Delete failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.delete('scenario-123')).rejects.toThrow(
         'Failed to delete test scenario: Delete failed',
@@ -421,7 +473,9 @@ describe('TestScenarioRepository', () => {
       const mockClient = createMockClient({
         rpc: { data: null, error: { message: 'Cleanup failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.cleanupScenario('scenario-123')).rejects.toThrow(
         'Failed to cleanup test scenario: Cleanup failed',
@@ -441,7 +495,9 @@ describe('TestScenarioRepository', () => {
       const mockClient = createMockClient({
         rpc: { data: null, error: { message: 'Cleanup failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.cleanupAllTestData()).rejects.toThrow(
         'Failed to cleanup all test data: Cleanup failed',
@@ -454,7 +510,9 @@ describe('TestScenarioRepository', () => {
       const mockClient = createMockClient({
         list: { data: [mockTestScenarioSummary], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.getSummaries('test-org');
 
@@ -465,7 +523,9 @@ describe('TestScenarioRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.getSummaries('test-org');
 
@@ -476,7 +536,9 @@ describe('TestScenarioRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.getSummaries('test-org')).rejects.toThrow(
         'Failed to fetch test scenario summaries: Query failed',
@@ -485,7 +547,13 @@ describe('TestScenarioRepository', () => {
   });
 
   describe('scenario statuses', () => {
-    const statuses = ['active', 'running', 'completed', 'failed', 'archived'] as const;
+    const statuses = [
+      'active',
+      'running',
+      'completed',
+      'failed',
+      'archived',
+    ] as const;
 
     statuses.forEach((status) => {
       it(`should handle ${status} status`, async () => {
@@ -493,7 +561,9 @@ describe('TestScenarioRepository', () => {
         const mockClient = createMockClient({
           single: { data: scenarioWithStatus, error: null },
         });
-        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+          mockClient,
+        );
 
         const result = await repository.findById('scenario-123');
 
@@ -515,12 +585,15 @@ describe('TestScenarioRepository', () => {
     it('should handle multiple injection points', async () => {
       const scenarioWithPoints = {
         ...mockTestScenario,
-        injection_points: injectionPoints as unknown as TestScenario['injection_points'],
+        injection_points:
+          injectionPoints as unknown as TestScenario['injection_points'],
       };
       const mockClient = createMockClient({
         single: { data: scenarioWithPoints, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('scenario-123');
 

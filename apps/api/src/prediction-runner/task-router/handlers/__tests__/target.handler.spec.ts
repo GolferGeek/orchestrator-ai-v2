@@ -42,6 +42,9 @@ describe('TargetHandler', () => {
     target_type: 'stock' as const,
     context: 'Tech company',
     is_active: true,
+    is_archived: false,
+    current_price: 150.0,
+    price_updated_at: '2024-01-15T00:00:00Z',
     llm_config_override: null,
     metadata: {},
     created_at: '2024-01-15T00:00:00Z',
@@ -157,8 +160,8 @@ describe('TargetHandler', () => {
 
     it('should filter by targetType', async () => {
       const targets = [
-        { ...mockTarget, target_type: 'stock' },
-        { ...mockTarget, id: 'target-2', target_type: 'crypto' },
+        { ...mockTarget, target_type: 'stock' as const },
+        { ...mockTarget, id: 'target-2', target_type: 'crypto' as const },
       ];
       targetService.findActiveByUniverse.mockResolvedValue(targets);
 

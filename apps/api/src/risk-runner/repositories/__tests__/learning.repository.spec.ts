@@ -73,16 +73,28 @@ describe('LearningRepository', () => {
   };
 
   const createMockClient = (overrides?: {
-    single?: { data: unknown | null; error: { message: string; code?: string } | null };
+    single?: {
+      data: unknown;
+      error: { message: string; code?: string } | null;
+    };
     list?: { data: unknown[] | null; error: { message: string } | null };
-    insert?: { data: unknown | null; error: { message: string } | null };
-    update?: { data: unknown | null; error: { message: string } | null };
+    insert?: { data: unknown; error: { message: string } | null };
+    update?: { data: unknown; error: { message: string } | null };
     delete?: { error: { message: string } | null };
   }) => {
-    const singleResult = overrides?.single ?? { data: mockLearning, error: null };
+    const singleResult = overrides?.single ?? {
+      data: mockLearning,
+      error: null,
+    };
     const listResult = overrides?.list ?? { data: [mockLearning], error: null };
-    const insertResult = overrides?.insert ?? { data: mockLearning, error: null };
-    const updateResult = overrides?.update ?? { data: mockLearning, error: null };
+    const insertResult = overrides?.insert ?? {
+      data: mockLearning,
+      error: null,
+    };
+    const updateResult = overrides?.update ?? {
+      data: mockLearning,
+      error: null,
+    };
     const deleteResult = overrides?.delete ?? { error: null };
 
     const createChain = () => {
@@ -180,7 +192,9 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findAllLearnings();
 
@@ -191,7 +205,9 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findAllLearnings()).rejects.toThrow(
         'Failed to fetch learnings: Query failed',
@@ -217,7 +233,9 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findLearningsByScope('scope-123');
 
@@ -228,11 +246,13 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.findLearningsByScope('scope-123')).rejects.toThrow(
-        'Failed to fetch learnings by scope: Query failed',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.findLearningsByScope('scope-123'),
+      ).rejects.toThrow('Failed to fetch learnings by scope: Query failed');
     });
 
     it('should apply filter', async () => {
@@ -257,13 +277,19 @@ describe('LearningRepository', () => {
     });
 
     it('should filter by domain', async () => {
-      const result = await repository.findProductionLearnings(undefined, 'investment');
+      const result = await repository.findProductionLearnings(
+        undefined,
+        'investment',
+      );
 
       expect(result).toEqual([mockLearning]);
     });
 
     it('should filter by both scope level and domain', async () => {
-      const result = await repository.findProductionLearnings('domain', 'investment');
+      const result = await repository.findProductionLearnings(
+        'domain',
+        'investment',
+      );
 
       expect(result).toEqual([mockLearning]);
     });
@@ -272,7 +298,9 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findProductionLearnings()).rejects.toThrow(
         'Failed to fetch production learnings: Query failed',
@@ -289,9 +317,14 @@ describe('LearningRepository', () => {
 
     it('should return null when learning not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findLearningById('nonexistent');
 
@@ -302,7 +335,9 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findLearningById('learning-123')).rejects.toThrow(
         'Failed to fetch learning: Database error',
@@ -319,13 +354,18 @@ describe('LearningRepository', () => {
 
     it('should throw NotFoundException when learning not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.findLearningByIdOrThrow('nonexistent')).rejects.toThrow(
-        NotFoundException,
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.findLearningByIdOrThrow('nonexistent'),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -346,7 +386,9 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.createLearning({
@@ -361,7 +403,9 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: { message: 'Insert failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.createLearning({
@@ -379,9 +423,13 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         update: { data: updatedLearning, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.updateLearning('learning-123', { title: 'Updated Title' });
+      const result = await repository.updateLearning('learning-123', {
+        title: 'Updated Title',
+      });
 
       expect(result).toEqual(updatedLearning);
     });
@@ -390,7 +438,9 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         update: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.updateLearning('learning-123', { title: 'Updated' }),
@@ -401,7 +451,9 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         update: { data: null, error: { message: 'Update failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.updateLearning('learning-123', { title: 'Updated' }),
@@ -416,9 +468,13 @@ describe('LearningRepository', () => {
         single: { data: mockLearning, error: null },
         update: { data: updatedLearning, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(repository.incrementApplied('learning-123')).resolves.toBeUndefined();
+      await expect(
+        repository.incrementApplied('learning-123'),
+      ).resolves.toBeUndefined();
     });
   });
 
@@ -429,22 +485,30 @@ describe('LearningRepository', () => {
         single: { data: mockLearning, error: null },
         update: { data: updatedLearning, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(repository.incrementHelpful('learning-123')).resolves.toBeUndefined();
+      await expect(
+        repository.incrementHelpful('learning-123'),
+      ).resolves.toBeUndefined();
     });
   });
 
   describe('deleteLearning', () => {
     it('should delete learning successfully', async () => {
-      await expect(repository.deleteLearning('learning-123')).resolves.toBeUndefined();
+      await expect(
+        repository.deleteLearning('learning-123'),
+      ).resolves.toBeUndefined();
     });
 
     it('should throw error on delete failure', async () => {
       const mockClient = createMockClient({
         delete: { error: { message: 'Delete failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.deleteLearning('learning-123')).rejects.toThrow(
         'Failed to delete learning: Delete failed',
@@ -459,7 +523,9 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         list: { data: [mockPendingView], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findPendingQueue();
 
@@ -470,7 +536,9 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findPendingQueue();
 
@@ -481,7 +549,9 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findPendingQueue()).rejects.toThrow(
         'Failed to fetch pending learnings: Query failed',
@@ -494,7 +564,9 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         list: { data: [mockQueueItem], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findQueueByScope('scope-123');
 
@@ -505,7 +577,9 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findQueueByScope('scope-123');
 
@@ -516,7 +590,9 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findQueueByScope('scope-123')).rejects.toThrow(
         'Failed to fetch learning queue: Query failed',
@@ -529,7 +605,9 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         single: { data: mockQueueItem, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findQueueItemById('queue-123');
 
@@ -538,9 +616,14 @@ describe('LearningRepository', () => {
 
     it('should return null when item not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findQueueItemById('nonexistent');
 
@@ -551,7 +634,9 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findQueueItemById('queue-123')).rejects.toThrow(
         'Failed to fetch queue item: Database error',
@@ -564,7 +649,9 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         single: { data: mockQueueItem, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findQueueItemByIdOrThrow('queue-123');
 
@@ -573,13 +660,18 @@ describe('LearningRepository', () => {
 
     it('should throw NotFoundException when item not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.findQueueItemByIdOrThrow('nonexistent')).rejects.toThrow(
-        NotFoundException,
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.findQueueItemByIdOrThrow('nonexistent'),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -588,7 +680,9 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         insert: { data: mockQueueItem, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const createData = {
         suggested_title: 'New pattern',
@@ -603,7 +697,9 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.createQueueItem({ suggested_title: 'Test' }),
@@ -614,7 +710,9 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: { message: 'Insert failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.createQueueItem({ suggested_title: 'Test' }),
@@ -628,9 +726,13 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         update: { data: updatedItem, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.updateQueueItem('queue-123', { status: 'approved' });
+      const result = await repository.updateQueueItem('queue-123', {
+        status: 'approved',
+      });
 
       expect(result).toEqual(updatedItem);
     });
@@ -639,7 +741,9 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         update: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.updateQueueItem('queue-123', { status: 'approved' }),
@@ -650,7 +754,9 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         update: { data: null, error: { message: 'Update failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.updateQueueItem('queue-123', { status: 'approved' }),
@@ -660,14 +766,18 @@ describe('LearningRepository', () => {
 
   describe('deleteQueueItem', () => {
     it('should delete queue item successfully', async () => {
-      await expect(repository.deleteQueueItem('queue-123')).resolves.toBeUndefined();
+      await expect(
+        repository.deleteQueueItem('queue-123'),
+      ).resolves.toBeUndefined();
     });
 
     it('should throw error on delete failure', async () => {
       const mockClient = createMockClient({
         delete: { error: { message: 'Delete failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.deleteQueueItem('queue-123')).rejects.toThrow(
         'Failed to delete queue item: Delete failed',
@@ -681,7 +791,9 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         list: { data: pendingItems, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.countPending();
 
@@ -692,7 +804,9 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.countPending();
 
@@ -703,15 +817,26 @@ describe('LearningRepository', () => {
   // ─── TYPE TESTS ────────────────────────────────────────────────────────
 
   describe('scope levels', () => {
-    const scopeLevels = ['runner', 'domain', 'scope', 'subject', 'dimension'] as const;
+    const scopeLevels = [
+      'runner',
+      'domain',
+      'scope',
+      'subject',
+      'dimension',
+    ] as const;
 
     scopeLevels.forEach((scopeLevel) => {
       it(`should handle ${scopeLevel} scope level`, async () => {
-        const learningWithScopeLevel = { ...mockLearning, scope_level: scopeLevel };
+        const learningWithScopeLevel = {
+          ...mockLearning,
+          scope_level: scopeLevel,
+        };
         const mockClient = createMockClient({
           single: { data: learningWithScopeLevel, error: null },
         });
-        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+          mockClient,
+        );
 
         const result = await repository.findLearningById('learning-123');
 
@@ -721,15 +846,26 @@ describe('LearningRepository', () => {
   });
 
   describe('learning types', () => {
-    const learningTypes = ['rule', 'pattern', 'avoid', 'weight_adjustment', 'threshold'] as const;
+    const learningTypes = [
+      'rule',
+      'pattern',
+      'avoid',
+      'weight_adjustment',
+      'threshold',
+    ] as const;
 
     learningTypes.forEach((learningType) => {
       it(`should handle ${learningType} learning type`, async () => {
-        const learningWithType = { ...mockLearning, learning_type: learningType };
+        const learningWithType = {
+          ...mockLearning,
+          learning_type: learningType,
+        };
         const mockClient = createMockClient({
           single: { data: learningWithType, error: null },
         });
-        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+          mockClient,
+        );
 
         const result = await repository.findLearningById('learning-123');
 
@@ -747,7 +883,9 @@ describe('LearningRepository', () => {
         const mockClient = createMockClient({
           single: { data: learningWithStatus, error: null },
         });
-        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+          mockClient,
+        );
 
         const result = await repository.findLearningById('learning-123');
 
@@ -765,7 +903,9 @@ describe('LearningRepository', () => {
         const mockClient = createMockClient({
           single: { data: itemWithStatus, error: null },
         });
-        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+          mockClient,
+        );
 
         const result = await repository.findQueueItemById('queue-123');
 
@@ -779,11 +919,16 @@ describe('LearningRepository', () => {
 
     sourceTypes.forEach((sourceType) => {
       it(`should handle ${sourceType ?? 'null'} source type`, async () => {
-        const learningWithSourceType = { ...mockLearning, source_type: sourceType };
+        const learningWithSourceType = {
+          ...mockLearning,
+          source_type: sourceType,
+        };
         const mockClient = createMockClient({
           single: { data: learningWithSourceType, error: null },
         });
-        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+          mockClient,
+        );
 
         const result = await repository.findLearningById('learning-123');
 
@@ -803,7 +948,9 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         single: { data: learningWithConfig, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findLearningById('learning-123');
 
@@ -812,14 +959,20 @@ describe('LearningRepository', () => {
 
     it('should handle pattern config', async () => {
       const patternConfig: LearningConfig = {
-        pattern_signals: ['price_drop', 'volume_spike', 'news_sentiment_negative'],
+        pattern_signals: [
+          'price_drop',
+          'volume_spike',
+          'news_sentiment_negative',
+        ],
         pattern_effect: 'high_risk_indicator',
       };
       const learningWithConfig = { ...mockLearning, config: patternConfig };
       const mockClient = createMockClient({
         single: { data: learningWithConfig, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findLearningById('learning-123');
 
@@ -835,7 +988,9 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         single: { data: learningWithConfig, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findLearningById('learning-123');
 
@@ -853,7 +1008,9 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         single: { data: learningWithConfig, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findLearningById('learning-123');
 
@@ -865,7 +1022,9 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         single: { data: learningWithEmptyConfig, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findLearningById('learning-123');
 

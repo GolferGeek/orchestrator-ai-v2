@@ -161,9 +161,13 @@ describe('LearningImpactService', () => {
       const result = await service.getLearningImpact('learning-123');
 
       expect(result).toBeDefined();
-      expect(['promote', 'maintain', 'review', 'demote', 'insufficient_data']).toContain(
-        result?.recommendation,
-      );
+      expect([
+        'promote',
+        'maintain',
+        'review',
+        'demote',
+        'insufficient_data',
+      ]).toContain(result?.recommendation);
     });
 
     it('should return insufficient_data when few applications', async () => {
@@ -220,7 +224,10 @@ describe('LearningImpactService', () => {
     it('should calculate average accuracy impact', async () => {
       const result = await service.getImpactSummary();
 
-      expect(result.averageAccuracyImpact === null || typeof result.averageAccuracyImpact === 'number').toBe(true);
+      expect(
+        result.averageAccuracyImpact === null ||
+          typeof result.averageAccuracyImpact === 'number',
+      ).toBe(true);
     });
 
     it('should group by type', async () => {
@@ -256,11 +263,18 @@ describe('LearningImpactService', () => {
 
   describe('trackLearningApplication', () => {
     it('should increment application count for each learning', async () => {
-      await service.trackLearningApplication('pred-123', ['learning-1', 'learning-2']);
+      await service.trackLearningApplication('pred-123', [
+        'learning-1',
+        'learning-2',
+      ]);
 
       expect(learningRepository.incrementApplication).toHaveBeenCalledTimes(2);
-      expect(learningRepository.incrementApplication).toHaveBeenCalledWith('learning-1');
-      expect(learningRepository.incrementApplication).toHaveBeenCalledWith('learning-2');
+      expect(learningRepository.incrementApplication).toHaveBeenCalledWith(
+        'learning-1',
+      );
+      expect(learningRepository.incrementApplication).toHaveBeenCalledWith(
+        'learning-2',
+      );
     });
 
     it('should handle empty learning IDs array', async () => {
@@ -274,7 +288,10 @@ describe('LearningImpactService', () => {
         .mockRejectedValueOnce(new Error('Failed'))
         .mockResolvedValueOnce(undefined);
 
-      await service.trackLearningApplication('pred-123', ['learning-1', 'learning-2']);
+      await service.trackLearningApplication('pred-123', [
+        'learning-1',
+        'learning-2',
+      ]);
 
       expect(learningRepository.incrementApplication).toHaveBeenCalledTimes(2);
     });
@@ -284,13 +301,19 @@ describe('LearningImpactService', () => {
     it('should record positive feedback', async () => {
       await service.recordLearningFeedback('pred-123', 'learning-123', true);
 
-      expect(learningRepository.incrementApplication).toHaveBeenCalledWith('learning-123', true);
+      expect(learningRepository.incrementApplication).toHaveBeenCalledWith(
+        'learning-123',
+        true,
+      );
     });
 
     it('should record negative feedback', async () => {
       await service.recordLearningFeedback('pred-123', 'learning-123', false);
 
-      expect(learningRepository.incrementApplication).toHaveBeenCalledWith('learning-123', false);
+      expect(learningRepository.incrementApplication).toHaveBeenCalledWith(
+        'learning-123',
+        false,
+      );
     });
   });
 
@@ -308,7 +331,10 @@ describe('LearningImpactService', () => {
       const result = await service.getLearningImpact('learning-123');
 
       // Should have an effectiveness score since times_applied = 10
-      expect(result?.effectivenessScore === null || typeof result?.effectivenessScore === 'number').toBe(true);
+      expect(
+        result?.effectivenessScore === null ||
+          typeof result?.effectivenessScore === 'number',
+      ).toBe(true);
     });
 
     it('should determine correct recommendation based on accuracy delta', async () => {
@@ -336,19 +362,24 @@ describe('LearningImpactService', () => {
     });
 
     it('should exclude target learning from baseline', async () => {
-      const predictionWithoutLearning = { ...mockPrediction, id: 'pred-no-learning' };
+      const predictionWithoutLearning = {
+        ...mockPrediction,
+        id: 'pred-no-learning',
+      };
       predictionRepository.findByTarget.mockResolvedValue([
         mockPrediction,
         predictionWithoutLearning,
       ]);
 
       // Mock snapshot without the learning
-      snapshotRepository.findByPredictionId.mockImplementation(async (predId) => {
-        if (predId === 'pred-no-learning') {
-          return { ...mockSnapshot, learnings_applied: [] };
-        }
-        return mockSnapshot;
-      });
+      snapshotRepository.findByPredictionId.mockImplementation(
+        async (predId) => {
+          if (predId === 'pred-no-learning') {
+            return { ...mockSnapshot, learnings_applied: [] };
+          }
+          return mockSnapshot;
+        },
+      );
 
       const result = await service.getLearningImpact('learning-123');
 

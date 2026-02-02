@@ -1,12 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { MemoryManagerService, ModelMemoryInfo } from '../memory-manager.service';
+import { MemoryManagerService } from '../memory-manager.service';
 import { LocalModelStatusService } from '../local-model-status.service';
 import { SupabaseService } from '@/supabase/supabase.service';
 
 describe('MemoryManagerService', () => {
   let service: MemoryManagerService;
   let localModelStatusService: jest.Mocked<LocalModelStatusService>;
-  let supabaseService: jest.Mocked<SupabaseService>;
 
   const createMockQueryBuilder = () => {
     const builder: Record<string, jest.Mock> = {
@@ -55,7 +54,6 @@ describe('MemoryManagerService', () => {
 
     service = module.get<MemoryManagerService>(MemoryManagerService);
     localModelStatusService = module.get(LocalModelStatusService);
-    supabaseService = module.get(SupabaseService);
 
     // Override onModuleInit to prevent automatic initialization
     jest
@@ -97,7 +95,7 @@ describe('MemoryManagerService', () => {
 
     it('should calculate memory pressure correctly', async () => {
       // Initially should be low pressure
-      let stats = service.getMemoryStats();
+      const stats = service.getMemoryStats();
       expect(stats.memoryPressure).toBe('low');
     });
   });

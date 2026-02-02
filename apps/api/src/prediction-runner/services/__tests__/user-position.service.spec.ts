@@ -102,7 +102,9 @@ describe('UserPositionService', () => {
         {
           provide: PortfolioRepository,
           useValue: {
-            getOrCreateUserPortfolio: jest.fn().mockResolvedValue(mockPortfolio),
+            getOrCreateUserPortfolio: jest
+              .fn()
+              .mockResolvedValue(mockPortfolio),
             getUserPortfolio: jest.fn().mockResolvedValue(mockPortfolio),
             createUserPosition: jest.fn().mockResolvedValue(mockPosition),
             getOpenUserPositions: jest.fn().mockResolvedValue([mockPosition]),
@@ -115,14 +117,14 @@ describe('UserPositionService', () => {
             }),
             closeUserPosition: jest.fn().mockResolvedValue(undefined),
             recordUserTradeResult: jest.fn().mockResolvedValue(undefined),
-            calculatePnL: jest.fn().mockImplementation(
-              (direction, entry, exit, qty) => {
+            calculatePnL: jest
+              .fn()
+              .mockImplementation((direction, entry, exit, qty) => {
                 if (direction === 'long') {
                   return (exit - entry) * qty;
                 }
                 return (entry - exit) * qty;
-              },
-            ),
+              }),
           },
         },
         {
@@ -322,7 +324,9 @@ describe('UserPositionService', () => {
         quantity: 10,
       });
 
-      expect(targetSnapshotRepository.findLatest).toHaveBeenCalledWith('target-123');
+      expect(targetSnapshotRepository.findLatest).toHaveBeenCalledWith(
+        'target-123',
+      );
       expect(portfolioRepository.createUserPosition).toHaveBeenCalledWith(
         expect.anything(),
         expect.anything(),
@@ -442,7 +446,9 @@ describe('UserPositionService', () => {
         exit_price: 160,
         closed_at: new Date().toISOString(),
       };
-      portfolioRepository.getClosedUserPositions.mockResolvedValue([closedPosition]);
+      portfolioRepository.getClosedUserPositions.mockResolvedValue([
+        closedPosition,
+      ]);
 
       const result = await service.getClosedPositions('user-123', 'test-org');
 
@@ -463,10 +469,22 @@ describe('UserPositionService', () => {
     it('should calculate win/loss statistics', async () => {
       const closedPositions = [
         { ...mockPosition, status: 'closed' as const, realized_pnl: 500 },
-        { ...mockPosition, id: 'pos-2', status: 'closed' as const, realized_pnl: -200 },
-        { ...mockPosition, id: 'pos-3', status: 'closed' as const, realized_pnl: 300 },
+        {
+          ...mockPosition,
+          id: 'pos-2',
+          status: 'closed' as const,
+          realized_pnl: -200,
+        },
+        {
+          ...mockPosition,
+          id: 'pos-3',
+          status: 'closed' as const,
+          realized_pnl: 300,
+        },
       ];
-      portfolioRepository.getClosedUserPositions.mockResolvedValue(closedPositions);
+      portfolioRepository.getClosedUserPositions.mockResolvedValue(
+        closedPositions,
+      );
 
       const result = await service.getClosedPositions('user-123', 'test-org');
 

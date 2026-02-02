@@ -50,19 +50,34 @@ describe('LearningRepository', () => {
   };
 
   const createMockClient = (overrides?: {
-    single?: { data: unknown | null; error: { message: string; code?: string } | null };
-    list?: { data: unknown[] | null; error: { message: string } | null };
-    insert?: { data: unknown | null; error: { message: string } | null };
-    update?: { data: unknown | null; error: { message: string } | null };
+    single?: {
+      data: unknown;
+      error: { message: string; code?: string } | null;
+    };
+    list?: { data: unknown; error: { message: string } | null };
+    insert?: { data: unknown; error: { message: string } | null };
+    update?: { data: unknown; error: { message: string } | null };
     delete?: { error: { message: string } | null; count?: number };
-    rpc?: { data: unknown | null; error: { message: string } | null };
+    rpc?: { data: unknown; error: { message: string } | null };
   }) => {
-    const singleResult = overrides?.single ?? { data: mockLearning, error: null };
+    const singleResult = overrides?.single ?? {
+      data: mockLearning,
+      error: null,
+    };
     const listResult = overrides?.list ?? { data: [mockLearning], error: null };
-    const insertResult = overrides?.insert ?? { data: mockLearning, error: null };
-    const updateResult = overrides?.update ?? { data: mockLearning, error: null };
+    const insertResult = overrides?.insert ?? {
+      data: mockLearning,
+      error: null,
+    };
+    const updateResult = overrides?.update ?? {
+      data: mockLearning,
+      error: null,
+    };
     const deleteResult = overrides?.delete ?? { error: null, count: 0 };
-    const rpcResult = overrides?.rpc ?? { data: [mockActiveLearning], error: null };
+    const rpcResult = overrides?.rpc ?? {
+      data: [mockActiveLearning],
+      error: null,
+    };
 
     const createChain = () => {
       const chainableResult: Record<string, unknown> = {
@@ -164,7 +179,9 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         rpc: { data: [mockActiveLearning], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.getActiveLearnings('target-123');
 
@@ -175,7 +192,9 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         rpc: { data: [mockActiveLearning], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.getActiveLearnings('target-123', 'gold');
 
@@ -186,9 +205,15 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         rpc: { data: [mockActiveLearning], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.getActiveLearnings('target-123', undefined, 'analyst-123');
+      const result = await repository.getActiveLearnings(
+        'target-123',
+        undefined,
+        'analyst-123',
+      );
 
       expect(result).toBeDefined();
     });
@@ -197,7 +222,9 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         rpc: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.getActiveLearnings('target-123');
 
@@ -208,7 +235,9 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         rpc: { data: null, error: { message: 'RPC failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.getActiveLearnings('target-123')).rejects.toThrow(
         'Failed to get active learnings: RPC failed',
@@ -225,9 +254,14 @@ describe('LearningRepository', () => {
 
     it('should return null when learning not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('nonexistent');
 
@@ -238,7 +272,9 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findById('learning-123')).rejects.toThrow(
         'Failed to fetch learning: Database error',
@@ -255,11 +291,18 @@ describe('LearningRepository', () => {
 
     it('should throw NotFoundException when learning not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(repository.findByIdOrThrow('nonexistent')).rejects.toThrow(NotFoundException);
+      await expect(repository.findByIdOrThrow('nonexistent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -284,7 +327,9 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.create({ title: 'Test' })).rejects.toThrow(
         'Create succeeded but no learning returned',
@@ -295,7 +340,9 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: { message: 'Insert failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.create({ title: 'Test' })).rejects.toThrow(
         'Failed to create learning: Insert failed',
@@ -305,7 +352,9 @@ describe('LearningRepository', () => {
 
   describe('update', () => {
     it('should update learning successfully', async () => {
-      const result = await repository.update('learning-123', { title: 'Updated Title' });
+      const result = await repository.update('learning-123', {
+        title: 'Updated Title',
+      });
 
       expect(result).toEqual(mockLearning);
     });
@@ -314,22 +363,26 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         update: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.update('learning-123', { title: 'Updated' })).rejects.toThrow(
-        'Update succeeded but no learning returned',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.update('learning-123', { title: 'Updated' }),
+      ).rejects.toThrow('Update succeeded but no learning returned');
     });
 
     it('should throw error on update failure', async () => {
       const mockClient = createMockClient({
         update: { data: null, error: { message: 'Update failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.update('learning-123', { title: 'Updated' })).rejects.toThrow(
-        'Failed to update learning: Update failed',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.update('learning-123', { title: 'Updated' }),
+      ).rejects.toThrow('Failed to update learning: Update failed');
     });
   });
 
@@ -338,29 +391,39 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         rpc: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(repository.incrementApplication('learning-123')).resolves.toBeUndefined();
+      await expect(
+        repository.incrementApplication('learning-123'),
+      ).resolves.toBeUndefined();
     });
 
     it('should track helpfulness', async () => {
       const mockClient = createMockClient({
         rpc: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(repository.incrementApplication('learning-123', true)).resolves.toBeUndefined();
+      await expect(
+        repository.incrementApplication('learning-123', true),
+      ).resolves.toBeUndefined();
     });
 
     it('should throw error on RPC failure', async () => {
       const mockClient = createMockClient({
         rpc: { data: null, error: { message: 'RPC failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.incrementApplication('learning-123')).rejects.toThrow(
-        'Failed to increment learning application: RPC failed',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.incrementApplication('learning-123'),
+      ).rejects.toThrow('Failed to increment learning application: RPC failed');
     });
   });
 
@@ -378,19 +441,34 @@ describe('LearningRepository', () => {
     });
 
     it('should filter by universe', async () => {
-      const result = await repository.findByScope('universe', undefined, 'universe-123');
+      const result = await repository.findByScope(
+        'universe',
+        undefined,
+        'universe-123',
+      );
 
       expect(result).toBeDefined();
     });
 
     it('should filter by target', async () => {
-      const result = await repository.findByScope('target', undefined, undefined, 'target-123');
+      const result = await repository.findByScope(
+        'target',
+        undefined,
+        undefined,
+        'target-123',
+      );
 
       expect(result).toBeDefined();
     });
 
     it('should filter by status', async () => {
-      const result = await repository.findByScope('runner', undefined, undefined, undefined, 'active');
+      const result = await repository.findByScope(
+        'runner',
+        undefined,
+        undefined,
+        undefined,
+        'active',
+      );
 
       expect(result).toBeDefined();
     });
@@ -399,7 +477,9 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findByScope('runner');
 
@@ -410,7 +490,9 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findByScope('runner')).rejects.toThrow(
         'Failed to find learnings by scope: Query failed',
@@ -420,7 +502,10 @@ describe('LearningRepository', () => {
 
   describe('supersede', () => {
     it('should supersede learning', async () => {
-      const result = await repository.supersede('learning-123', 'new-learning-456');
+      const result = await repository.supersede(
+        'learning-123',
+        'new-learning-456',
+      );
 
       expect(result).toBeDefined();
     });
@@ -437,7 +522,9 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.getAllActiveLearnings();
 
@@ -448,7 +535,9 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.getAllActiveLearnings()).rejects.toThrow(
         'Failed to get all active learnings: Query failed',
@@ -458,7 +547,10 @@ describe('LearningRepository', () => {
 
   describe('createTestCopy', () => {
     it('should create test copy of learning', async () => {
-      const result = await repository.createTestCopy(mockLearning, 'scenario-123');
+      const result = await repository.createTestCopy(
+        mockLearning,
+        'scenario-123',
+      );
 
       expect(result).toBeDefined();
     });
@@ -469,7 +561,9 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         delete: { error: null, count: 5 },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.deleteTestLearnings('scenario-123');
 
@@ -480,7 +574,9 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         delete: { error: null, count: 0 },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.deleteTestLearnings('scenario-123');
 
@@ -491,24 +587,37 @@ describe('LearningRepository', () => {
       const mockClient = createMockClient({
         delete: { error: { message: 'Delete failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.deleteTestLearnings('scenario-123')).rejects.toThrow(
-        'Failed to delete test learnings: Delete failed',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.deleteTestLearnings('scenario-123'),
+      ).rejects.toThrow('Failed to delete test learnings: Delete failed');
     });
   });
 
   describe('learning types', () => {
-    const learningTypes = ['rule', 'pattern', 'weight_adjustment', 'threshold', 'avoid'] as const;
+    const learningTypes = [
+      'rule',
+      'pattern',
+      'weight_adjustment',
+      'threshold',
+      'avoid',
+    ] as const;
 
     learningTypes.forEach((learningType) => {
       it(`should handle ${learningType} learning type`, async () => {
-        const learningWithType = { ...mockLearning, learning_type: learningType };
+        const learningWithType = {
+          ...mockLearning,
+          learning_type: learningType,
+        };
         const mockClient = createMockClient({
           single: { data: learningWithType, error: null },
         });
-        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+          mockClient,
+        );
 
         const result = await repository.findById('learning-123');
 
@@ -526,7 +635,9 @@ describe('LearningRepository', () => {
         const mockClient = createMockClient({
           single: { data: learningWithStatus, error: null },
         });
-        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+          mockClient,
+        );
 
         const result = await repository.findById('learning-123');
 

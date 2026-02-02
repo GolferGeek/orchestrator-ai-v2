@@ -11,7 +11,7 @@ describe('ReviewQueueService', () => {
   let service: ReviewQueueService;
   let supabaseService: jest.Mocked<SupabaseService>;
   let signalRepository: jest.Mocked<SignalRepository>;
-  let predictorRepository: jest.Mocked<PredictorRepository>;
+  let _predictorRepository: jest.Mocked<PredictorRepository>;
   let learningQueueService: jest.Mocked<LearningQueueService>;
 
   const mockReviewItem: ReviewQueueItem = {
@@ -61,11 +61,14 @@ describe('ReviewQueueService', () => {
 
     const createChain = () => {
       const chain: Record<string, jest.Mock> = {};
-      chain.single = jest.fn().mockResolvedValue(overrides?.single ?? defaultResult);
+      chain.single = jest
+        .fn()
+        .mockResolvedValue(overrides?.single ?? defaultResult);
       chain.order = jest.fn().mockImplementation(() => ({
         ...chain,
         eq: jest.fn().mockReturnValue(chain),
-        then: (resolve: (v: unknown) => void) => resolve(overrides?.order ?? { data: [mockReviewItem], error: null }),
+        then: (resolve: (v: unknown) => void) =>
+          resolve(overrides?.order ?? { data: [mockReviewItem], error: null }),
       }));
       chain.eq = jest.fn().mockReturnValue(chain);
       chain.select = jest.fn().mockReturnValue(chain);
@@ -111,7 +114,9 @@ describe('ReviewQueueService', () => {
         {
           provide: LearningQueueService,
           useValue: {
-            createSuggestion: jest.fn().mockResolvedValue({ id: 'learning-123' }),
+            createSuggestion: jest
+              .fn()
+              .mockResolvedValue({ id: 'learning-123' }),
           },
         },
       ],
@@ -166,9 +171,12 @@ describe('ReviewQueueService', () => {
       const result = await service.queueForReview(createDto);
 
       expect(result).toBeDefined();
-      expect(signalRepository.update).toHaveBeenCalledWith('signal-123', expect.objectContaining({
-        disposition: 'review_pending',
-      }));
+      expect(signalRepository.update).toHaveBeenCalledWith(
+        'signal-123',
+        expect.objectContaining({
+          disposition: 'review_pending',
+        }),
+      );
     });
 
     it('should include analyst reasoning when provided', async () => {
@@ -210,9 +218,14 @@ describe('ReviewQueueService', () => {
 
     it('should return null when not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { code: 'PGRST116', message: 'Not found' } },
+        single: {
+          data: null,
+          error: { code: 'PGRST116', message: 'Not found' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await service.getReviewItem('nonexistent');
 
@@ -278,9 +291,14 @@ describe('ReviewQueueService', () => {
 
     it('should throw NotFoundException for nonexistent review', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { code: 'PGRST116', message: 'Not found' } },
+        single: {
+          data: null,
+          error: { code: 'PGRST116', message: 'Not found' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         service.handleReviewResponse({
@@ -295,7 +313,9 @@ describe('ReviewQueueService', () => {
       const mockClient = createMockClient({
         single: { data: resolvedReview, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         service.handleReviewResponse({

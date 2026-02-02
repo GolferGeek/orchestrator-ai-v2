@@ -23,22 +23,40 @@ describe('LearningLineageRepository', () => {
 
   const mockLineageWithDetails = {
     ...mockLineage,
-    promoter: { email: 'user@test.com', raw_user_meta_data: { full_name: 'Test User' } },
+    promoter: {
+      email: 'user@test.com',
+      raw_user_meta_data: { full_name: 'Test User' },
+    },
     test_learning: { title: 'Test Learning Title' },
     production_learning: { title: 'Production Learning Title' },
   };
 
   const createMockClient = (overrides?: {
-    single?: { data: unknown | null; error: { message: string; code?: string } | null };
-    list?: { data: unknown[] | null; error: { message: string } | null };
-    insert?: { data: unknown | null; error: { message: string } | null };
-    update?: { data: unknown | null; error: { message: string; code?: string } | null };
+    single?: {
+      data: unknown;
+      error: { message: string; code?: string } | null;
+    };
+    list?: { data: unknown; error: { message: string } | null };
+    insert?: { data: unknown; error: { message: string } | null };
+    update?: {
+      data: unknown;
+      error: { message: string; code?: string } | null;
+    };
     delete?: { error: { message: string } | null };
   }) => {
-    const singleResult = overrides?.single ?? { data: mockLineage, error: null };
+    const singleResult = overrides?.single ?? {
+      data: mockLineage,
+      error: null,
+    };
     const listResult = overrides?.list ?? { data: [mockLineage], error: null };
-    const insertResult = overrides?.insert ?? { data: mockLineage, error: null };
-    const updateResult = overrides?.update ?? { data: mockLineage, error: null };
+    const insertResult = overrides?.insert ?? {
+      data: mockLineage,
+      error: null,
+    };
+    const updateResult = overrides?.update ?? {
+      data: mockLineage,
+      error: null,
+    };
     const deleteResult = overrides?.delete ?? { error: null };
 
     const createChain = () => {
@@ -117,7 +135,9 @@ describe('LearningLineageRepository', () => {
     }).compile();
 
     module.useLogger(false);
-    repository = module.get<LearningLineageRepository>(LearningLineageRepository);
+    repository = module.get<LearningLineageRepository>(
+      LearningLineageRepository,
+    );
     supabaseService = module.get(SupabaseService);
   });
 
@@ -134,9 +154,14 @@ describe('LearningLineageRepository', () => {
 
     it('should return null when lineage not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('nonexistent');
 
@@ -147,7 +172,9 @@ describe('LearningLineageRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findById('lineage-123')).rejects.toThrow(
         'Failed to fetch learning lineage: Database error',
@@ -166,7 +193,9 @@ describe('LearningLineageRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findByOrganization('test-org');
 
@@ -177,7 +206,9 @@ describe('LearningLineageRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findByOrganization('test-org')).rejects.toThrow(
         'Failed to fetch learning lineage records: Query failed',
@@ -196,7 +227,9 @@ describe('LearningLineageRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findByTestLearning('test-learning-123');
 
@@ -207,9 +240,13 @@ describe('LearningLineageRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(repository.findByTestLearning('test-learning-123')).rejects.toThrow(
+      await expect(
+        repository.findByTestLearning('test-learning-123'),
+      ).rejects.toThrow(
         'Failed to fetch learning lineage by test learning: Query failed',
       );
     });
@@ -217,7 +254,8 @@ describe('LearningLineageRepository', () => {
 
   describe('findByProductionLearning', () => {
     it('should return lineages for production learning', async () => {
-      const result = await repository.findByProductionLearning('prod-learning-123');
+      const result =
+        await repository.findByProductionLearning('prod-learning-123');
 
       expect(result).toEqual([mockLineage]);
     });
@@ -226,9 +264,12 @@ describe('LearningLineageRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.findByProductionLearning('prod-learning-123');
+      const result =
+        await repository.findByProductionLearning('prod-learning-123');
 
       expect(result).toEqual([]);
     });
@@ -237,9 +278,13 @@ describe('LearningLineageRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(repository.findByProductionLearning('prod-learning-123')).rejects.toThrow(
+      await expect(
+        repository.findByProductionLearning('prod-learning-123'),
+      ).rejects.toThrow(
         'Failed to fetch learning lineage by production learning: Query failed',
       );
     });
@@ -256,7 +301,9 @@ describe('LearningLineageRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findByPromoter('user-123');
 
@@ -267,7 +314,9 @@ describe('LearningLineageRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findByPromoter('user-123')).rejects.toThrow(
         'Failed to fetch learning lineage by promoter: Query failed',
@@ -280,9 +329,12 @@ describe('LearningLineageRepository', () => {
       const mockClient = createMockClient({
         list: { data: [{ id: 'lineage-123' }], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.isTestLearningPromoted('test-learning-123');
+      const result =
+        await repository.isTestLearningPromoted('test-learning-123');
 
       expect(result).toBe(true);
     });
@@ -291,9 +343,12 @@ describe('LearningLineageRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.isTestLearningPromoted('test-learning-123');
+      const result =
+        await repository.isTestLearningPromoted('test-learning-123');
 
       expect(result).toBe(false);
     });
@@ -302,9 +357,13 @@ describe('LearningLineageRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(repository.isTestLearningPromoted('test-learning-123')).rejects.toThrow(
+      await expect(
+        repository.isTestLearningPromoted('test-learning-123'),
+      ).rejects.toThrow(
         'Failed to check if test learning is promoted: Query failed',
       );
     });
@@ -315,7 +374,9 @@ describe('LearningLineageRepository', () => {
       const mockClient = createMockClient({
         list: { data: [mockLineageWithDetails], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.getPromotionHistory('test-org');
 
@@ -323,14 +384,18 @@ describe('LearningLineageRepository', () => {
       expect(result[0]?.promoter_email).toBe('user@test.com');
       expect(result[0]?.promoter_name).toBe('Test User');
       expect(result[0]?.test_learning_title).toBe('Test Learning Title');
-      expect(result[0]?.production_learning_title).toBe('Production Learning Title');
+      expect(result[0]?.production_learning_title).toBe(
+        'Production Learning Title',
+      );
     });
 
     it('should return empty array when no history', async () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.getPromotionHistory('test-org');
 
@@ -347,7 +412,9 @@ describe('LearningLineageRepository', () => {
       const mockClient = createMockClient({
         list: { data: [lineageWithoutPromoter], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.getPromotionHistory('test-org');
 
@@ -359,7 +426,9 @@ describe('LearningLineageRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.getPromotionHistory('test-org')).rejects.toThrow(
         'Failed to fetch promotion history with details: Query failed',
@@ -403,7 +472,9 @@ describe('LearningLineageRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.create({
@@ -419,7 +490,9 @@ describe('LearningLineageRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: { message: 'Insert failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.create({
@@ -434,7 +507,9 @@ describe('LearningLineageRepository', () => {
 
   describe('update', () => {
     it('should update lineage successfully', async () => {
-      const result = await repository.update('lineage-123', { notes: 'Updated notes' });
+      const result = await repository.update('lineage-123', {
+        notes: 'Updated notes',
+      });
 
       expect(result).toEqual(mockLineage);
     });
@@ -443,22 +518,26 @@ describe('LearningLineageRepository', () => {
       const mockClient = createMockClient({
         update: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.update('lineage-123', { notes: 'Updated' })).rejects.toThrow(
-        'Update succeeded but no learning lineage returned',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.update('lineage-123', { notes: 'Updated' }),
+      ).rejects.toThrow('Update succeeded but no learning lineage returned');
     });
 
     it('should throw error on update failure', async () => {
       const mockClient = createMockClient({
         update: { data: null, error: { message: 'Update failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.update('lineage-123', { notes: 'Updated' })).rejects.toThrow(
-        'Failed to update learning lineage: Update failed',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.update('lineage-123', { notes: 'Updated' }),
+      ).rejects.toThrow('Failed to update learning lineage: Update failed');
     });
   });
 
@@ -471,7 +550,9 @@ describe('LearningLineageRepository', () => {
       const mockClient = createMockClient({
         delete: { error: { message: 'Delete failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.delete('lineage-123')).rejects.toThrow(
         'Failed to delete learning lineage: Delete failed',

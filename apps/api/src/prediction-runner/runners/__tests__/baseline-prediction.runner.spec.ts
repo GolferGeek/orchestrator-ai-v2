@@ -40,14 +40,18 @@ describe('BaselinePredictionRunner', () => {
       const result = await runner.runForDate('2024-01-15');
 
       expect(result).toEqual(mockResult);
-      expect(baselinePredictionService.createBaselinePredictions).toHaveBeenCalledWith('2024-01-15', undefined);
+      expect(
+        baselinePredictionService.createBaselinePredictions,
+      ).toHaveBeenCalledWith('2024-01-15', undefined);
     });
 
     it('should create baseline predictions for date with universe filter', async () => {
       const result = await runner.runForDate('2024-01-15', 'universe-123');
 
       expect(result).toEqual(mockResult);
-      expect(baselinePredictionService.createBaselinePredictions).toHaveBeenCalledWith('2024-01-15', 'universe-123');
+      expect(
+        baselinePredictionService.createBaselinePredictions,
+      ).toHaveBeenCalledWith('2024-01-15', 'universe-123');
     });
 
     it('should return null when already running', async () => {
@@ -64,13 +68,19 @@ describe('BaselinePredictionRunner', () => {
     });
 
     it('should handle errors from service', async () => {
-      baselinePredictionService.createBaselinePredictions.mockRejectedValue(new Error('Service failed'));
+      baselinePredictionService.createBaselinePredictions.mockRejectedValue(
+        new Error('Service failed'),
+      );
 
-      await expect(runner.runForDate('2024-01-15')).rejects.toThrow('Service failed');
+      await expect(runner.runForDate('2024-01-15')).rejects.toThrow(
+        'Service failed',
+      );
     });
 
     it('should reset isRunning flag after error', async () => {
-      baselinePredictionService.createBaselinePredictions.mockRejectedValueOnce(new Error('Service failed'));
+      baselinePredictionService.createBaselinePredictions.mockRejectedValueOnce(
+        new Error('Service failed'),
+      );
 
       try {
         await runner.runForDate('2024-01-15');
@@ -79,7 +89,9 @@ describe('BaselinePredictionRunner', () => {
       }
 
       // Should be able to run again after error
-      baselinePredictionService.createBaselinePredictions.mockResolvedValue(mockResult);
+      baselinePredictionService.createBaselinePredictions.mockResolvedValue(
+        mockResult,
+      );
       const result = await runner.runForDate('2024-01-16');
       expect(result).toEqual(mockResult);
     });
@@ -96,7 +108,9 @@ describe('BaselinePredictionRunner', () => {
       const result = await runner.manualRun('2024-01-15', 'universe-123');
 
       expect(result).toEqual(mockResult);
-      expect(baselinePredictionService.createBaselinePredictions).toHaveBeenCalledWith('2024-01-15', 'universe-123');
+      expect(
+        baselinePredictionService.createBaselinePredictions,
+      ).toHaveBeenCalledWith('2024-01-15', 'universe-123');
     });
   });
 
@@ -113,7 +127,9 @@ describe('BaselinePredictionRunner', () => {
       const servicePromise = new Promise<typeof mockResult>((resolve) => {
         resolveService = resolve;
       });
-      baselinePredictionService.createBaselinePredictions.mockReturnValue(servicePromise);
+      baselinePredictionService.createBaselinePredictions.mockReturnValue(
+        servicePromise,
+      );
 
       // Start the run
       const runPromise = runner.runForDate('2024-01-15');
@@ -145,7 +161,9 @@ describe('BaselinePredictionRunner', () => {
     it('should run baseline creation for today', async () => {
       await runner.runBaselineCreation();
 
-      expect(baselinePredictionService.createBaselinePredictions).toHaveBeenCalled();
+      expect(
+        baselinePredictionService.createBaselinePredictions,
+      ).toHaveBeenCalled();
     });
 
     it('should not run when disabled via environment variable', async () => {
@@ -153,7 +171,9 @@ describe('BaselinePredictionRunner', () => {
 
       await runner.runBaselineCreation();
 
-      expect(baselinePredictionService.createBaselinePredictions).not.toHaveBeenCalled();
+      expect(
+        baselinePredictionService.createBaselinePredictions,
+      ).not.toHaveBeenCalled();
     });
   });
 

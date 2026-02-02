@@ -1,15 +1,21 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { AgentSelfImprovementService, PatternDetectionResult } from '../agent-self-improvement.service';
+import {
+  AgentSelfImprovementService,
+  PatternDetectionResult,
+} from '../agent-self-improvement.service';
 import { PortfolioRepository } from '../../repositories/portfolio.repository';
 import { AnalystRepository } from '../../repositories/analyst.repository';
 import { AnalystMotivationService } from '../analyst-motivation.service';
 import { EvaluationResult } from '../evaluation.service';
-import { AnalystPortfolio, AnalystPosition } from '../../interfaces/portfolio.interface';
+import {
+  AnalystPortfolio,
+  AnalystPosition,
+} from '../../interfaces/portfolio.interface';
 
 describe('AgentSelfImprovementService', () => {
   let service: AgentSelfImprovementService;
   let portfolioRepository: jest.Mocked<PortfolioRepository>;
-  let analystRepository: jest.Mocked<AnalystRepository>;
+  let _analystRepository: jest.Mocked<AnalystRepository>;
   let motivationService: jest.Mocked<AnalystMotivationService>;
 
   const mockPortfolio: AnalystPortfolio = {
@@ -87,8 +93,12 @@ describe('AgentSelfImprovementService', () => {
           provide: PortfolioRepository,
           useValue: {
             getAnalystPortfolio: jest.fn().mockResolvedValue(mockPortfolio),
-            getClosedPositionsForAnalyst: jest.fn().mockResolvedValue(mockPositions),
-            getAllAnalystPortfolios: jest.fn().mockResolvedValue([mockPortfolio]),
+            getClosedPositionsForAnalyst: jest
+              .fn()
+              .mockResolvedValue(mockPositions),
+            getAllAnalystPortfolios: jest
+              .fn()
+              .mockResolvedValue([mockPortfolio]),
           },
         },
         {
@@ -109,7 +119,9 @@ describe('AgentSelfImprovementService', () => {
     }).compile();
 
     module.useLogger(false);
-    service = module.get<AgentSelfImprovementService>(AgentSelfImprovementService);
+    service = module.get<AgentSelfImprovementService>(
+      AgentSelfImprovementService,
+    );
     portfolioRepository = module.get(PortfolioRepository);
     analystRepository = module.get(AnalystRepository);
     motivationService = module.get(AnalystMotivationService);
@@ -121,59 +133,113 @@ describe('AgentSelfImprovementService', () => {
 
   describe('analyzeAndAdapt', () => {
     it('should analyze and return patterns', async () => {
-      const result = await service.analyzeAndAdapt('analyst-123', mockEvaluationResult);
+      const result = await service.analyzeAndAdapt(
+        'analyst-123',
+        mockEvaluationResult,
+      );
 
-      expect(portfolioRepository.getAnalystPortfolio).toHaveBeenCalledWith('analyst-123', 'ai');
-      expect(portfolioRepository.getClosedPositionsForAnalyst).toHaveBeenCalled();
+      expect(portfolioRepository.getAnalystPortfolio).toHaveBeenCalledWith(
+        'analyst-123',
+        'ai',
+      );
+      expect(
+        portfolioRepository.getClosedPositionsForAnalyst,
+      ).toHaveBeenCalled();
       expect(result).toBeDefined();
       expect(Array.isArray(result)).toBe(true);
     });
 
     it('should return empty array when no portfolio found', async () => {
-      (portfolioRepository.getAnalystPortfolio as jest.Mock).mockResolvedValue(null);
+      (portfolioRepository.getAnalystPortfolio as jest.Mock).mockResolvedValue(
+        null,
+      );
 
-      const result = await service.analyzeAndAdapt('nonexistent', mockEvaluationResult);
+      const result = await service.analyzeAndAdapt(
+        'nonexistent',
+        mockEvaluationResult,
+      );
 
       expect(result).toEqual([]);
     });
 
     it('should return empty array when not enough positions for analysis', async () => {
-      (portfolioRepository.getClosedPositionsForAnalyst as jest.Mock).mockResolvedValue([
-        mockPositions[0],
-        mockPositions[1],
-      ]);
+      (
+        portfolioRepository.getClosedPositionsForAnalyst as jest.Mock
+      ).mockResolvedValue([mockPositions[0], mockPositions[1]]);
 
-      const result = await service.analyzeAndAdapt('analyst-123', mockEvaluationResult);
+      const result = await service.analyzeAndAdapt(
+        'analyst-123',
+        mockEvaluationResult,
+      );
 
       expect(result).toEqual([]);
     });
 
     it('should detect consecutive losses pattern', async () => {
       const losingPositions: AnalystPosition[] = [
-        createPosition(1, { realized_pnl: -100, closed_at: '2024-01-05T10:00:00Z' }),
-        createPosition(2, { realized_pnl: -100, closed_at: '2024-01-04T10:00:00Z' }),
-        createPosition(3, { realized_pnl: -100, closed_at: '2024-01-03T10:00:00Z' }),
-        createPosition(4, { realized_pnl: 50, closed_at: '2024-01-02T10:00:00Z' }),
-        createPosition(5, { realized_pnl: 50, closed_at: '2024-01-01T10:00:00Z' }),
+        createPosition(1, {
+          realized_pnl: -100,
+          closed_at: '2024-01-05T10:00:00Z',
+        }),
+        createPosition(2, {
+          realized_pnl: -100,
+          closed_at: '2024-01-04T10:00:00Z',
+        }),
+        createPosition(3, {
+          realized_pnl: -100,
+          closed_at: '2024-01-03T10:00:00Z',
+        }),
+        createPosition(4, {
+          realized_pnl: 50,
+          closed_at: '2024-01-02T10:00:00Z',
+        }),
+        createPosition(5, {
+          realized_pnl: 50,
+          closed_at: '2024-01-01T10:00:00Z',
+        }),
       ];
-      (portfolioRepository.getClosedPositionsForAnalyst as jest.Mock).mockResolvedValue(losingPositions);
+      (
+        portfolioRepository.getClosedPositionsForAnalyst as jest.Mock
+      ).mockResolvedValue(losingPositions);
 
-      const result = await service.analyzeAndAdapt('analyst-123', mockEvaluationResult);
+      const result = await service.analyzeAndAdapt(
+        'analyst-123',
+        mockEvaluationResult,
+      );
 
-      const consecutiveLossPattern = result.find((p) => p.patternType === 'consecutive_losses');
+      const consecutiveLossPattern = result.find(
+        (p) => p.patternType === 'consecutive_losses',
+      );
       expect(consecutiveLossPattern).toBeDefined();
       expect(consecutiveLossPattern?.evidenceCount).toBeGreaterThanOrEqual(3);
     });
 
     it('should apply adaptations for detected patterns', async () => {
       const losingPositions: AnalystPosition[] = [
-        createPosition(1, { realized_pnl: -100, closed_at: '2024-01-05T10:00:00Z' }),
-        createPosition(2, { realized_pnl: -100, closed_at: '2024-01-04T10:00:00Z' }),
-        createPosition(3, { realized_pnl: -100, closed_at: '2024-01-03T10:00:00Z' }),
-        createPosition(4, { realized_pnl: -100, closed_at: '2024-01-02T10:00:00Z' }),
-        createPosition(5, { realized_pnl: 50, closed_at: '2024-01-01T10:00:00Z' }),
+        createPosition(1, {
+          realized_pnl: -100,
+          closed_at: '2024-01-05T10:00:00Z',
+        }),
+        createPosition(2, {
+          realized_pnl: -100,
+          closed_at: '2024-01-04T10:00:00Z',
+        }),
+        createPosition(3, {
+          realized_pnl: -100,
+          closed_at: '2024-01-03T10:00:00Z',
+        }),
+        createPosition(4, {
+          realized_pnl: -100,
+          closed_at: '2024-01-02T10:00:00Z',
+        }),
+        createPosition(5, {
+          realized_pnl: 50,
+          closed_at: '2024-01-01T10:00:00Z',
+        }),
       ];
-      (portfolioRepository.getClosedPositionsForAnalyst as jest.Mock).mockResolvedValue(losingPositions);
+      (
+        portfolioRepository.getClosedPositionsForAnalyst as jest.Mock
+      ).mockResolvedValue(losingPositions);
 
       await service.analyzeAndAdapt('analyst-123', mockEvaluationResult);
 
@@ -182,16 +248,38 @@ describe('AgentSelfImprovementService', () => {
 
     it('should handle adaptation errors gracefully', async () => {
       const losingPositions: AnalystPosition[] = [
-        createPosition(1, { realized_pnl: -100, closed_at: '2024-01-05T10:00:00Z' }),
-        createPosition(2, { realized_pnl: -100, closed_at: '2024-01-04T10:00:00Z' }),
-        createPosition(3, { realized_pnl: -100, closed_at: '2024-01-03T10:00:00Z' }),
-        createPosition(4, { realized_pnl: -100, closed_at: '2024-01-02T10:00:00Z' }),
-        createPosition(5, { realized_pnl: 50, closed_at: '2024-01-01T10:00:00Z' }),
+        createPosition(1, {
+          realized_pnl: -100,
+          closed_at: '2024-01-05T10:00:00Z',
+        }),
+        createPosition(2, {
+          realized_pnl: -100,
+          closed_at: '2024-01-04T10:00:00Z',
+        }),
+        createPosition(3, {
+          realized_pnl: -100,
+          closed_at: '2024-01-03T10:00:00Z',
+        }),
+        createPosition(4, {
+          realized_pnl: -100,
+          closed_at: '2024-01-02T10:00:00Z',
+        }),
+        createPosition(5, {
+          realized_pnl: 50,
+          closed_at: '2024-01-01T10:00:00Z',
+        }),
       ];
-      (portfolioRepository.getClosedPositionsForAnalyst as jest.Mock).mockResolvedValue(losingPositions);
-      (motivationService.recordAgentSelfAdaptation as jest.Mock).mockRejectedValue(new Error('Adaptation error'));
+      (
+        portfolioRepository.getClosedPositionsForAnalyst as jest.Mock
+      ).mockResolvedValue(losingPositions);
+      (
+        motivationService.recordAgentSelfAdaptation as jest.Mock
+      ).mockRejectedValue(new Error('Adaptation error'));
 
-      const result = await service.analyzeAndAdapt('analyst-123', mockEvaluationResult);
+      const result = await service.analyzeAndAdapt(
+        'analyst-123',
+        mockEvaluationResult,
+      );
 
       expect(result.length).toBeGreaterThan(0);
     });
@@ -201,20 +289,39 @@ describe('AgentSelfImprovementService', () => {
     it('should run periodic analysis for all AI portfolios', async () => {
       const result = await service.runPeriodicAnalysis();
 
-      expect(portfolioRepository.getAllAnalystPortfolios).toHaveBeenCalledWith('ai');
+      expect(portfolioRepository.getAllAnalystPortfolios).toHaveBeenCalledWith(
+        'ai',
+      );
       expect(result).toBeDefined();
       expect(result instanceof Map).toBe(true);
     });
 
     it('should return results map with analyst IDs as keys', async () => {
       const losingPositions: AnalystPosition[] = [
-        createPosition(1, { realized_pnl: -100, closed_at: '2024-01-05T10:00:00Z' }),
-        createPosition(2, { realized_pnl: -100, closed_at: '2024-01-04T10:00:00Z' }),
-        createPosition(3, { realized_pnl: -100, closed_at: '2024-01-03T10:00:00Z' }),
-        createPosition(4, { realized_pnl: -100, closed_at: '2024-01-02T10:00:00Z' }),
-        createPosition(5, { realized_pnl: 50, closed_at: '2024-01-01T10:00:00Z' }),
+        createPosition(1, {
+          realized_pnl: -100,
+          closed_at: '2024-01-05T10:00:00Z',
+        }),
+        createPosition(2, {
+          realized_pnl: -100,
+          closed_at: '2024-01-04T10:00:00Z',
+        }),
+        createPosition(3, {
+          realized_pnl: -100,
+          closed_at: '2024-01-03T10:00:00Z',
+        }),
+        createPosition(4, {
+          realized_pnl: -100,
+          closed_at: '2024-01-02T10:00:00Z',
+        }),
+        createPosition(5, {
+          realized_pnl: 50,
+          closed_at: '2024-01-01T10:00:00Z',
+        }),
       ];
-      (portfolioRepository.getClosedPositionsForAnalyst as jest.Mock).mockResolvedValue(losingPositions);
+      (
+        portfolioRepository.getClosedPositionsForAnalyst as jest.Mock
+      ).mockResolvedValue(losingPositions);
 
       const result = await service.runPeriodicAnalysis();
 
@@ -240,7 +347,9 @@ describe('AgentSelfImprovementService', () => {
         mockPortfolio,
         { ...mockPortfolio, id: 'portfolio-456', analyst_id: 'analyst-456' },
       ];
-      (portfolioRepository.getAllAnalystPortfolios as jest.Mock).mockResolvedValue(portfolios);
+      (
+        portfolioRepository.getAllAnalystPortfolios as jest.Mock
+      ).mockResolvedValue(portfolios);
 
       const result = await service.runPeriodicAnalysis();
 
@@ -251,7 +360,10 @@ describe('AgentSelfImprovementService', () => {
 
   describe('recordReflection', () => {
     it('should record a reflection journal entry', async () => {
-      await service.recordReflection('analyst-123', 'Reflecting on recent performance');
+      await service.recordReflection(
+        'analyst-123',
+        'Reflecting on recent performance',
+      );
 
       expect(motivationService.recordAgentJournalEntry).toHaveBeenCalledWith(
         'analyst-123',
@@ -263,7 +375,11 @@ describe('AgentSelfImprovementService', () => {
     it('should include context in journal entry', async () => {
       const context = { trade_count: 10, win_rate: 0.6 };
 
-      await service.recordReflection('analyst-123', 'Performance review', context);
+      await service.recordReflection(
+        'analyst-123',
+        'Performance review',
+        context,
+      );
 
       expect(motivationService.recordAgentJournalEntry).toHaveBeenCalledWith(
         'analyst-123',
@@ -276,33 +392,77 @@ describe('AgentSelfImprovementService', () => {
   describe('pattern detection - consecutive losses', () => {
     it('should not detect consecutive losses below threshold', async () => {
       const positions: AnalystPosition[] = [
-        createPosition(1, { realized_pnl: -100, closed_at: '2024-01-05T10:00:00Z' }),
-        createPosition(2, { realized_pnl: -100, closed_at: '2024-01-04T10:00:00Z' }),
-        createPosition(3, { realized_pnl: 50, closed_at: '2024-01-03T10:00:00Z' }),
-        createPosition(4, { realized_pnl: 50, closed_at: '2024-01-02T10:00:00Z' }),
-        createPosition(5, { realized_pnl: 50, closed_at: '2024-01-01T10:00:00Z' }),
+        createPosition(1, {
+          realized_pnl: -100,
+          closed_at: '2024-01-05T10:00:00Z',
+        }),
+        createPosition(2, {
+          realized_pnl: -100,
+          closed_at: '2024-01-04T10:00:00Z',
+        }),
+        createPosition(3, {
+          realized_pnl: 50,
+          closed_at: '2024-01-03T10:00:00Z',
+        }),
+        createPosition(4, {
+          realized_pnl: 50,
+          closed_at: '2024-01-02T10:00:00Z',
+        }),
+        createPosition(5, {
+          realized_pnl: 50,
+          closed_at: '2024-01-01T10:00:00Z',
+        }),
       ];
-      (portfolioRepository.getClosedPositionsForAnalyst as jest.Mock).mockResolvedValue(positions);
+      (
+        portfolioRepository.getClosedPositionsForAnalyst as jest.Mock
+      ).mockResolvedValue(positions);
 
-      const result = await service.analyzeAndAdapt('analyst-123', mockEvaluationResult);
+      const result = await service.analyzeAndAdapt(
+        'analyst-123',
+        mockEvaluationResult,
+      );
 
-      const consecutiveLossPattern = result.find((p) => p.patternType === 'consecutive_losses');
+      const consecutiveLossPattern = result.find(
+        (p) => p.patternType === 'consecutive_losses',
+      );
       expect(consecutiveLossPattern).toBeUndefined();
     });
 
     it('should detect exactly 3 consecutive losses', async () => {
       const positions: AnalystPosition[] = [
-        createPosition(1, { realized_pnl: -100, closed_at: '2024-01-05T10:00:00Z' }),
-        createPosition(2, { realized_pnl: -100, closed_at: '2024-01-04T10:00:00Z' }),
-        createPosition(3, { realized_pnl: -100, closed_at: '2024-01-03T10:00:00Z' }),
-        createPosition(4, { realized_pnl: 50, closed_at: '2024-01-02T10:00:00Z' }),
-        createPosition(5, { realized_pnl: 50, closed_at: '2024-01-01T10:00:00Z' }),
+        createPosition(1, {
+          realized_pnl: -100,
+          closed_at: '2024-01-05T10:00:00Z',
+        }),
+        createPosition(2, {
+          realized_pnl: -100,
+          closed_at: '2024-01-04T10:00:00Z',
+        }),
+        createPosition(3, {
+          realized_pnl: -100,
+          closed_at: '2024-01-03T10:00:00Z',
+        }),
+        createPosition(4, {
+          realized_pnl: 50,
+          closed_at: '2024-01-02T10:00:00Z',
+        }),
+        createPosition(5, {
+          realized_pnl: 50,
+          closed_at: '2024-01-01T10:00:00Z',
+        }),
       ];
-      (portfolioRepository.getClosedPositionsForAnalyst as jest.Mock).mockResolvedValue(positions);
+      (
+        portfolioRepository.getClosedPositionsForAnalyst as jest.Mock
+      ).mockResolvedValue(positions);
 
-      const result = await service.analyzeAndAdapt('analyst-123', mockEvaluationResult);
+      const result = await service.analyzeAndAdapt(
+        'analyst-123',
+        mockEvaluationResult,
+      );
 
-      const consecutiveLossPattern = result.find((p) => p.patternType === 'consecutive_losses');
+      const consecutiveLossPattern = result.find(
+        (p) => p.patternType === 'consecutive_losses',
+      );
       expect(consecutiveLossPattern).toBeDefined();
       expect(consecutiveLossPattern?.evidenceCount).toBe(3);
     });
@@ -310,39 +470,57 @@ describe('AgentSelfImprovementService', () => {
 
   describe('pattern detection - confidence calibration', () => {
     it('should detect confidence calibration issues with high loss rate', async () => {
-      const highLossPositions: AnalystPosition[] = Array(10).fill(null).map((_, i) =>
-        createPosition(i, {
-          realized_pnl: i < 7 ? -100 : 100,
-          closed_at: `2024-01-${String(10 - i).padStart(2, '0')}T10:00:00Z`,
-        }),
+      const highLossPositions: AnalystPosition[] = Array(10)
+        .fill(null)
+        .map((_, i) =>
+          createPosition(i, {
+            realized_pnl: i < 7 ? -100 : 100,
+            closed_at: `2024-01-${String(10 - i).padStart(2, '0')}T10:00:00Z`,
+          }),
+        );
+      (
+        portfolioRepository.getClosedPositionsForAnalyst as jest.Mock
+      ).mockResolvedValue(highLossPositions);
+
+      const result = await service.analyzeAndAdapt(
+        'analyst-123',
+        mockEvaluationResult,
       );
-      (portfolioRepository.getClosedPositionsForAnalyst as jest.Mock).mockResolvedValue(highLossPositions);
 
-      const result = await service.analyzeAndAdapt('analyst-123', mockEvaluationResult);
-
-      const calibrationPattern = result.find((p) => p.patternType === 'confidence_calibration');
+      const calibrationPattern = result.find(
+        (p) => p.patternType === 'confidence_calibration',
+      );
       expect(calibrationPattern).toBeDefined();
     });
 
     it('should not detect calibration issues with acceptable loss rate', async () => {
-      const balancedPositions: AnalystPosition[] = Array(10).fill(null).map((_, i) =>
-        createPosition(i, {
-          realized_pnl: i < 5 ? -100 : 100,
-          closed_at: `2024-01-${String(10 - i).padStart(2, '0')}T10:00:00Z`,
-        }),
-      );
-      (portfolioRepository.getClosedPositionsForAnalyst as jest.Mock).mockResolvedValue(balancedPositions);
+      const balancedPositions: AnalystPosition[] = Array(10)
+        .fill(null)
+        .map((_, i) =>
+          createPosition(i, {
+            realized_pnl: i < 5 ? -100 : 100,
+            closed_at: `2024-01-${String(10 - i).padStart(2, '0')}T10:00:00Z`,
+          }),
+        );
+      (
+        portfolioRepository.getClosedPositionsForAnalyst as jest.Mock
+      ).mockResolvedValue(balancedPositions);
       (portfolioRepository.getAnalystPortfolio as jest.Mock).mockResolvedValue({
         ...mockPortfolio,
         win_count: 5,
         loss_count: 5,
       });
 
-      const result = await service.analyzeAndAdapt('analyst-123', mockEvaluationResult);
+      const result = await service.analyzeAndAdapt(
+        'analyst-123',
+        mockEvaluationResult,
+      );
 
       // With 50% win rate (above 40% threshold) and 50% losses (below 60% threshold)
       // there should be no confidence calibration pattern
-      const calibrationPattern = result.find((p) => p.patternType === 'confidence_calibration');
+      const calibrationPattern = result.find(
+        (p) => p.patternType === 'confidence_calibration',
+      );
       expect(calibrationPattern).toBeUndefined();
     });
   });
@@ -354,11 +532,18 @@ describe('AgentSelfImprovementService', () => {
         win_count: 3,
         loss_count: 7,
       };
-      (portfolioRepository.getAnalystPortfolio as jest.Mock).mockResolvedValue(lowWinRatePortfolio);
+      (portfolioRepository.getAnalystPortfolio as jest.Mock).mockResolvedValue(
+        lowWinRatePortfolio,
+      );
 
-      const result = await service.analyzeAndAdapt('analyst-123', mockEvaluationResult);
+      const result = await service.analyzeAndAdapt(
+        'analyst-123',
+        mockEvaluationResult,
+      );
 
-      const winRatePattern = result.find((p) => p.description.includes('Win rate'));
+      const winRatePattern = result.find((p) =>
+        p.description.includes('Win rate'),
+      );
       expect(winRatePattern).toBeDefined();
     });
 
@@ -368,18 +553,29 @@ describe('AgentSelfImprovementService', () => {
         win_count: 6,
         loss_count: 4,
       };
-      (portfolioRepository.getAnalystPortfolio as jest.Mock).mockResolvedValue(goodWinRatePortfolio);
-      const goodPositions: AnalystPosition[] = Array(10).fill(null).map((_, i) =>
-        createPosition(i, {
-          realized_pnl: i < 4 ? -100 : 100,
-          closed_at: `2024-01-${String(10 - i).padStart(2, '0')}T10:00:00Z`,
-        }),
+      (portfolioRepository.getAnalystPortfolio as jest.Mock).mockResolvedValue(
+        goodWinRatePortfolio,
       );
-      (portfolioRepository.getClosedPositionsForAnalyst as jest.Mock).mockResolvedValue(goodPositions);
+      const goodPositions: AnalystPosition[] = Array(10)
+        .fill(null)
+        .map((_, i) =>
+          createPosition(i, {
+            realized_pnl: i < 4 ? -100 : 100,
+            closed_at: `2024-01-${String(10 - i).padStart(2, '0')}T10:00:00Z`,
+          }),
+        );
+      (
+        portfolioRepository.getClosedPositionsForAnalyst as jest.Mock
+      ).mockResolvedValue(goodPositions);
 
-      const result = await service.analyzeAndAdapt('analyst-123', mockEvaluationResult);
+      const result = await service.analyzeAndAdapt(
+        'analyst-123',
+        mockEvaluationResult,
+      );
 
-      const winRatePattern = result.find((p) => p.description.includes('Win rate'));
+      const winRatePattern = result.find((p) =>
+        p.description.includes('Win rate'),
+      );
       expect(winRatePattern).toBeUndefined();
     });
 
@@ -389,11 +585,18 @@ describe('AgentSelfImprovementService', () => {
         win_count: 1,
         loss_count: 3,
       };
-      (portfolioRepository.getAnalystPortfolio as jest.Mock).mockResolvedValue(lowTradePortfolio);
+      (portfolioRepository.getAnalystPortfolio as jest.Mock).mockResolvedValue(
+        lowTradePortfolio,
+      );
 
-      const result = await service.analyzeAndAdapt('analyst-123', mockEvaluationResult);
+      const result = await service.analyzeAndAdapt(
+        'analyst-123',
+        mockEvaluationResult,
+      );
 
-      const winRatePattern = result.find((p) => p.description.includes('Win rate'));
+      const winRatePattern = result.find((p) =>
+        p.description.includes('Win rate'),
+      );
       expect(winRatePattern).toBeUndefined();
     });
   });
@@ -407,11 +610,18 @@ describe('AgentSelfImprovementService', () => {
         win_count: 5,
         loss_count: 5,
       };
-      (portfolioRepository.getAnalystPortfolio as jest.Mock).mockResolvedValue(drawdownPortfolio);
+      (portfolioRepository.getAnalystPortfolio as jest.Mock).mockResolvedValue(
+        drawdownPortfolio,
+      );
 
-      const result = await service.analyzeAndAdapt('analyst-123', mockEvaluationResult);
+      const result = await service.analyzeAndAdapt(
+        'analyst-123',
+        mockEvaluationResult,
+      );
 
-      const drawdownPattern = result.find((p) => p.description.includes('drawdown'));
+      const drawdownPattern = result.find((p) =>
+        p.description.includes('drawdown'),
+      );
       expect(drawdownPattern).toBeDefined();
     });
 
@@ -423,18 +633,29 @@ describe('AgentSelfImprovementService', () => {
         win_count: 6,
         loss_count: 4,
       };
-      (portfolioRepository.getAnalystPortfolio as jest.Mock).mockResolvedValue(smallDrawdownPortfolio);
-      const goodPositions: AnalystPosition[] = Array(10).fill(null).map((_, i) =>
-        createPosition(i, {
-          realized_pnl: i < 4 ? -100 : 100,
-          closed_at: `2024-01-${String(10 - i).padStart(2, '0')}T10:00:00Z`,
-        }),
+      (portfolioRepository.getAnalystPortfolio as jest.Mock).mockResolvedValue(
+        smallDrawdownPortfolio,
       );
-      (portfolioRepository.getClosedPositionsForAnalyst as jest.Mock).mockResolvedValue(goodPositions);
+      const goodPositions: AnalystPosition[] = Array(10)
+        .fill(null)
+        .map((_, i) =>
+          createPosition(i, {
+            realized_pnl: i < 4 ? -100 : 100,
+            closed_at: `2024-01-${String(10 - i).padStart(2, '0')}T10:00:00Z`,
+          }),
+        );
+      (
+        portfolioRepository.getClosedPositionsForAnalyst as jest.Mock
+      ).mockResolvedValue(goodPositions);
 
-      const result = await service.analyzeAndAdapt('analyst-123', mockEvaluationResult);
+      const result = await service.analyzeAndAdapt(
+        'analyst-123',
+        mockEvaluationResult,
+      );
 
-      const drawdownPattern = result.find((p) => p.description.includes('drawdown'));
+      const drawdownPattern = result.find((p) =>
+        p.description.includes('drawdown'),
+      );
       expect(drawdownPattern).toBeUndefined();
     });
   });
@@ -442,15 +663,35 @@ describe('AgentSelfImprovementService', () => {
   describe('pattern result structure', () => {
     it('should return valid pattern detection result structure', async () => {
       const losingPositions: AnalystPosition[] = [
-        createPosition(1, { realized_pnl: -100, closed_at: '2024-01-05T10:00:00Z' }),
-        createPosition(2, { realized_pnl: -100, closed_at: '2024-01-04T10:00:00Z' }),
-        createPosition(3, { realized_pnl: -100, closed_at: '2024-01-03T10:00:00Z' }),
-        createPosition(4, { realized_pnl: -100, closed_at: '2024-01-02T10:00:00Z' }),
-        createPosition(5, { realized_pnl: 50, closed_at: '2024-01-01T10:00:00Z' }),
+        createPosition(1, {
+          realized_pnl: -100,
+          closed_at: '2024-01-05T10:00:00Z',
+        }),
+        createPosition(2, {
+          realized_pnl: -100,
+          closed_at: '2024-01-04T10:00:00Z',
+        }),
+        createPosition(3, {
+          realized_pnl: -100,
+          closed_at: '2024-01-03T10:00:00Z',
+        }),
+        createPosition(4, {
+          realized_pnl: -100,
+          closed_at: '2024-01-02T10:00:00Z',
+        }),
+        createPosition(5, {
+          realized_pnl: 50,
+          closed_at: '2024-01-01T10:00:00Z',
+        }),
       ];
-      (portfolioRepository.getClosedPositionsForAnalyst as jest.Mock).mockResolvedValue(losingPositions);
+      (
+        portfolioRepository.getClosedPositionsForAnalyst as jest.Mock
+      ).mockResolvedValue(losingPositions);
 
-      const result = await service.analyzeAndAdapt('analyst-123', mockEvaluationResult);
+      const result = await service.analyzeAndAdapt(
+        'analyst-123',
+        mockEvaluationResult,
+      );
 
       expect(result.length).toBeGreaterThan(0);
       const pattern = result[0] as PatternDetectionResult;

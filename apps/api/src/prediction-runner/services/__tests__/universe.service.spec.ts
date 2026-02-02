@@ -97,7 +97,9 @@ describe('UniverseService', () => {
     it('should return universe when found', async () => {
       const result = await service.findByIdOrThrow('universe-123');
 
-      expect(universeRepository.findByIdOrThrow).toHaveBeenCalledWith('universe-123');
+      expect(universeRepository.findByIdOrThrow).toHaveBeenCalledWith(
+        'universe-123',
+      );
       expect(result).toEqual(mockUniverse);
     });
   });
@@ -124,7 +126,10 @@ describe('UniverseService', () => {
 
       const result = await service.update('universe-123', updateDto);
 
-      expect(universeRepository.update).toHaveBeenCalledWith('universe-123', updateDto);
+      expect(universeRepository.update).toHaveBeenCalledWith(
+        'universe-123',
+        updateDto,
+      );
       expect(result).toBeDefined();
     });
   });
@@ -139,7 +144,10 @@ describe('UniverseService', () => {
 
   describe('findByAgentSlug', () => {
     it('should find universes by agent slug', async () => {
-      const result = await service.findByAgentSlug('prediction-agent', 'test-org');
+      const result = await service.findByAgentSlug(
+        'prediction-agent',
+        'test-org',
+      );
 
       expect(universeRepository.findByAgentSlug).toHaveBeenCalledWith(
         'prediction-agent',

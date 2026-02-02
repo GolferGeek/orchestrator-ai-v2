@@ -1,5 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ReportGeneratorService, Report, GenerateReportInput } from '../report-generator.service';
+import {
+  ReportGeneratorService,
+  Report,
+  GenerateReportInput,
+} from '../report-generator.service';
 import { SupabaseService } from '@/supabase/supabase.service';
 
 describe('ReportGeneratorService', () => {
@@ -38,7 +42,9 @@ describe('ReportGeneratorService', () => {
     };
 
     const chain: Record<string, jest.Mock> = {};
-    chain.single = jest.fn().mockResolvedValue(overrides?.single ?? defaultResult);
+    chain.single = jest
+      .fn()
+      .mockResolvedValue(overrides?.single ?? defaultResult);
     chain.limit = jest.fn().mockReturnValue(chain);
     chain.order = jest.fn().mockReturnValue(chain);
     chain.eq = jest.fn().mockReturnValue(chain);
@@ -162,7 +168,9 @@ describe('ReportGeneratorService', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Insert failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const input: GenerateReportInput = {
         scopeId: 'scope-123',
@@ -182,9 +190,14 @@ describe('ReportGeneratorService', () => {
 
     it('should return null when not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { code: 'PGRST116', message: 'Not found' } },
+        single: {
+          data: null,
+          error: { code: 'PGRST116', message: 'Not found' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await service.getReport('nonexistent');
       expect(result).toBeNull();
@@ -194,7 +207,9 @@ describe('ReportGeneratorService', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { code: 'OTHER', message: 'DB error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(service.getReport('report-123')).rejects.toThrow('DB error');
     });
@@ -208,7 +223,9 @@ describe('ReportGeneratorService', () => {
         data: [mockReport],
         error: null,
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await service.listReports('scope-123');
       expect(Array.isArray(result)).toBe(true);
@@ -231,9 +248,13 @@ describe('ReportGeneratorService', () => {
         data: null,
         error: { message: 'Query failed' },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(service.listReports('scope-123')).rejects.toThrow('Query failed');
+      await expect(service.listReports('scope-123')).rejects.toThrow(
+        'Query failed',
+      );
     });
   });
 
@@ -250,7 +271,9 @@ describe('ReportGeneratorService', () => {
       const mockClient = createMockClient({
         single: { data: reportWithFile, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(service.deleteReport('report-123')).resolves.not.toThrow();
     });
@@ -259,7 +282,9 @@ describe('ReportGeneratorService', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { code: 'PGRST116' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       // Should not throw even if report not found initially
       await expect(service.deleteReport('nonexistent')).resolves.not.toThrow();
@@ -273,11 +298,17 @@ describe('ReportGeneratorService', () => {
     });
 
     it('should return null for report without file', async () => {
-      const completedNoFile = { ...mockReport, status: 'completed', file_path: null };
+      const completedNoFile = {
+        ...mockReport,
+        status: 'completed',
+        file_path: null,
+      };
       const mockClient = createMockClient({
         single: { data: completedNoFile, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await service.refreshDownloadUrl('report-123');
       expect(result).toBeNull();
@@ -292,7 +323,9 @@ describe('ReportGeneratorService', () => {
       const mockClient = createMockClient({
         single: { data: completedWithFile, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await service.refreshDownloadUrl('report-123');
       expect(result).toContain('https://');
@@ -302,7 +335,9 @@ describe('ReportGeneratorService', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { code: 'PGRST116' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await service.refreshDownloadUrl('nonexistent');
       expect(result).toBeNull();
@@ -390,7 +425,9 @@ describe('ReportGeneratorService', () => {
         const mockClient = createMockClient({
           single: { data: reportWithStatus, error: null },
         });
-        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+          mockClient,
+        );
 
         const result = await service.getReport('report-123');
         expect(result?.status).toBe(status);

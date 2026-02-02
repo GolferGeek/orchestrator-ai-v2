@@ -16,7 +16,7 @@ describe('LearningPromotionService', () => {
   let learningRepository: jest.Mocked<LearningRepository>;
   let lineageRepository: jest.Mocked<LearningLineageRepository>;
   let auditRepository: jest.Mocked<TestAuditLogRepository>;
-  let supabaseService: jest.Mocked<SupabaseService>;
+  let _supabaseService: jest.Mocked<SupabaseService>;
 
   const mockTestLearning: Learning = {
     id: 'test-learning-123',
@@ -54,7 +54,11 @@ describe('LearningPromotionService', () => {
     test_learning_id: 'test-learning-123',
     production_learning_id: 'prod-learning-123',
     scenario_runs: ['run-1', 'run-2'],
-    validation_metrics: { times_applied: 10, times_helpful: 8, success_rate: 0.8 },
+    validation_metrics: {
+      times_applied: 10,
+      times_helpful: 8,
+      success_rate: 0.8,
+    },
     backtest_result: null,
     promoted_by: 'user-123',
     promoted_at: new Date().toISOString(),
@@ -73,7 +77,9 @@ describe('LearningPromotionService', () => {
   const createMockClient = (overrides?: Record<string, unknown>) => {
     const createChain = () => {
       const chain: Record<string, jest.Mock> = {};
-      chain.single = jest.fn().mockResolvedValue(overrides?.single ?? { data: null, error: null });
+      chain.single = jest
+        .fn()
+        .mockResolvedValue(overrides?.single ?? { data: null, error: null });
       chain.select = jest.fn().mockImplementation(() => ({
         ...chain,
         then: (resolve: (v: unknown) => void) =>
@@ -107,7 +113,9 @@ describe('LearningPromotionService', () => {
             findById: jest.fn().mockResolvedValue(mockTestLearning),
             findByIdOrThrow: jest.fn().mockResolvedValue(mockTestLearning),
             create: jest.fn().mockResolvedValue(mockProductionLearning),
-            update: jest.fn().mockResolvedValue({ ...mockTestLearning, status: 'disabled' }),
+            update: jest
+              .fn()
+              .mockResolvedValue({ ...mockTestLearning, status: 'disabled' }),
             findByScope: jest.fn().mockResolvedValue([mockTestLearning]),
           },
         },
@@ -116,7 +124,9 @@ describe('LearningPromotionService', () => {
           useValue: {
             isTestLearningPromoted: jest.fn().mockResolvedValue(false),
             create: jest.fn().mockResolvedValue(mockLineage),
-            getPromotionHistory: jest.fn().mockResolvedValue([mockLineageWithDetails]),
+            getPromotionHistory: jest
+              .fn()
+              .mockResolvedValue([mockLineageWithDetails]),
             findByTestLearning: jest.fn().mockResolvedValue([mockLineage]),
             findByOrganization: jest.fn().mockResolvedValue([mockLineage]),
           },
@@ -167,12 +177,17 @@ describe('LearningPromotionService', () => {
     });
 
     it('should return error when learning is not a test learning', async () => {
-      learningRepository.findById.mockResolvedValue({ ...mockTestLearning, is_test: false });
+      learningRepository.findById.mockResolvedValue({
+        ...mockTestLearning,
+        is_test: false,
+      });
 
       const result = await service.validateForPromotion('test-learning-123');
 
       expect(result.valid).toBe(false);
-      expect(result.errors).toContain('Learning must have is_test=true to be promoted');
+      expect(result.errors).toContain(
+        'Learning must have is_test=true to be promoted',
+      );
     });
 
     it('should return error when already promoted', async () => {
@@ -181,7 +196,9 @@ describe('LearningPromotionService', () => {
       const result = await service.validateForPromotion('test-learning-123');
 
       expect(result.valid).toBe(false);
-      expect(result.errors).toContain('Learning has already been promoted to production');
+      expect(result.errors).toContain(
+        'Learning has already been promoted to production',
+      );
     });
 
     it('should return error when learning status is not active', async () => {
@@ -223,7 +240,9 @@ describe('LearningPromotionService', () => {
 
       expect(result.valid).toBe(true);
       expect(result.warnings.length).toBeGreaterThan(0);
-      expect(result.warnings.some((w) => w.includes('low success rate'))).toBe(true);
+      expect(result.warnings.some((w) => w.includes('low success rate'))).toBe(
+        true,
+      );
     });
   });
 
@@ -308,7 +327,9 @@ describe('LearningPromotionService', () => {
     it('should return promotion history for organization', async () => {
       const result = await service.getPromotionHistory('test-org');
 
-      expect(lineageRepository.getPromotionHistory).toHaveBeenCalledWith('test-org');
+      expect(lineageRepository.getPromotionHistory).toHaveBeenCalledWith(
+        'test-org',
+      );
       expect(result).toEqual([mockLineageWithDetails]);
     });
 
@@ -325,7 +346,9 @@ describe('LearningPromotionService', () => {
     it('should return lineage for promoted learning', async () => {
       const result = await service.getLineage('test-learning-123');
 
-      expect(lineageRepository.findByTestLearning).toHaveBeenCalledWith('test-learning-123');
+      expect(lineageRepository.findByTestLearning).toHaveBeenCalledWith(
+        'test-learning-123',
+      );
       expect(result).toBeDefined();
     });
 
@@ -347,9 +370,12 @@ describe('LearningPromotionService', () => {
         'Not effective',
       );
 
-      expect(learningRepository.update).toHaveBeenCalledWith('test-learning-123', {
-        status: 'disabled',
-      });
+      expect(learningRepository.update).toHaveBeenCalledWith(
+        'test-learning-123',
+        {
+          status: 'disabled',
+        },
+      );
       expect(auditRepository.log).toHaveBeenCalledWith(
         expect.objectContaining({
           action: 'learning_rejected',
@@ -368,10 +394,18 @@ describe('LearningPromotionService', () => {
     });
 
     it('should throw BadRequestException for non-test learning', async () => {
-      learningRepository.findById.mockResolvedValue({ ...mockTestLearning, is_test: false });
+      learningRepository.findById.mockResolvedValue({
+        ...mockTestLearning,
+        is_test: false,
+      });
 
       await expect(
-        service.rejectLearning('test-learning-123', 'user-123', 'test-org', 'Reason'),
+        service.rejectLearning(
+          'test-learning-123',
+          'user-123',
+          'test-org',
+          'Reason',
+        ),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -379,7 +413,12 @@ describe('LearningPromotionService', () => {
       lineageRepository.isTestLearningPromoted.mockResolvedValue(true);
 
       await expect(
-        service.rejectLearning('test-learning-123', 'user-123', 'test-org', 'Reason'),
+        service.rejectLearning(
+          'test-learning-123',
+          'user-123',
+          'test-org',
+          'Reason',
+        ),
       ).rejects.toThrow(ConflictException);
     });
   });
@@ -399,16 +438,18 @@ describe('LearningPromotionService', () => {
         is_test: false,
       });
 
-      await expect(service.backtestLearning('test-learning-123')).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        service.backtestLearning('test-learning-123'),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('should return no pass when no historical data', async () => {
       const result = await service.backtestLearning('test-learning-123');
 
       expect(result.pass).toBe(false);
-      expect(result.details?.error).toBe('No historical data available for backtest');
+      expect(result.details?.error).toBe(
+        'No historical data available for backtest',
+      );
     });
 
     it('should use default window of 30 days', async () => {
@@ -433,7 +474,12 @@ describe('LearningPromotionService', () => {
     it('should calculate correct averages', async () => {
       learningRepository.findByScope.mockResolvedValue([
         { ...mockTestLearning, times_applied: 10, times_helpful: 8 },
-        { ...mockTestLearning, id: 'learning-2', times_applied: 20, times_helpful: 15 },
+        {
+          ...mockTestLearning,
+          id: 'learning-2',
+          times_applied: 20,
+          times_helpful: 15,
+        },
       ]);
       lineageRepository.findByOrganization.mockResolvedValue([
         { ...mockLineage, test_learning_id: 'test-learning-123' },

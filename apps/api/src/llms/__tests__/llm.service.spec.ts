@@ -10,7 +10,7 @@ import { LLMVideoService } from '../services/llm-video.service';
 import { ModelConfigurationService } from '../config/model-configuration.service';
 import { ObservabilityWebhookService } from '@/observability/observability-webhook.service';
 import { ObservabilityEventsService } from '@/observability/observability-events.service';
-import { LLMResponse, ImageGenerationResponse, VideoGenerationResponse } from '../services/llm-interfaces';
+import { LLMResponse } from '../services/llm-interfaces';
 
 describe('LLMService', () => {
   let service: LLMService;
@@ -58,9 +58,15 @@ describe('LLMService', () => {
           provide: LLMGenerationService,
           useValue: {
             generateResponse: jest.fn().mockResolvedValue(mockLLMResponse),
-            generateUnifiedResponse: jest.fn().mockResolvedValue(mockLLMResponse),
-            generateResponseWithHistory: jest.fn().mockResolvedValue('History response'),
-            generateSystemResponse: jest.fn().mockResolvedValue('System response'),
+            generateUnifiedResponse: jest
+              .fn()
+              .mockResolvedValue(mockLLMResponse),
+            generateResponseWithHistory: jest
+              .fn()
+              .mockResolvedValue('History response'),
+            generateSystemResponse: jest
+              .fn()
+              .mockResolvedValue('System response'),
             generateUserContentResponse: jest.fn().mockResolvedValue({
               content: 'User content response',
               usage: {
@@ -190,11 +196,9 @@ describe('LLMService', () => {
     });
 
     it('should emit observability events for started and completed', async () => {
-      await service.generateResponse(
-        'You are helpful',
-        'Hello',
-        { executionContext: mockExecutionContext },
-      );
+      await service.generateResponse('You are helpful', 'Hello', {
+        executionContext: mockExecutionContext,
+      });
 
       // Check started event
       expect(observabilityEventsService.push).toHaveBeenCalledWith(
@@ -276,7 +280,9 @@ describe('LLMService', () => {
         'How are you?',
       );
 
-      expect(llmGenerationService.generateResponseWithHistory).toHaveBeenCalled();
+      expect(
+        llmGenerationService.generateResponseWithHistory,
+      ).toHaveBeenCalled();
       expect(result).toBe('History response');
     });
   });
@@ -310,27 +316,25 @@ describe('LLMService', () => {
         'session-id',
       );
 
-      expect(llmGenerationService.generateUserContentResponse).toHaveBeenCalled();
+      expect(
+        llmGenerationService.generateUserContentResponse,
+      ).toHaveBeenCalled();
       expect(result.content).toBe('User content response');
     });
 
     it('should throw error when providerName is missing', async () => {
       await expect(
-        service.generateUserContentResponse(
-          'System',
-          'User',
-          { modelName: 'gpt-4' } as any,
-        ),
+        service.generateUserContentResponse('System', 'User', {
+          modelName: 'gpt-4',
+        } as any),
       ).rejects.toThrow('User preferences must include a valid providerName');
     });
 
     it('should throw error when modelName is missing', async () => {
       await expect(
-        service.generateUserContentResponse(
-          'System',
-          'User',
-          { providerName: 'openai' } as any,
-        ),
+        service.generateUserContentResponse('System', 'User', {
+          providerName: 'openai',
+        } as any),
       ).rejects.toThrow('User preferences must include a valid modelName');
     });
   });

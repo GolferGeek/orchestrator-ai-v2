@@ -29,10 +29,13 @@ describe('ScopeRepository', () => {
   };
 
   const createMockClient = (overrides?: {
-    single?: { data: unknown | null; error: { message: string; code?: string } | null };
+    single?: {
+      data: unknown;
+      error: { message: string; code?: string } | null;
+    };
     list?: { data: unknown[] | null; error: { message: string } | null };
-    insert?: { data: unknown | null; error: { message: string } | null };
-    update?: { data: unknown | null; error: { message: string } | null };
+    insert?: { data: unknown; error: { message: string } | null };
+    update?: { data: unknown; error: { message: string } | null };
     delete?: { error: { message: string } | null };
   }) => {
     const singleResult = overrides?.single ?? { data: mockScope, error: null };
@@ -134,7 +137,9 @@ describe('ScopeRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findAll('test-org');
 
@@ -145,7 +150,9 @@ describe('ScopeRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findAll('test-org')).rejects.toThrow(
         'Failed to fetch scopes: Query failed',
@@ -176,9 +183,14 @@ describe('ScopeRepository', () => {
 
     it('should return null when scope not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('nonexistent');
 
@@ -189,7 +201,9 @@ describe('ScopeRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findById('scope-123')).rejects.toThrow(
         'Failed to fetch scope: Database error',
@@ -206,11 +220,18 @@ describe('ScopeRepository', () => {
 
     it('should throw NotFoundException when scope not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(repository.findByIdOrThrow('nonexistent')).rejects.toThrow(NotFoundException);
+      await expect(repository.findByIdOrThrow('nonexistent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -233,7 +254,9 @@ describe('ScopeRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.create({
@@ -250,7 +273,9 @@ describe('ScopeRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: { message: 'Insert failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.create({
@@ -270,9 +295,13 @@ describe('ScopeRepository', () => {
       const mockClient = createMockClient({
         update: { data: updatedScope, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.update('scope-123', { name: 'Updated Name' });
+      const result = await repository.update('scope-123', {
+        name: 'Updated Name',
+      });
 
       expect(result).toEqual(updatedScope);
     });
@@ -281,22 +310,26 @@ describe('ScopeRepository', () => {
       const mockClient = createMockClient({
         update: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.update('scope-123', { name: 'Updated' })).rejects.toThrow(
-        'Update succeeded but no scope returned',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.update('scope-123', { name: 'Updated' }),
+      ).rejects.toThrow('Update succeeded but no scope returned');
     });
 
     it('should throw error on update failure', async () => {
       const mockClient = createMockClient({
         update: { data: null, error: { message: 'Update failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.update('scope-123', { name: 'Updated' })).rejects.toThrow(
-        'Failed to update scope: Update failed',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.update('scope-123', { name: 'Updated' }),
+      ).rejects.toThrow('Failed to update scope: Update failed');
     });
   });
 
@@ -309,7 +342,9 @@ describe('ScopeRepository', () => {
       const mockClient = createMockClient({
         delete: { error: { message: 'Delete failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.delete('scope-123')).rejects.toThrow(
         'Failed to delete scope: Delete failed',
@@ -328,7 +363,9 @@ describe('ScopeRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findAllActive();
 
@@ -339,7 +376,9 @@ describe('ScopeRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findAllActive()).rejects.toThrow(
         'Failed to fetch all active scopes: Query failed',
@@ -356,7 +395,10 @@ describe('ScopeRepository', () => {
 
   describe('findByAgentSlug', () => {
     it('should return scopes for agent', async () => {
-      const result = await repository.findByAgentSlug('risk-analyst', 'test-org');
+      const result = await repository.findByAgentSlug(
+        'risk-analyst',
+        'test-org',
+      );
 
       expect(result).toEqual([mockScope]);
     });
@@ -365,9 +407,14 @@ describe('ScopeRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.findByAgentSlug('unknown-agent', 'test-org');
+      const result = await repository.findByAgentSlug(
+        'unknown-agent',
+        'test-org',
+      );
 
       expect(result).toEqual([]);
     });
@@ -376,16 +423,22 @@ describe('ScopeRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.findByAgentSlug('risk-analyst', 'test-org')).rejects.toThrow(
-        'Failed to fetch scopes by agent: Query failed',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.findByAgentSlug('risk-analyst', 'test-org'),
+      ).rejects.toThrow('Failed to fetch scopes by agent: Query failed');
     });
 
     it('should apply filter', async () => {
       const filter: ScopeFilter = { testScenarioId: 'scenario-123' };
-      const result = await repository.findByAgentSlug('risk-analyst', 'test-org', filter);
+      const result = await repository.findByAgentSlug(
+        'risk-analyst',
+        'test-org',
+        filter,
+      );
 
       expect(result).toEqual([mockScope]);
     });
@@ -402,7 +455,9 @@ describe('ScopeRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findByDomain('personal', 'test-org');
 
@@ -413,16 +468,22 @@ describe('ScopeRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.findByDomain('investment', 'test-org')).rejects.toThrow(
-        'Failed to fetch scopes by domain: Query failed',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.findByDomain('investment', 'test-org'),
+      ).rejects.toThrow('Failed to fetch scopes by domain: Query failed');
     });
 
     it('should apply filter', async () => {
       const filter: ScopeFilter = { includeTest: true };
-      const result = await repository.findByDomain('investment', 'test-org', filter);
+      const result = await repository.findByDomain(
+        'investment',
+        'test-org',
+        filter,
+      );
 
       expect(result).toEqual([mockScope]);
     });
@@ -437,7 +498,9 @@ describe('ScopeRepository', () => {
         const mockClient = createMockClient({
           single: { data: scopeWithDomain, error: null },
         });
-        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+          mockClient,
+        );
 
         const result = await repository.findById('scope-123');
 

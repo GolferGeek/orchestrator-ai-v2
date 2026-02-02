@@ -1,5 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { HttpException, HttpStatus, BadRequestException, UnauthorizedException } from '@nestjs/common';
+import {
+  HttpException,
+  HttpStatus,
+  BadRequestException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { SupabaseService } from '../supabase/supabase.service';
 
@@ -109,7 +114,9 @@ describe('AuthService', () => {
         error: null,
       });
 
-      await expect(service.signup(validSignupDto)).rejects.toThrow(HttpException);
+      await expect(service.signup(validSignupDto)).rejects.toThrow(
+        HttpException,
+      );
       await expect(service.signup(validSignupDto)).rejects.toMatchObject({
         status: HttpStatus.ACCEPTED,
       });
@@ -121,7 +128,9 @@ describe('AuthService', () => {
         error: { message: 'User already registered' },
       });
 
-      await expect(service.signup(validSignupDto)).rejects.toThrow(BadRequestException);
+      await expect(service.signup(validSignupDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should throw BadRequestException for invalid input', async () => {
@@ -130,11 +139,16 @@ describe('AuthService', () => {
         error: { message: 'Invalid email format' },
       });
 
-      await expect(service.signup(validSignupDto)).rejects.toThrow(BadRequestException);
+      await expect(service.signup(validSignupDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should use email prefix as display name when not provided', async () => {
-      const dtoWithoutDisplayName = { email: 'john@example.com', password: 'pass123' };
+      const dtoWithoutDisplayName = {
+        email: 'john@example.com',
+        password: 'pass123',
+      };
 
       mockSupabaseClient.auth.signUp.mockResolvedValue({
         data: {
@@ -158,9 +172,13 @@ describe('AuthService', () => {
     });
 
     it('should handle unexpected errors gracefully', async () => {
-      mockSupabaseClient.auth.signUp.mockRejectedValue(new Error('Network error'));
+      mockSupabaseClient.auth.signUp.mockRejectedValue(
+        new Error('Network error'),
+      );
 
-      await expect(service.signup(validSignupDto)).rejects.toThrow(HttpException);
+      await expect(service.signup(validSignupDto)).rejects.toThrow(
+        HttpException,
+      );
       await expect(service.signup(validSignupDto)).rejects.toMatchObject({
         status: HttpStatus.INTERNAL_SERVER_ERROR,
       });
@@ -202,7 +220,9 @@ describe('AuthService', () => {
         error: { message: 'Invalid login credentials' },
       });
 
-      await expect(service.login(validLoginDto)).rejects.toThrow(UnauthorizedException);
+      await expect(service.login(validLoginDto)).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('should throw BadRequestException when no session returned', async () => {
@@ -211,11 +231,15 @@ describe('AuthService', () => {
         error: null,
       });
 
-      await expect(service.login(validLoginDto)).rejects.toThrow(BadRequestException);
+      await expect(service.login(validLoginDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should handle unexpected errors gracefully', async () => {
-      mockSupabaseClient.auth.signInWithPassword.mockRejectedValue(new Error('Network error'));
+      mockSupabaseClient.auth.signInWithPassword.mockRejectedValue(
+        new Error('Network error'),
+      );
 
       await expect(service.login(validLoginDto)).rejects.toThrow(HttpException);
     });
@@ -226,7 +250,9 @@ describe('AuthService', () => {
       mockSupabaseClient.auth.signOut.mockResolvedValue({ error: null });
 
       await expect(service.logout('valid-token')).resolves.toBeUndefined();
-      expect(mockSupabaseService.createAuthenticatedClient).toHaveBeenCalledWith('valid-token');
+      expect(
+        mockSupabaseService.createAuthenticatedClient,
+      ).toHaveBeenCalledWith('valid-token');
     });
 
     it('should throw BadRequestException on logout error', async () => {
@@ -234,11 +260,15 @@ describe('AuthService', () => {
         error: { message: 'Session not found' },
       });
 
-      await expect(service.logout('invalid-token')).rejects.toThrow(BadRequestException);
+      await expect(service.logout('invalid-token')).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should handle unexpected errors gracefully', async () => {
-      mockSupabaseClient.auth.signOut.mockRejectedValue(new Error('Network error'));
+      mockSupabaseClient.auth.signOut.mockRejectedValue(
+        new Error('Network error'),
+      );
 
       await expect(service.logout('token')).rejects.toThrow(HttpException);
     });
@@ -273,7 +303,9 @@ describe('AuthService', () => {
         error: { message: 'Invalid refresh token' },
       });
 
-      await expect(service.refreshToken('invalid-token')).rejects.toThrow(UnauthorizedException);
+      await expect(service.refreshToken('invalid-token')).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('should throw UnauthorizedException when no session returned', async () => {
@@ -282,13 +314,19 @@ describe('AuthService', () => {
         error: null,
       });
 
-      await expect(service.refreshToken('expired-token')).rejects.toThrow(UnauthorizedException);
+      await expect(service.refreshToken('expired-token')).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('should handle unexpected errors gracefully', async () => {
-      mockSupabaseClient.auth.refreshSession.mockRejectedValue(new Error('Network error'));
+      mockSupabaseClient.auth.refreshSession.mockRejectedValue(
+        new Error('Network error'),
+      );
 
-      await expect(service.refreshToken('token')).rejects.toThrow(HttpException);
+      await expect(service.refreshToken('token')).rejects.toThrow(
+        HttpException,
+      );
     });
   });
 
@@ -327,7 +365,9 @@ describe('AuthService', () => {
         error: { message: 'Invalid token' },
       });
 
-      await expect(service.validateUser('invalid-token')).rejects.toThrow(UnauthorizedException);
+      await expect(service.validateUser('invalid-token')).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('should throw UnauthorizedException when no user returned', async () => {
@@ -336,19 +376,27 @@ describe('AuthService', () => {
         error: null,
       });
 
-      await expect(service.validateUser('token')).rejects.toThrow(UnauthorizedException);
+      await expect(service.validateUser('token')).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('should handle any thrown errors as UnauthorizedException', async () => {
-      mockSupabaseClient.auth.getUser.mockRejectedValue(new Error('Network error'));
+      mockSupabaseClient.auth.getUser.mockRejectedValue(
+        new Error('Network error'),
+      );
 
-      await expect(service.validateUser('token')).rejects.toThrow(UnauthorizedException);
+      await expect(service.validateUser('token')).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
   });
 
   describe('initiatePasswordReset', () => {
     it('should successfully send password reset email', async () => {
-      mockSupabaseClient.auth.resetPasswordForEmail.mockResolvedValue({ error: null });
+      mockSupabaseClient.auth.resetPasswordForEmail.mockResolvedValue({
+        error: null,
+      });
 
       const result = await service.initiatePasswordReset('test@example.com');
 
@@ -361,7 +409,9 @@ describe('AuthService', () => {
         error: { message: 'User not found' },
       });
 
-      const result = await service.initiatePasswordReset('nonexistent@example.com');
+      const result = await service.initiatePasswordReset(
+        'nonexistent@example.com',
+      );
 
       // Should still return success to prevent email enumeration
       expect(result.success).toBe(true);
@@ -369,7 +419,9 @@ describe('AuthService', () => {
     });
 
     it('should handle network errors gracefully', async () => {
-      mockSupabaseClient.auth.resetPasswordForEmail.mockRejectedValue(new Error('Network error'));
+      mockSupabaseClient.auth.resetPasswordForEmail.mockRejectedValue(
+        new Error('Network error'),
+      );
 
       const result = await service.initiatePasswordReset('test@example.com');
 
@@ -380,7 +432,9 @@ describe('AuthService', () => {
 
   describe('deleteUser', () => {
     it('should prevent self-deletion', async () => {
-      await expect(service.deleteUser('admin-123', 'admin-123')).rejects.toThrow(BadRequestException);
+      await expect(
+        service.deleteUser('admin-123', 'admin-123'),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('should successfully delete a user', async () => {
@@ -403,7 +457,9 @@ describe('AuthService', () => {
       });
 
       mockSupabaseClient.from = mockFrom;
-      mockSupabaseClient.auth.admin.deleteUser.mockResolvedValue({ error: null });
+      mockSupabaseClient.auth.admin.deleteUser.mockResolvedValue({
+        error: null,
+      });
 
       const result = await service.deleteUser('user-456', 'admin-123');
 
@@ -429,15 +485,23 @@ describe('AuthService', () => {
         error: { message: 'User not found' },
       });
 
-      await expect(service.deleteUser('nonexistent', 'admin-123')).rejects.toThrow(BadRequestException);
+      await expect(
+        service.deleteUser('nonexistent', 'admin-123'),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 
   describe('changeUserPassword', () => {
     it('should successfully change user password', async () => {
-      mockSupabaseClient.auth.admin.updateUserById.mockResolvedValue({ error: null });
+      mockSupabaseClient.auth.admin.updateUserById.mockResolvedValue({
+        error: null,
+      });
 
-      const result = await service.changeUserPassword('user-123', 'NewPassword123!', 'admin-123');
+      const result = await service.changeUserPassword(
+        'user-123',
+        'NewPassword123!',
+        'admin-123',
+      );
 
       expect(result.success).toBe(true);
       expect(result.message).toBe('Password updated successfully');
@@ -481,7 +545,12 @@ describe('AuthService', () => {
       mockSupabaseClient.from = mockFrom;
       mockSupabaseClient.rpc.mockResolvedValue({
         data: [
-          { organization_slug: 'test-org', organization_name: 'Test Org', role_name: 'member', is_global: false },
+          {
+            organization_slug: 'test-org',
+            organization_name: 'Test Org',
+            role_name: 'member',
+            is_global: false,
+          },
         ],
         error: null,
       });
@@ -509,7 +578,9 @@ describe('AuthService', () => {
 
       mockSupabaseClient.from = mockFrom;
 
-      await expect(service.getCurrentUser(mockAuthUser as any, 'token')).rejects.toThrow(HttpException);
+      await expect(
+        service.getCurrentUser(mockAuthUser as any, 'token'),
+      ).rejects.toThrow(HttpException);
     });
 
     it('should default to demo-org when no organizations assigned', async () => {
@@ -626,7 +697,9 @@ describe('AuthService', () => {
         error: { message: 'RPC error' },
       });
 
-      await expect(service.getOrganizationAccessForUser('user-123')).rejects.toThrow(HttpException);
+      await expect(
+        service.getOrganizationAccessForUser('user-123'),
+      ).rejects.toThrow(HttpException);
     });
 
     it('should throw FORBIDDEN when user has no organizations', async () => {
@@ -635,8 +708,12 @@ describe('AuthService', () => {
         error: null,
       });
 
-      await expect(service.getOrganizationAccessForUser('user-123')).rejects.toThrow(HttpException);
-      await expect(service.getOrganizationAccessForUser('user-123')).rejects.toMatchObject({
+      await expect(
+        service.getOrganizationAccessForUser('user-123'),
+      ).rejects.toThrow(HttpException);
+      await expect(
+        service.getOrganizationAccessForUser('user-123'),
+      ).rejects.toMatchObject({
         status: HttpStatus.FORBIDDEN,
       });
     });

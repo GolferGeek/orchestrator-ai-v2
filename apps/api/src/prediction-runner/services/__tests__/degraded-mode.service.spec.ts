@@ -23,8 +23,12 @@ describe('DegradedModeService', () => {
 
   const createMockClient = (overrides?: Record<string, unknown>) => {
     const chain: Record<string, jest.Mock> = {};
-    chain.single = jest.fn().mockResolvedValue(overrides?.single ?? { data: null, error: null });
-    chain.maybeSingle = jest.fn().mockResolvedValue(overrides?.maybeSingle ?? { data: null, error: null });
+    chain.single = jest
+      .fn()
+      .mockResolvedValue(overrides?.single ?? { data: null, error: null });
+    chain.maybeSingle = jest
+      .fn()
+      .mockResolvedValue(overrides?.maybeSingle ?? { data: null, error: null });
     chain.limit = jest.fn().mockReturnValue(chain);
     chain.order = jest.fn().mockReturnValue(chain);
     chain.gte = jest.fn().mockReturnValue(chain);
@@ -292,7 +296,9 @@ describe('DegradedModeService', () => {
       const mockClient = createMockClient({
         maybeSingle: { data: cachedSignal, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await service.getCachedContent('https://example.com');
 
@@ -310,7 +316,9 @@ describe('DegradedModeService', () => {
     it('should mark content as stale when old', async () => {
       const oldDate = new Date();
       oldDate.setMinutes(
-        oldDate.getMinutes() - DEFAULT_DEGRADED_MODE_CONFIG.firecrawl.cacheTtlMinutes - 1,
+        oldDate.getMinutes() -
+          DEFAULT_DEGRADED_MODE_CONFIG.firecrawl.cacheTtlMinutes -
+          1,
       );
 
       const cachedSignal = {
@@ -324,7 +332,9 @@ describe('DegradedModeService', () => {
       const mockClient = createMockClient({
         maybeSingle: { data: cachedSignal, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await service.getCachedContent('https://example.com');
 
@@ -334,7 +344,9 @@ describe('DegradedModeService', () => {
     it('should return null for too old content', async () => {
       const veryOldDate = new Date();
       veryOldDate.setMinutes(
-        veryOldDate.getMinutes() - DEFAULT_DEGRADED_MODE_CONFIG.firecrawl.maxStaleMinutes - 1,
+        veryOldDate.getMinutes() -
+          DEFAULT_DEGRADED_MODE_CONFIG.firecrawl.maxStaleMinutes -
+          1,
       );
 
       const cachedSignal = {
@@ -348,7 +360,9 @@ describe('DegradedModeService', () => {
       const mockClient = createMockClient({
         maybeSingle: { data: cachedSignal, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await service.getCachedContent('https://example.com');
 
@@ -359,7 +373,9 @@ describe('DegradedModeService', () => {
       const mockClient = createMockClient({
         maybeSingle: { data: null, error: { message: 'DB error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await service.getCachedContent('https://example.com');
 
@@ -382,15 +398,19 @@ describe('DegradedModeService', () => {
         error: null,
       });
 
-      const snapshotChain = mockClient.schema('prediction').from('target_snapshots');
+      const snapshotChain = mockClient
+        .schema('prediction')
+        .from('target_snapshots');
       snapshotChain.maybeSingle = jest.fn().mockResolvedValue({
         data: { value: 150.5, captured_at: new Date().toISOString() },
         error: null,
       });
 
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await service.getLastKnownPrice('target-123');
+      const _result = await service.getLastKnownPrice('target-123');
 
       expect(supabaseService.getServiceClient).toHaveBeenCalled();
     });
@@ -398,16 +418,23 @@ describe('DegradedModeService', () => {
     it('should mark price as stale when old', async () => {
       const oldDate = new Date();
       oldDate.setMinutes(
-        oldDate.getMinutes() - DEFAULT_DEGRADED_MODE_CONFIG.priceApi.maxStaleMinutes - 1,
+        oldDate.getMinutes() -
+          DEFAULT_DEGRADED_MODE_CONFIG.priceApi.maxStaleMinutes -
+          1,
       );
 
       const mockClient = createMockClient({
         single: { data: { symbol: 'AAPL' }, error: null },
-        maybeSingle: { data: { value: 150, captured_at: oldDate.toISOString() }, error: null },
+        maybeSingle: {
+          data: { value: 150, captured_at: oldDate.toISOString() },
+          error: null,
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await service.getLastKnownPrice('target-123');
+      const _result = await service.getLastKnownPrice('target-123');
 
       // Result depends on mock setup
       expect(supabaseService.getServiceClient).toHaveBeenCalled();
@@ -491,7 +518,9 @@ describe('DegradedModeService', () => {
   describe('DEFAULT_DEGRADED_MODE_CONFIG', () => {
     it('should have sensible defaults', () => {
       expect(DEFAULT_DEGRADED_MODE_CONFIG.firecrawl.cacheTtlMinutes).toBe(60);
-      expect(DEFAULT_DEGRADED_MODE_CONFIG.firecrawl.maxStaleMinutes).toBe(24 * 60);
+      expect(DEFAULT_DEGRADED_MODE_CONFIG.firecrawl.maxStaleMinutes).toBe(
+        24 * 60,
+      );
       expect(DEFAULT_DEGRADED_MODE_CONFIG.priceApi.maxStaleMinutes).toBe(30);
     });
   });

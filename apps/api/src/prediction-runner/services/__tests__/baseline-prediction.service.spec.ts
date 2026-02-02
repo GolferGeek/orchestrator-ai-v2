@@ -8,7 +8,7 @@ describe('BaselinePredictionService', () => {
   let service: BaselinePredictionService;
   let supabaseService: jest.Mocked<SupabaseService>;
   let predictionRepository: jest.Mocked<PredictionRepository>;
-  let targetSnapshotService: jest.Mocked<TargetSnapshotService>;
+  let _targetSnapshotService: jest.Mocked<TargetSnapshotService>;
 
   // Mock Supabase query builder
   const createMockQueryBuilder = () => {
@@ -268,10 +268,10 @@ describe('BaselinePredictionService', () => {
     it('should skip targets without price data', async () => {
       const mockClient = supabaseService.getServiceClient();
 
-      let queryCount = 0;
+      let _queryCount = 0;
       (mockClient.schema as jest.Mock).mockImplementation(() => ({
         from: jest.fn().mockImplementation((table: string) => {
-          queryCount++;
+          _queryCount++;
           if (table === 'targets') {
             return {
               select: jest.fn().mockReturnValue({
@@ -650,8 +650,18 @@ describe('BaselinePredictionService', () => {
     it('should correctly identify missed opportunities using 0.5% threshold', async () => {
       const mockClient = supabaseService.getServiceClient();
       const mockPredictions = [
-        { id: 'p1', status: 'resolved', outcome_value: 0.49, direction: 'flat' }, // Correct (at threshold)
-        { id: 'p2', status: 'resolved', outcome_value: 0.51, direction: 'flat' }, // Missed opportunity
+        {
+          id: 'p1',
+          status: 'resolved',
+          outcome_value: 0.49,
+          direction: 'flat',
+        }, // Correct (at threshold)
+        {
+          id: 'p2',
+          status: 'resolved',
+          outcome_value: 0.51,
+          direction: 'flat',
+        }, // Missed opportunity
         {
           id: 'p3',
           status: 'resolved',

@@ -29,10 +29,16 @@ describe('SignalRepository', () => {
   };
 
   const createMockClient = (overrides?: {
-    single?: { data: unknown | null; error: { message: string; code?: string } | null };
+    single?: {
+      data: unknown;
+      error: { message: string; code?: string } | null;
+    };
     list?: { data: unknown[] | null; error: { message: string } | null };
-    insert?: { data: unknown | null; error: { message: string } | null };
-    update?: { data: unknown | null; error: { message: string; code?: string } | null };
+    insert?: { data: unknown; error: { message: string } | null };
+    update?: {
+      data: unknown;
+      error: { message: string; code?: string } | null;
+    };
     updateList?: { data: unknown[] | null; error: { message: string } | null };
   }) => {
     const singleResult = overrides?.single ?? { data: mockSignal, error: null };
@@ -169,7 +175,9 @@ describe('SignalRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findPendingSignals('target-123');
 
@@ -180,7 +188,9 @@ describe('SignalRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findPendingSignals('target-123')).rejects.toThrow(
         'Failed to fetch pending signals: Query failed',
@@ -190,24 +200,36 @@ describe('SignalRepository', () => {
 
   describe('findPendingSignalsGroupedByUrl', () => {
     it('should return signals grouped by URL', async () => {
-      const signal1 = { ...mockSignal, id: 'signal-1', url: 'https://example.com/article1' };
+      const signal1 = {
+        ...mockSignal,
+        id: 'signal-1',
+        url: 'https://example.com/article1',
+      };
       const signal2 = {
         ...mockSignal,
         id: 'signal-2',
         url: 'https://example.com/article1',
         target_id: 'target-456',
       };
-      const signal3 = { ...mockSignal, id: 'signal-3', url: 'https://example.com/article2' };
+      const signal3 = {
+        ...mockSignal,
+        id: 'signal-3',
+        url: 'https://example.com/article2',
+      };
 
       const mockClient = createMockClient({
         list: { data: [signal1, signal2, signal3], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findPendingSignalsGroupedByUrl();
 
       expect(result.length).toBe(2);
-      const article1Group = result.find((g) => g.url === 'https://example.com/article1');
+      const article1Group = result.find(
+        (g) => g.url === 'https://example.com/article1',
+      );
       expect(article1Group?.signals.length).toBe(2);
     });
 
@@ -229,7 +251,9 @@ describe('SignalRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findPendingSignalsGroupedByUrl();
 
@@ -240,7 +264,9 @@ describe('SignalRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findPendingSignalsGroupedByUrl()).rejects.toThrow(
         'Failed to fetch pending signals grouped: Query failed',
@@ -251,7 +277,9 @@ describe('SignalRepository', () => {
       const mockClient = createMockClient({
         list: { data: [{ ...mockSignal, url: null }], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findPendingSignalsGroupedByUrl();
 
@@ -275,7 +303,9 @@ describe('SignalRepository', () => {
       const mockClient = createMockClient({
         list: { data: [signal1, signal2], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findPendingSignalsGroupedByUrl();
 
@@ -292,9 +322,14 @@ describe('SignalRepository', () => {
 
     it('should return null when signal not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('nonexistent');
 
@@ -305,7 +340,9 @@ describe('SignalRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findById('signal-123')).rejects.toThrow(
         'Failed to fetch signal: Database error',
@@ -349,7 +386,9 @@ describe('SignalRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.create({
@@ -365,7 +404,9 @@ describe('SignalRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: { message: 'Insert failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.create({
@@ -380,7 +421,9 @@ describe('SignalRepository', () => {
 
   describe('update', () => {
     it('should update signal successfully', async () => {
-      const result = await repository.update('signal-123', { disposition: 'processing' });
+      const result = await repository.update('signal-123', {
+        disposition: 'processing',
+      });
 
       expect(result).toEqual(mockSignal);
     });
@@ -401,22 +444,26 @@ describe('SignalRepository', () => {
       const mockClient = createMockClient({
         update: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.update('signal-123', { disposition: 'processing' })).rejects.toThrow(
-        'Update succeeded but no signal returned',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.update('signal-123', { disposition: 'processing' }),
+      ).rejects.toThrow('Update succeeded but no signal returned');
     });
 
     it('should throw error on update failure', async () => {
       const mockClient = createMockClient({
         update: { data: null, error: { message: 'Update failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.update('signal-123', { disposition: 'processing' })).rejects.toThrow(
-        'Failed to update signal: Update failed',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.update('signal-123', { disposition: 'processing' }),
+      ).rejects.toThrow('Failed to update signal: Update failed');
     });
   });
 
@@ -429,9 +476,14 @@ describe('SignalRepository', () => {
 
     it('should return null when signal already claimed', async () => {
       const mockClient = createMockClient({
-        update: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        update: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.claimSignal('signal-123', 'worker-456');
 
@@ -442,25 +494,34 @@ describe('SignalRepository', () => {
       const mockClient = createMockClient({
         update: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.claimSignal('signal-123', 'worker-456')).rejects.toThrow(
-        'Failed to claim signal: Database error',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.claimSignal('signal-123', 'worker-456'),
+      ).rejects.toThrow('Failed to claim signal: Database error');
     });
   });
 
   describe('findByTargetAndDisposition', () => {
     it('should return signals by target and disposition', async () => {
-      const result = await repository.findByTargetAndDisposition('target-123', 'pending');
+      const result = await repository.findByTargetAndDisposition(
+        'target-123',
+        'pending',
+      );
 
       expect(result).toEqual([mockSignal]);
     });
 
     it('should apply test data filter', async () => {
-      const result = await repository.findByTargetAndDisposition('target-123', 'processing', {
-        testDataOnly: true,
-      });
+      const result = await repository.findByTargetAndDisposition(
+        'target-123',
+        'processing',
+        {
+          testDataOnly: true,
+        },
+      );
 
       expect(result).toBeDefined();
     });
@@ -469,9 +530,14 @@ describe('SignalRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.findByTargetAndDisposition('target-123', 'rejected');
+      const result = await repository.findByTargetAndDisposition(
+        'target-123',
+        'rejected',
+      );
 
       expect(result).toEqual([]);
     });
@@ -480,7 +546,9 @@ describe('SignalRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.findByTargetAndDisposition('target-123', 'pending'),
@@ -505,9 +573,14 @@ describe('SignalRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.findByIds(['nonexistent-1', 'nonexistent-2']);
+      const result = await repository.findByIds([
+        'nonexistent-1',
+        'nonexistent-2',
+      ]);
 
       expect(result).toEqual([]);
     });
@@ -516,7 +589,9 @@ describe('SignalRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findByIds(['signal-123'])).rejects.toThrow(
         'Failed to fetch signals by IDs: Query failed',
@@ -526,14 +601,20 @@ describe('SignalRepository', () => {
 
   describe('createTestCopy', () => {
     it('should create test copy of signal', async () => {
-      const result = await repository.createTestCopy(mockSignal, 'scenario-123');
+      const result = await repository.createTestCopy(
+        mockSignal,
+        'scenario-123',
+      );
 
       expect(result).toBeDefined();
     });
 
     it('should mark test copy with is_test and is_test_data', async () => {
       // The create method is called internally, so we verify through result
-      const result = await repository.createTestCopy(mockSignal, 'scenario-123');
+      const result = await repository.createTestCopy(
+        mockSignal,
+        'scenario-123',
+      );
 
       expect(result).toBeDefined();
     });
@@ -541,7 +622,10 @@ describe('SignalRepository', () => {
     it('should handle signal with null URL', async () => {
       const signalWithNullUrl = { ...mockSignal, url: null };
 
-      const result = await repository.createTestCopy(signalWithNullUrl, 'scenario-123');
+      const result = await repository.createTestCopy(
+        signalWithNullUrl,
+        'scenario-123',
+      );
 
       expect(result).toBeDefined();
     });
@@ -550,11 +634,13 @@ describe('SignalRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: { message: 'Insert failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.createTestCopy(mockSignal, 'scenario-123')).rejects.toThrow(
-        'Failed to create signal: Insert failed',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.createTestCopy(mockSignal, 'scenario-123'),
+      ).rejects.toThrow('Failed to create signal: Insert failed');
     });
   });
 
@@ -598,9 +684,14 @@ describe('SignalRepository', () => {
         const mockClient = createMockClient({
           list: { data: [signalWithDisposition], error: null },
         });
-        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+          mockClient,
+        );
 
-        const result = await repository.findByTargetAndDisposition('target-123', disposition);
+        const result = await repository.findByTargetAndDisposition(
+          'target-123',
+          disposition,
+        );
 
         expect(result[0]?.disposition).toBe(disposition);
       });

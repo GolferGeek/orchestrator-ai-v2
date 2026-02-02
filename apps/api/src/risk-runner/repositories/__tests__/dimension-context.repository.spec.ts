@@ -1,6 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
-import { DimensionContextRepository, DimensionContextFilter } from '../dimension-context.repository';
+import {
+  DimensionContextRepository,
+  DimensionContextFilter,
+} from '../dimension-context.repository';
 import { SupabaseService } from '@/supabase/supabase.service';
 import { RiskDimensionContext } from '../../interfaces/dimension.interface';
 
@@ -23,8 +26,16 @@ describe('DimensionContextRepository', () => {
     },
     examples: [
       {
-        input: { subject: 'Stock with high volatility', data: { volatility: 0.4 } },
-        output: { score: 70, confidence: 0.85, reasoning: 'High volatility indicates higher risk', evidence: ['Historical volatility data'] },
+        input: {
+          subject: 'Stock with high volatility',
+          data: { volatility: 0.4 },
+        },
+        output: {
+          score: 70,
+          confidence: 0.85,
+          reasoning: 'High volatility indicates higher risk',
+          evidence: ['Historical volatility data'],
+        },
       },
     ],
     is_active: true,
@@ -35,16 +46,31 @@ describe('DimensionContextRepository', () => {
   };
 
   const createMockClient = (overrides?: {
-    single?: { data: unknown | null; error: { message: string; code?: string } | null };
+    single?: {
+      data: unknown;
+      error: { message: string; code?: string } | null;
+    };
     list?: { data: unknown[] | null; error: { message: string } | null };
-    insert?: { data: unknown | null; error: { message: string } | null };
-    update?: { data: unknown | null; error: { message: string } | null };
+    insert?: { data: unknown; error: { message: string } | null };
+    update?: { data: unknown; error: { message: string } | null };
     delete?: { error: { message: string } | null };
   }) => {
-    const singleResult = overrides?.single ?? { data: mockDimensionContext, error: null };
-    const listResult = overrides?.list ?? { data: [mockDimensionContext], error: null };
-    const insertResult = overrides?.insert ?? { data: mockDimensionContext, error: null };
-    const updateResult = overrides?.update ?? { data: mockDimensionContext, error: null };
+    const singleResult = overrides?.single ?? {
+      data: mockDimensionContext,
+      error: null,
+    };
+    const listResult = overrides?.list ?? {
+      data: [mockDimensionContext],
+      error: null,
+    };
+    const insertResult = overrides?.insert ?? {
+      data: mockDimensionContext,
+      error: null,
+    };
+    const updateResult = overrides?.update ?? {
+      data: mockDimensionContext,
+      error: null,
+    };
     const deleteResult = overrides?.delete ?? { error: null };
 
     const createChain = () => {
@@ -123,7 +149,9 @@ describe('DimensionContextRepository', () => {
     }).compile();
 
     module.useLogger(false);
-    repository = module.get<DimensionContextRepository>(DimensionContextRepository);
+    repository = module.get<DimensionContextRepository>(
+      DimensionContextRepository,
+    );
     supabaseService = module.get(SupabaseService);
   });
 
@@ -142,7 +170,9 @@ describe('DimensionContextRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findByDimension('dim-123');
 
@@ -153,7 +183,9 @@ describe('DimensionContextRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findByDimension('dim-123')).rejects.toThrow(
         'Failed to fetch dimension contexts: Query failed',
@@ -184,9 +216,14 @@ describe('DimensionContextRepository', () => {
 
     it('should return null when no active context found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findActiveForDimension('dim-123');
 
@@ -197,9 +234,13 @@ describe('DimensionContextRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(repository.findActiveForDimension('dim-123')).rejects.toThrow(
+      await expect(
+        repository.findActiveForDimension('dim-123'),
+      ).rejects.toThrow(
         'Failed to fetch active dimension context: Database error',
       );
     });
@@ -221,9 +262,14 @@ describe('DimensionContextRepository', () => {
 
     it('should return null when context not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('nonexistent');
 
@@ -234,7 +280,9 @@ describe('DimensionContextRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findById('context-123')).rejects.toThrow(
         'Failed to fetch dimension context: Database error',
@@ -251,11 +299,18 @@ describe('DimensionContextRepository', () => {
 
     it('should throw NotFoundException when context not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(repository.findByIdOrThrow('nonexistent')).rejects.toThrow(NotFoundException);
+      await expect(repository.findByIdOrThrow('nonexistent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -268,9 +323,14 @@ describe('DimensionContextRepository', () => {
 
     it('should return null when version not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findByVersion('dim-123', 99);
 
@@ -281,7 +341,9 @@ describe('DimensionContextRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findByVersion('dim-123', 1)).rejects.toThrow(
         'Failed to fetch dimension context by version: Database error',
@@ -295,7 +357,9 @@ describe('DimensionContextRepository', () => {
         list: { data: [], error: null },
         insert: { data: mockDimensionContext, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const createData = {
         dimension_id: 'dim-123',
@@ -316,7 +380,9 @@ describe('DimensionContextRepository', () => {
         list: { data: existingContexts, error: null },
         insert: { data: { ...mockDimensionContext, version: 3 }, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.create({
         dimension_id: 'dim-123',
@@ -331,7 +397,9 @@ describe('DimensionContextRepository', () => {
         list: { data: [], error: null },
         insert: { data: { ...mockDimensionContext, version: 5 }, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.create({
         dimension_id: 'dim-123',
@@ -347,7 +415,9 @@ describe('DimensionContextRepository', () => {
         list: { data: [], error: null },
         insert: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.create({
@@ -362,7 +432,9 @@ describe('DimensionContextRepository', () => {
         list: { data: [], error: null },
         insert: { data: null, error: { message: 'Insert failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.create({
@@ -379,9 +451,13 @@ describe('DimensionContextRepository', () => {
       const mockClient = createMockClient({
         update: { data: updatedContext, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.update('context-123', { is_active: false });
+      const result = await repository.update('context-123', {
+        is_active: false,
+      });
 
       expect(result).toEqual(updatedContext);
     });
@@ -390,22 +466,26 @@ describe('DimensionContextRepository', () => {
       const mockClient = createMockClient({
         update: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.update('context-123', { is_active: false })).rejects.toThrow(
-        'Update succeeded but no dimension context returned',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.update('context-123', { is_active: false }),
+      ).rejects.toThrow('Update succeeded but no dimension context returned');
     });
 
     it('should throw error on update failure', async () => {
       const mockClient = createMockClient({
         update: { data: null, error: { message: 'Update failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.update('context-123', { is_active: false })).rejects.toThrow(
-        'Failed to update dimension context: Update failed',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.update('context-123', { is_active: false }),
+      ).rejects.toThrow('Failed to update dimension context: Update failed');
     });
   });
 
@@ -418,7 +498,9 @@ describe('DimensionContextRepository', () => {
       const mockClient = createMockClient({
         delete: { error: { message: 'Delete failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.delete('context-123')).rejects.toThrow(
         'Failed to delete dimension context: Delete failed',
@@ -436,7 +518,9 @@ describe('DimensionContextRepository', () => {
       const mockClient = createMockClient({
         list: { data: contexts, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.getLatestVersion('dim-123');
 
@@ -447,7 +531,9 @@ describe('DimensionContextRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.getLatestVersion('dim-123');
 
@@ -464,7 +550,9 @@ describe('DimensionContextRepository', () => {
         const mockClient = createMockClient({
           single: { data: contextWithVersion, error: null },
         });
-        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+          mockClient,
+        );
 
         const result = await repository.findById('context-123');
 
@@ -491,7 +579,9 @@ describe('DimensionContextRepository', () => {
       const mockClient = createMockClient({
         single: { data: contextWithSchema, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('context-123');
 
@@ -500,11 +590,16 @@ describe('DimensionContextRepository', () => {
     });
 
     it('should handle context with empty output schema', async () => {
-      const contextWithEmptySchema = { ...mockDimensionContext, output_schema: {} };
+      const contextWithEmptySchema = {
+        ...mockDimensionContext,
+        output_schema: {},
+      };
       const mockClient = createMockClient({
         single: { data: contextWithEmptySchema, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('context-123');
 
@@ -517,15 +612,41 @@ describe('DimensionContextRepository', () => {
       const contextWithExamples = {
         ...mockDimensionContext,
         examples: [
-          { input: { subject: 'Example 1', data: {} }, output: { score: 70, confidence: 0.8, reasoning: 'High risk', evidence: [] } },
-          { input: { subject: 'Example 2', data: {} }, output: { score: 30, confidence: 0.9, reasoning: 'Low risk', evidence: [] } },
-          { input: { subject: 'Example 3', data: {} }, output: { score: 50, confidence: 0.7, reasoning: 'Medium risk', evidence: [] } },
+          {
+            input: { subject: 'Example 1', data: {} },
+            output: {
+              score: 70,
+              confidence: 0.8,
+              reasoning: 'High risk',
+              evidence: [],
+            },
+          },
+          {
+            input: { subject: 'Example 2', data: {} },
+            output: {
+              score: 30,
+              confidence: 0.9,
+              reasoning: 'Low risk',
+              evidence: [],
+            },
+          },
+          {
+            input: { subject: 'Example 3', data: {} },
+            output: {
+              score: 50,
+              confidence: 0.7,
+              reasoning: 'Medium risk',
+              evidence: [],
+            },
+          },
         ],
       };
       const mockClient = createMockClient({
         single: { data: contextWithExamples, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('context-123');
 
@@ -537,7 +658,9 @@ describe('DimensionContextRepository', () => {
       const mockClient = createMockClient({
         single: { data: contextWithNoExamples, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('context-123');
 

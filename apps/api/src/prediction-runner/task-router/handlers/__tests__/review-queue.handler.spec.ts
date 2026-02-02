@@ -192,7 +192,11 @@ describe('ReviewQueueHandler', () => {
     it('should filter by fromDate', async () => {
       const items: ReviewQueueItem[] = [
         { ...mockReviewItem, created_at: '2024-01-20T10:00:00Z' },
-        { ...mockReviewItem, id: 'review-2', created_at: '2024-01-05T10:00:00Z' },
+        {
+          ...mockReviewItem,
+          id: 'review-2',
+          created_at: '2024-01-05T10:00:00Z',
+        },
       ];
       reviewQueueService.getPendingReviews.mockResolvedValue(items);
 
@@ -211,7 +215,11 @@ describe('ReviewQueueHandler', () => {
     it('should filter by toDate', async () => {
       const items: ReviewQueueItem[] = [
         { ...mockReviewItem, created_at: '2024-01-10T10:00:00Z' },
-        { ...mockReviewItem, id: 'review-2', created_at: '2024-01-25T10:00:00Z' },
+        {
+          ...mockReviewItem,
+          id: 'review-2',
+          created_at: '2024-01-25T10:00:00Z',
+        },
       ];
       reviewQueueService.getPendingReviews.mockResolvedValue(items);
 
@@ -230,8 +238,16 @@ describe('ReviewQueueHandler', () => {
     it('should filter by both fromDate and toDate', async () => {
       const items: ReviewQueueItem[] = [
         { ...mockReviewItem, created_at: '2024-01-05T10:00:00Z' },
-        { ...mockReviewItem, id: 'review-2', created_at: '2024-01-15T10:00:00Z' },
-        { ...mockReviewItem, id: 'review-3', created_at: '2024-01-25T10:00:00Z' },
+        {
+          ...mockReviewItem,
+          id: 'review-2',
+          created_at: '2024-01-15T10:00:00Z',
+        },
+        {
+          ...mockReviewItem,
+          id: 'review-3',
+          created_at: '2024-01-25T10:00:00Z',
+        },
       ];
       reviewQueueService.getPendingReviews.mockResolvedValue(items);
 

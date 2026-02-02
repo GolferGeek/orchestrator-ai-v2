@@ -1,7 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ReplayTestRepository } from '../replay-test.repository';
 import { SupabaseService } from '@/supabase/supabase.service';
-import { ReplayTest, ReplayTestSnapshot, ReplayTestResult, ReplayTestSummary } from '../../interfaces/test-data.interface';
+import {
+  ReplayTest,
+  ReplayTestSnapshot,
+  ReplayTestResult,
+  ReplayTestSummary,
+} from '../../interfaces/test-data.interface';
 
 describe('ReplayTestRepository', () => {
   let repository: ReplayTestRepository;
@@ -87,19 +92,37 @@ describe('ReplayTestRepository', () => {
   };
 
   const createMockClient = (overrides?: {
-    single?: { data: unknown | null; error: { message: string; code?: string } | null };
-    list?: { data: unknown[] | null; error: { message: string } | null };
-    insert?: { data: unknown | null; error: { message: string } | null };
+    single?: {
+      data: unknown;
+      error: { message: string; code?: string } | null;
+    };
+    list?: { data: unknown; error: { message: string } | null };
+    insert?: { data: unknown; error: { message: string } | null };
     insertBatch?: { error: { message: string } | null };
-    update?: { data: unknown | null; error: { message: string; code?: string } | null };
+    update?: {
+      data: unknown;
+      error: { message: string; code?: string } | null;
+    };
     delete?: { error: { message: string } | null; count?: number };
     rpc?: { data: unknown; error: { message: string } | null };
   }) => {
-    const singleResult = overrides?.single ?? { data: mockReplayTest, error: null };
-    const listResult = overrides?.list ?? { data: [mockReplayTest], error: null };
-    const insertResult = overrides?.insert ?? { data: mockReplayTest, error: null };
+    const singleResult = overrides?.single ?? {
+      data: mockReplayTest,
+      error: null,
+    };
+    const listResult = overrides?.list ?? {
+      data: [mockReplayTest],
+      error: null,
+    };
+    const insertResult = overrides?.insert ?? {
+      data: mockReplayTest,
+      error: null,
+    };
     const insertBatchResult = overrides?.insertBatch ?? { error: null };
-    const updateResult = overrides?.update ?? { data: mockReplayTest, error: null };
+    const updateResult = overrides?.update ?? {
+      data: mockReplayTest,
+      error: null,
+    };
     const deleteResult = overrides?.delete ?? { error: null, count: 0 };
     const rpcResult = overrides?.rpc ?? { data: 'snapshot-id', error: null };
 
@@ -146,7 +169,8 @@ describe('ReplayTestRepository', () => {
         in: jest.fn(),
         select: jest.fn(),
         single: jest.fn(),
-        then: (resolve: (v: unknown) => void) => resolve({ error: null, count: 1 }),
+        then: (resolve: (v: unknown) => void) =>
+          resolve({ error: null, count: 1 }),
       };
       (updateChain.eq as jest.Mock).mockReturnValue(updateChain);
       (updateChain.in as jest.Mock).mockReturnValue(updateChain);
@@ -211,9 +235,14 @@ describe('ReplayTestRepository', () => {
 
     it('should return null when replay test not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('nonexistent');
 
@@ -224,7 +253,9 @@ describe('ReplayTestRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findById('replay-123')).rejects.toThrow(
         'Failed to fetch replay test: Database error',
@@ -243,7 +274,9 @@ describe('ReplayTestRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findByOrganization('test-org');
 
@@ -254,7 +287,9 @@ describe('ReplayTestRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findByOrganization('test-org')).rejects.toThrow(
         'Failed to fetch replay tests: Query failed',
@@ -273,7 +308,9 @@ describe('ReplayTestRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findByUniverse('universe-123');
 
@@ -284,7 +321,9 @@ describe('ReplayTestRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findByUniverse('universe-123')).rejects.toThrow(
         'Failed to fetch replay tests by universe: Query failed',
@@ -329,7 +368,9 @@ describe('ReplayTestRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.create({
@@ -346,7 +387,9 @@ describe('ReplayTestRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: { message: 'Insert failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.create({
@@ -362,7 +405,9 @@ describe('ReplayTestRepository', () => {
 
   describe('update', () => {
     it('should update replay test successfully', async () => {
-      const result = await repository.update('replay-123', { name: 'Updated Name' });
+      const result = await repository.update('replay-123', {
+        name: 'Updated Name',
+      });
 
       expect(result).toEqual(mockReplayTest);
     });
@@ -371,32 +416,41 @@ describe('ReplayTestRepository', () => {
       const mockClient = createMockClient({
         update: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.update('replay-123', { name: 'Updated' })).rejects.toThrow(
-        'Update succeeded but no replay test returned',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.update('replay-123', { name: 'Updated' }),
+      ).rejects.toThrow('Update succeeded but no replay test returned');
     });
 
     it('should throw error on update failure', async () => {
       const mockClient = createMockClient({
         update: { data: null, error: { message: 'Update failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.update('replay-123', { name: 'Updated' })).rejects.toThrow(
-        'Failed to update replay test: Update failed',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.update('replay-123', { name: 'Updated' }),
+      ).rejects.toThrow('Failed to update replay test: Update failed');
     });
   });
 
   describe('status transitions', () => {
     it('should mark as snapshot_created', async () => {
-      const snapshotCreatedTest = { ...mockReplayTest, status: 'snapshot_created' as const };
+      const snapshotCreatedTest = {
+        ...mockReplayTest,
+        status: 'snapshot_created' as const,
+      };
       const mockClient = createMockClient({
         update: { data: snapshotCreatedTest, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.markSnapshotCreated('replay-123');
 
@@ -408,7 +462,9 @@ describe('ReplayTestRepository', () => {
       const mockClient = createMockClient({
         update: { data: runningTest, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.markRunning('replay-123');
 
@@ -419,20 +475,31 @@ describe('ReplayTestRepository', () => {
       const mockClient = createMockClient({
         update: { data: mockCompletedTest, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.markCompleted('replay-123', mockCompletedTest.results);
+      const result = await repository.markCompleted(
+        'replay-123',
+        mockCompletedTest.results,
+      );
 
       expect(result.status).toBe('completed');
       expect(result.results).toBeDefined();
     });
 
     it('should mark as failed with error message', async () => {
-      const failedTest = { ...mockReplayTest, status: 'failed' as const, error_message: 'Test failed' };
+      const failedTest = {
+        ...mockReplayTest,
+        status: 'failed' as const,
+        error_message: 'Test failed',
+      };
       const mockClient = createMockClient({
         update: { data: failedTest, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.markFailed('replay-123', 'Test failed');
 
@@ -445,7 +512,9 @@ describe('ReplayTestRepository', () => {
       const mockClient = createMockClient({
         update: { data: restoredTest, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.markRestored('replay-123');
 
@@ -462,7 +531,9 @@ describe('ReplayTestRepository', () => {
       const mockClient = createMockClient({
         delete: { error: { message: 'Delete failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.delete('replay-123')).rejects.toThrow(
         'Failed to delete replay test: Delete failed',
@@ -472,7 +543,11 @@ describe('ReplayTestRepository', () => {
 
   describe('snapshots', () => {
     it('should create snapshot using RPC', async () => {
-      const result = await repository.createSnapshot('replay-123', 'predictions', ['pred-1', 'pred-2']);
+      const result = await repository.createSnapshot(
+        'replay-123',
+        'predictions',
+        ['pred-1', 'pred-2'],
+      );
 
       expect(result).toBe('snapshot-id');
     });
@@ -481,7 +556,9 @@ describe('ReplayTestRepository', () => {
       const mockClient = createMockClient({
         rpc: { data: null, error: { message: 'RPC failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.createSnapshot('replay-123', 'predictions', ['pred-1']),
@@ -492,7 +569,9 @@ describe('ReplayTestRepository', () => {
       const mockClient = createMockClient({
         list: { data: [mockSnapshot], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.getSnapshots('replay-123');
 
@@ -503,7 +582,9 @@ describe('ReplayTestRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.getSnapshots('replay-123')).rejects.toThrow(
         'Failed to fetch snapshots: Query failed',
@@ -514,7 +595,9 @@ describe('ReplayTestRepository', () => {
       const mockClient = createMockClient({
         rpc: { data: 5, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.restoreSnapshot('snapshot-123');
 
@@ -525,7 +608,9 @@ describe('ReplayTestRepository', () => {
       const mockClient = createMockClient({
         rpc: { data: null, error: { message: 'Restore failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.restoreSnapshot('snapshot-123')).rejects.toThrow(
         'Failed to restore snapshot: Restore failed',
@@ -538,13 +623,17 @@ describe('ReplayTestRepository', () => {
       const mockClient = createMockClient({
         insert: { data: mockResult, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const resultData = { ...mockResult };
       delete (resultData as Record<string, unknown>).id;
       delete (resultData as Record<string, unknown>).created_at;
 
-      const result = await repository.createResult(resultData as Omit<ReplayTestResult, 'id' | 'created_at'>);
+      const result = await repository.createResult(
+        resultData as Omit<ReplayTestResult, 'id' | 'created_at'>,
+      );
 
       expect(result).toEqual(mockResult);
     });
@@ -553,7 +642,9 @@ describe('ReplayTestRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.createResult({
@@ -584,10 +675,14 @@ describe('ReplayTestRepository', () => {
       const mockClient = createMockClient({
         insertBatch: { error: { message: 'Bulk insert failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
-        repository.createResults([{ replay_test_id: 'replay-123' }] as Array<Omit<ReplayTestResult, 'id' | 'created_at'>>),
+        repository.createResults([{ replay_test_id: 'replay-123' }] as Array<
+          Omit<ReplayTestResult, 'id' | 'created_at'>
+        >),
       ).rejects.toThrow('Failed to bulk create results: Bulk insert failed');
     });
 
@@ -595,7 +690,9 @@ describe('ReplayTestRepository', () => {
       const mockClient = createMockClient({
         list: { data: [mockResult], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const results = await repository.getResults('replay-123');
 
@@ -606,7 +703,9 @@ describe('ReplayTestRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.getResults('replay-123')).rejects.toThrow(
         'Failed to fetch results: Query failed',
@@ -633,7 +732,9 @@ describe('ReplayTestRepository', () => {
       const mockClient = createMockClient({
         list: { data: [mockSummary], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.getSummaries('test-org');
 
@@ -644,7 +745,9 @@ describe('ReplayTestRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.getSummaries('test-org')).rejects.toThrow(
         'Failed to fetch summaries: Query failed',
@@ -669,7 +772,9 @@ describe('ReplayTestRepository', () => {
       const mockClient = createMockClient({
         single: { data: mockSummary, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.getSummaryById('replay-123');
 
@@ -678,9 +783,14 @@ describe('ReplayTestRepository', () => {
 
     it('should return null when summary not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.getSummaryById('nonexistent');
 
@@ -697,7 +807,9 @@ describe('ReplayTestRepository', () => {
       const mockClient = createMockClient({
         rpc: { data: mockRecords, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.getAffectedRecords(
         'predictions',
@@ -709,11 +821,15 @@ describe('ReplayTestRepository', () => {
     });
 
     it('should get affected records with target filter', async () => {
-      const mockRecords = [{ table_name: 'predictions', record_ids: ['pred-1'], row_count: 1 }];
+      const mockRecords = [
+        { table_name: 'predictions', record_ids: ['pred-1'], row_count: 1 },
+      ];
       const mockClient = createMockClient({
         rpc: { data: mockRecords, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.getAffectedRecords(
         'predictions',
@@ -729,10 +845,16 @@ describe('ReplayTestRepository', () => {
       const mockClient = createMockClient({
         rpc: { data: null, error: { message: 'RPC failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
-        repository.getAffectedRecords('predictions', '2024-01-01T00:00:00Z', 'universe-123'),
+        repository.getAffectedRecords(
+          'predictions',
+          '2024-01-01T00:00:00Z',
+          'universe-123',
+        ),
       ).rejects.toThrow('Failed to get affected records: RPC failed');
     });
   });
@@ -742,7 +864,9 @@ describe('ReplayTestRepository', () => {
       const mockClient = createMockClient({
         rpc: { data: { cleaned: true }, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.cleanup('replay-123');
 
@@ -753,7 +877,9 @@ describe('ReplayTestRepository', () => {
       const mockClient = createMockClient({
         rpc: { data: null, error: { message: 'Cleanup failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.cleanup('replay-123')).rejects.toThrow(
         'Failed to cleanup replay test: Cleanup failed',
@@ -766,9 +892,14 @@ describe('ReplayTestRepository', () => {
       const mockClient = createMockClient({
         delete: { error: null, count: 5 },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const count = await repository.deleteRecords('predictions', ['pred-1', 'pred-2']);
+      const count = await repository.deleteRecords('predictions', [
+        'pred-1',
+        'pred-2',
+      ]);
 
       expect(count).toBe(5);
     });
@@ -783,9 +914,13 @@ describe('ReplayTestRepository', () => {
       const mockClient = createMockClient({
         delete: { error: { message: 'Delete failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(repository.deleteRecords('predictions', ['pred-1'])).rejects.toThrow(
+      await expect(
+        repository.deleteRecords('predictions', ['pred-1']),
+      ).rejects.toThrow(
         'Failed to delete records from predictions: Delete failed',
       );
     });
@@ -799,22 +934,32 @@ describe('ReplayTestRepository', () => {
       // Override to return count
       const updateChain = {
         in: jest.fn().mockReturnThis(),
-        then: (resolve: (v: unknown) => void) => resolve({ error: null, count: 3 }),
+        then: (resolve: (v: unknown) => void) =>
+          resolve({ error: null, count: 3 }),
       };
       mockClient.schema = jest.fn().mockReturnValue({
         from: jest.fn().mockReturnValue({
           update: jest.fn().mockReturnValue(updateChain),
         }),
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const count = await repository.markReplayPredictionsAsTest('replay-123', ['pred-1', 'pred-2', 'pred-3']);
+      const count = await repository.markReplayPredictionsAsTest('replay-123', [
+        'pred-1',
+        'pred-2',
+        'pred-3',
+      ]);
 
       expect(count).toBe(3);
     });
 
     it('should return 0 for empty prediction IDs', async () => {
-      const count = await repository.markReplayPredictionsAsTest('replay-123', []);
+      const count = await repository.markReplayPredictionsAsTest(
+        'replay-123',
+        [],
+      );
 
       expect(count).toBe(0);
     });
@@ -822,7 +967,8 @@ describe('ReplayTestRepository', () => {
     it('should throw error on mark as test failure', async () => {
       const updateChain = {
         in: jest.fn().mockReturnThis(),
-        then: (resolve: (v: unknown) => void) => resolve({ error: { message: 'Update failed' }, count: null }),
+        then: (resolve: (v: unknown) => void) =>
+          resolve({ error: { message: 'Update failed' }, count: null }),
       };
       const mockClient = {
         schema: jest.fn().mockReturnValue({
@@ -831,7 +977,9 @@ describe('ReplayTestRepository', () => {
           }),
         }),
       };
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.markReplayPredictionsAsTest('replay-123', ['pred-1']),
@@ -848,7 +996,9 @@ describe('ReplayTestRepository', () => {
         const mockClient = createMockClient({
           single: { data: testWithDepth, error: null },
         });
-        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+          mockClient,
+        );
 
         const result = await repository.findById('replay-123');
 
@@ -858,7 +1008,14 @@ describe('ReplayTestRepository', () => {
   });
 
   describe('status values', () => {
-    const statuses = ['pending', 'snapshot_created', 'running', 'completed', 'failed', 'restored'] as const;
+    const statuses = [
+      'pending',
+      'snapshot_created',
+      'running',
+      'completed',
+      'failed',
+      'restored',
+    ] as const;
 
     statuses.forEach((status) => {
       it(`should handle ${status} status`, async () => {
@@ -866,7 +1023,9 @@ describe('ReplayTestRepository', () => {
         const mockClient = createMockClient({
           single: { data: testWithStatus, error: null },
         });
-        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+          mockClient,
+        );
 
         const result = await repository.findById('replay-123');
 

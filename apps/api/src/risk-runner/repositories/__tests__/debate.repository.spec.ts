@@ -2,7 +2,13 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { DebateRepository, DebateFilter } from '../debate.repository';
 import { SupabaseService } from '@/supabase/supabase.service';
-import { RiskDebate, RiskDebateContext, BlueAssessment, RedChallenges, ArbiterSynthesis } from '../../interfaces/debate.interface';
+import {
+  RiskDebate,
+  RiskDebateContext,
+  BlueAssessment,
+  RedChallenges,
+  ArbiterSynthesis,
+} from '../../interfaces/debate.interface';
 
 describe('DebateRepository', () => {
   let repository: DebateRepository;
@@ -38,7 +44,8 @@ describe('DebateRepository', () => {
   };
 
   const mockArbiterSynthesis: ArbiterSynthesis = {
-    final_assessment: 'After debate, risk is moderately higher than initially assessed',
+    final_assessment:
+      'After debate, risk is moderately higher than initially assessed',
     accepted_challenges: ['Interest rate impact'],
     rejected_challenges: ['Competition risk overstatement'],
     adjustment_reasoning: 'Valid points raised about interest rate sensitivity',
@@ -59,9 +66,21 @@ describe('DebateRepository', () => {
     final_score: 73,
     score_adjustment: 8,
     transcript: [
-      { role: 'blue', timestamp: '2024-01-01T10:00:00Z', content: 'Initial assessment' },
-      { role: 'red', timestamp: '2024-01-01T10:05:00Z', content: 'Challenges raised' },
-      { role: 'arbiter', timestamp: '2024-01-01T10:10:00Z', content: 'Final synthesis' },
+      {
+        role: 'blue',
+        timestamp: '2024-01-01T10:00:00Z',
+        content: 'Initial assessment',
+      },
+      {
+        role: 'red',
+        timestamp: '2024-01-01T10:05:00Z',
+        content: 'Challenges raised',
+      },
+      {
+        role: 'arbiter',
+        timestamp: '2024-01-01T10:10:00Z',
+        content: 'Final synthesis',
+      },
     ],
     status: 'completed',
     is_test: false,
@@ -85,10 +104,13 @@ describe('DebateRepository', () => {
   };
 
   const createMockClient = (overrides?: {
-    single?: { data: unknown | null; error: { message: string; code?: string } | null };
+    single?: {
+      data: unknown;
+      error: { message: string; code?: string } | null;
+    };
     list?: { data: unknown[] | null; error: { message: string } | null };
-    insert?: { data: unknown | null; error: { message: string } | null };
-    update?: { data: unknown | null; error: { message: string } | null };
+    insert?: { data: unknown; error: { message: string } | null };
+    update?: { data: unknown; error: { message: string } | null };
     delete?: { error: { message: string } | null };
   }) => {
     const singleResult = overrides?.single ?? { data: mockDebate, error: null };
@@ -194,7 +216,9 @@ describe('DebateRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findBySubject('subject-123');
 
@@ -205,7 +229,9 @@ describe('DebateRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findBySubject('subject-123')).rejects.toThrow(
         'Failed to fetch debates: Query failed',
@@ -229,9 +255,14 @@ describe('DebateRepository', () => {
 
     it('should return null when no completed debate found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findLatestBySubject('subject-123');
 
@@ -242,16 +273,21 @@ describe('DebateRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.findLatestBySubject('subject-123')).rejects.toThrow(
-        'Failed to fetch latest debate: Database error',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.findLatestBySubject('subject-123'),
+      ).rejects.toThrow('Failed to fetch latest debate: Database error');
     });
 
     it('should apply filter', async () => {
       const filter: DebateFilter = { testScenarioId: 'scenario-123' };
-      const result = await repository.findLatestBySubject('subject-123', filter);
+      const result = await repository.findLatestBySubject(
+        'subject-123',
+        filter,
+      );
 
       expect(result).toEqual(mockDebate);
     });
@@ -266,9 +302,14 @@ describe('DebateRepository', () => {
 
     it('should return null when debate not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('nonexistent');
 
@@ -279,7 +320,9 @@ describe('DebateRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findById('debate-123')).rejects.toThrow(
         'Failed to fetch debate: Database error',
@@ -296,11 +339,18 @@ describe('DebateRepository', () => {
 
     it('should throw NotFoundException when debate not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(repository.findByIdOrThrow('nonexistent')).rejects.toThrow(NotFoundException);
+      await expect(repository.findByIdOrThrow('nonexistent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -320,7 +370,9 @@ describe('DebateRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.create({ subject_id: 'subject-123' }),
@@ -331,7 +383,9 @@ describe('DebateRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: { message: 'Insert failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.create({ subject_id: 'subject-123' }),
@@ -345,9 +399,13 @@ describe('DebateRepository', () => {
       const mockClient = createMockClient({
         update: { data: updatedDebate, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.update('debate-123', { status: 'completed' });
+      const result = await repository.update('debate-123', {
+        status: 'completed',
+      });
 
       expect(result).toEqual(updatedDebate);
     });
@@ -356,22 +414,26 @@ describe('DebateRepository', () => {
       const mockClient = createMockClient({
         update: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.update('debate-123', { status: 'completed' })).rejects.toThrow(
-        'Update succeeded but no debate returned',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.update('debate-123', { status: 'completed' }),
+      ).rejects.toThrow('Update succeeded but no debate returned');
     });
 
     it('should throw error on update failure', async () => {
       const mockClient = createMockClient({
         update: { data: null, error: { message: 'Update failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.update('debate-123', { status: 'completed' })).rejects.toThrow(
-        'Failed to update debate: Update failed',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.update('debate-123', { status: 'completed' }),
+      ).rejects.toThrow('Failed to update debate: Update failed');
     });
   });
 
@@ -384,7 +446,9 @@ describe('DebateRepository', () => {
       const mockClient = createMockClient({
         delete: { error: { message: 'Delete failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.delete('debate-123')).rejects.toThrow(
         'Failed to delete debate: Delete failed',
@@ -399,7 +463,9 @@ describe('DebateRepository', () => {
       const mockClient = createMockClient({
         list: { data: [mockDebateContext], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findContextsByScope('scope-123');
 
@@ -410,7 +476,9 @@ describe('DebateRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findContextsByScope('scope-123');
 
@@ -421,7 +489,9 @@ describe('DebateRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findContextsByScope('scope-123')).rejects.toThrow(
         'Failed to fetch debate contexts: Query failed',
@@ -434,20 +504,33 @@ describe('DebateRepository', () => {
       const mockClient = createMockClient({
         single: { data: mockDebateContext, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.findActiveContextByRole('scope-123', 'blue');
+      const result = await repository.findActiveContextByRole(
+        'scope-123',
+        'blue',
+      );
 
       expect(result).toEqual(mockDebateContext);
     });
 
     it('should return null when no active context found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.findActiveContextByRole('scope-123', 'red');
+      const result = await repository.findActiveContextByRole(
+        'scope-123',
+        'red',
+      );
 
       expect(result).toBeNull();
     });
@@ -456,9 +539,13 @@ describe('DebateRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(repository.findActiveContextByRole('scope-123', 'blue')).rejects.toThrow(
+      await expect(
+        repository.findActiveContextByRole('scope-123', 'blue'),
+      ).rejects.toThrow(
         'Failed to fetch active debate context: Database error',
       );
     });
@@ -467,10 +554,16 @@ describe('DebateRepository', () => {
       const mockClient = createMockClient({
         single: { data: mockDebateContext, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const filter: DebateFilter = { includeTest: true };
-      const result = await repository.findActiveContextByRole('scope-123', 'arbiter', filter);
+      const result = await repository.findActiveContextByRole(
+        'scope-123',
+        'arbiter',
+        filter,
+      );
 
       expect(result).toEqual(mockDebateContext);
     });
@@ -482,7 +575,9 @@ describe('DebateRepository', () => {
         list: { data: [], error: null },
         insert: { data: mockDebateContext, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const createData = {
         scope_id: 'scope-123',
@@ -504,7 +599,9 @@ describe('DebateRepository', () => {
         list: { data: existingContexts, error: null },
         insert: { data: { ...mockDebateContext, version: 3 }, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.createContext({
         scope_id: 'scope-123',
@@ -520,7 +617,9 @@ describe('DebateRepository', () => {
         list: { data: [], error: null },
         insert: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.createContext({
@@ -536,7 +635,9 @@ describe('DebateRepository', () => {
         list: { data: [], error: null },
         insert: { data: null, error: { message: 'Insert failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.createContext({
@@ -554,9 +655,13 @@ describe('DebateRepository', () => {
       const mockClient = createMockClient({
         update: { data: updatedContext, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.updateContext('context-123', { is_active: false });
+      const result = await repository.updateContext('context-123', {
+        is_active: false,
+      });
 
       expect(result).toEqual(updatedContext);
     });
@@ -565,35 +670,43 @@ describe('DebateRepository', () => {
       const mockClient = createMockClient({
         update: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.updateContext('context-123', { is_active: false })).rejects.toThrow(
-        'Update succeeded but no debate context returned',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.updateContext('context-123', { is_active: false }),
+      ).rejects.toThrow('Update succeeded but no debate context returned');
     });
 
     it('should throw error on update failure', async () => {
       const mockClient = createMockClient({
         update: { data: null, error: { message: 'Update failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.updateContext('context-123', { is_active: false })).rejects.toThrow(
-        'Failed to update debate context: Update failed',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.updateContext('context-123', { is_active: false }),
+      ).rejects.toThrow('Failed to update debate context: Update failed');
     });
   });
 
   describe('deleteContext', () => {
     it('should delete context successfully', async () => {
-      await expect(repository.deleteContext('context-123')).resolves.toBeUndefined();
+      await expect(
+        repository.deleteContext('context-123'),
+      ).resolves.toBeUndefined();
     });
 
     it('should throw error on delete failure', async () => {
       const mockClient = createMockClient({
         delete: { error: { message: 'Delete failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.deleteContext('context-123')).rejects.toThrow(
         'Failed to delete debate context: Delete failed',
@@ -612,7 +725,9 @@ describe('DebateRepository', () => {
         const mockClient = createMockClient({
           single: { data: debateWithStatus, error: null },
         });
-        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+          mockClient,
+        );
 
         const result = await repository.findById('debate-123');
 
@@ -630,9 +745,14 @@ describe('DebateRepository', () => {
         const mockClient = createMockClient({
           single: { data: contextWithRole, error: null },
         });
-        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+          mockClient,
+        );
 
-        const result = await repository.findActiveContextByRole('scope-123', role);
+        const result = await repository.findActiveContextByRole(
+          'scope-123',
+          role,
+        );
 
         expect(result?.role).toBe(role);
       });
@@ -654,7 +774,9 @@ describe('DebateRepository', () => {
       const mockClient = createMockClient({
         single: { data: debateWithEmptyTranscript, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('debate-123');
 

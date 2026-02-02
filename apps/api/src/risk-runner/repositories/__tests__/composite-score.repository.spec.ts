@@ -1,8 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
-import { CompositeScoreRepository, CompositeScoreFilter } from '../composite-score.repository';
+import {
+  CompositeScoreRepository,
+  CompositeScoreFilter,
+} from '../composite-score.repository';
 import { SupabaseService } from '@/supabase/supabase.service';
-import { RiskCompositeScore, ActiveCompositeScoreView } from '../../interfaces/composite-score.interface';
+import {
+  RiskCompositeScore,
+  ActiveCompositeScoreView,
+} from '../../interfaces/composite-score.interface';
 
 describe('CompositeScoreRepository', () => {
   let repository: CompositeScoreRepository;
@@ -40,16 +46,31 @@ describe('CompositeScoreRepository', () => {
   };
 
   const createMockClient = (overrides?: {
-    single?: { data: unknown | null; error: { message: string; code?: string } | null };
+    single?: {
+      data: unknown;
+      error: { message: string; code?: string } | null;
+    };
     list?: { data: unknown[] | null; error: { message: string } | null };
-    insert?: { data: unknown | null; error: { message: string } | null };
-    update?: { data: unknown | null; error: { message: string } | null };
+    insert?: { data: unknown; error: { message: string } | null };
+    update?: { data: unknown; error: { message: string } | null };
     delete?: { error: { message: string } | null };
   }) => {
-    const singleResult = overrides?.single ?? { data: mockCompositeScore, error: null };
-    const listResult = overrides?.list ?? { data: [mockCompositeScore], error: null };
-    const insertResult = overrides?.insert ?? { data: mockCompositeScore, error: null };
-    const updateResult = overrides?.update ?? { data: mockCompositeScore, error: null };
+    const singleResult = overrides?.single ?? {
+      data: mockCompositeScore,
+      error: null,
+    };
+    const listResult = overrides?.list ?? {
+      data: [mockCompositeScore],
+      error: null,
+    };
+    const insertResult = overrides?.insert ?? {
+      data: mockCompositeScore,
+      error: null,
+    };
+    const updateResult = overrides?.update ?? {
+      data: mockCompositeScore,
+      error: null,
+    };
     const deleteResult = overrides?.delete ?? { error: null };
 
     const createChain = () => {
@@ -150,7 +171,9 @@ describe('CompositeScoreRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findBySubject('subject-123');
 
@@ -161,7 +184,9 @@ describe('CompositeScoreRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findBySubject('subject-123')).rejects.toThrow(
         'Failed to fetch composite scores: Query failed',
@@ -185,9 +210,14 @@ describe('CompositeScoreRepository', () => {
 
     it('should return null when no active score found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findActiveBySubject('subject-123');
 
@@ -198,16 +228,23 @@ describe('CompositeScoreRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(repository.findActiveBySubject('subject-123')).rejects.toThrow(
+      await expect(
+        repository.findActiveBySubject('subject-123'),
+      ).rejects.toThrow(
         'Failed to fetch active composite score: Database error',
       );
     });
 
     it('should apply filter', async () => {
       const filter: CompositeScoreFilter = { testScenarioId: 'scenario-123' };
-      const result = await repository.findActiveBySubject('subject-123', filter);
+      const result = await repository.findActiveBySubject(
+        'subject-123',
+        filter,
+      );
 
       expect(result).toEqual(mockCompositeScore);
     });
@@ -218,7 +255,9 @@ describe('CompositeScoreRepository', () => {
       const mockClient = createMockClient({
         list: { data: [mockActiveView], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findAllActiveView();
 
@@ -229,7 +268,9 @@ describe('CompositeScoreRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findAllActiveView();
 
@@ -240,7 +281,9 @@ describe('CompositeScoreRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findAllActiveView()).rejects.toThrow(
         'Failed to fetch active composite scores view: Query failed',
@@ -257,9 +300,14 @@ describe('CompositeScoreRepository', () => {
 
     it('should return null when score not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('nonexistent');
 
@@ -270,7 +318,9 @@ describe('CompositeScoreRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findById('score-123')).rejects.toThrow(
         'Failed to fetch composite score: Database error',
@@ -287,11 +337,18 @@ describe('CompositeScoreRepository', () => {
 
     it('should throw NotFoundException when score not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(repository.findByIdOrThrow('nonexistent')).rejects.toThrow(NotFoundException);
+      await expect(repository.findByIdOrThrow('nonexistent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -304,9 +361,14 @@ describe('CompositeScoreRepository', () => {
 
     it('should return null when no score for task', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findByTask('nonexistent');
 
@@ -317,7 +379,9 @@ describe('CompositeScoreRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findByTask('task-123')).rejects.toThrow(
         'Failed to fetch composite score by task: Database error',
@@ -343,7 +407,9 @@ describe('CompositeScoreRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.create({
@@ -359,7 +425,9 @@ describe('CompositeScoreRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: { message: 'Insert failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.create({
@@ -378,9 +446,13 @@ describe('CompositeScoreRepository', () => {
       const mockClient = createMockClient({
         update: { data: updatedScore, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.update('score-123', { overall_score: 75 });
+      const result = await repository.update('score-123', {
+        overall_score: 75,
+      });
 
       expect(result).toEqual(updatedScore);
     });
@@ -389,22 +461,26 @@ describe('CompositeScoreRepository', () => {
       const mockClient = createMockClient({
         update: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.update('score-123', { overall_score: 75 })).rejects.toThrow(
-        'Update succeeded but no composite score returned',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.update('score-123', { overall_score: 75 }),
+      ).rejects.toThrow('Update succeeded but no composite score returned');
     });
 
     it('should throw error on update failure', async () => {
       const mockClient = createMockClient({
         update: { data: null, error: { message: 'Update failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.update('score-123', { overall_score: 75 })).rejects.toThrow(
-        'Failed to update composite score: Update failed',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.update('score-123', { overall_score: 75 }),
+      ).rejects.toThrow('Failed to update composite score: Update failed');
     });
   });
 
@@ -413,7 +489,9 @@ describe('CompositeScoreRepository', () => {
       const mockClient = createMockClient({
         list: { data: [mockCompositeScore, mockCompositeScore], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.supersedeForSubject('subject-123');
 
@@ -424,7 +502,9 @@ describe('CompositeScoreRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.supersedeForSubject('subject-123');
 
@@ -435,11 +515,13 @@ describe('CompositeScoreRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Update failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.supersedeForSubject('subject-123')).rejects.toThrow(
-        'Failed to supersede composite scores: Update failed',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.supersedeForSubject('subject-123'),
+      ).rejects.toThrow('Failed to supersede composite scores: Update failed');
     });
   });
 
@@ -452,7 +534,9 @@ describe('CompositeScoreRepository', () => {
       const mockClient = createMockClient({
         delete: { error: { message: 'Delete failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.delete('score-123')).rejects.toThrow(
         'Failed to delete composite score: Delete failed',
@@ -462,7 +546,9 @@ describe('CompositeScoreRepository', () => {
 
   describe('findScoresOlderThan', () => {
     it('should return old active scores', async () => {
-      const result = await repository.findScoresOlderThan(new Date('2024-06-01'));
+      const result = await repository.findScoresOlderThan(
+        new Date('2024-06-01'),
+      );
 
       expect(result).toEqual([mockCompositeScore]);
     });
@@ -471,9 +557,13 @@ describe('CompositeScoreRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.findScoresOlderThan(new Date('2024-06-01'));
+      const result = await repository.findScoresOlderThan(
+        new Date('2024-06-01'),
+      );
 
       expect(result).toEqual([]);
     });
@@ -482,16 +572,21 @@ describe('CompositeScoreRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.findScoresOlderThan(new Date('2024-06-01'))).rejects.toThrow(
-        'Failed to fetch old composite scores: Query failed',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.findScoresOlderThan(new Date('2024-06-01')),
+      ).rejects.toThrow('Failed to fetch old composite scores: Query failed');
     });
 
     it('should apply filter', async () => {
       const filter: CompositeScoreFilter = { includeTest: true };
-      const result = await repository.findScoresOlderThan(new Date('2024-06-01'), filter);
+      const result = await repository.findScoresOlderThan(
+        new Date('2024-06-01'),
+        filter,
+      );
 
       expect(result).toEqual([mockCompositeScore]);
     });
@@ -514,7 +609,9 @@ describe('CompositeScoreRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findHistory('subject-123');
 
@@ -525,7 +622,9 @@ describe('CompositeScoreRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findHistory('subject-123')).rejects.toThrow(
         'Failed to fetch score history: Query failed',
@@ -549,7 +648,9 @@ describe('CompositeScoreRepository', () => {
         const mockClient = createMockClient({
           single: { data: scoreWithStatus, error: null },
         });
-        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+          mockClient,
+        );
 
         const result = await repository.findById('score-123');
 
@@ -560,11 +661,16 @@ describe('CompositeScoreRepository', () => {
 
   describe('dimension scores', () => {
     it('should handle empty dimension scores', async () => {
-      const scoreWithEmptyDimensions = { ...mockCompositeScore, dimension_scores: {} };
+      const scoreWithEmptyDimensions = {
+        ...mockCompositeScore,
+        dimension_scores: {},
+      };
       const mockClient = createMockClient({
         single: { data: scoreWithEmptyDimensions, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('score-123');
 
@@ -585,7 +691,9 @@ describe('CompositeScoreRepository', () => {
       const mockClient = createMockClient({
         single: { data: scoreWithDimensions, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('score-123');
 
@@ -604,7 +712,9 @@ describe('CompositeScoreRepository', () => {
       const mockClient = createMockClient({
         single: { data: scoreWithDebate, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('score-123');
 

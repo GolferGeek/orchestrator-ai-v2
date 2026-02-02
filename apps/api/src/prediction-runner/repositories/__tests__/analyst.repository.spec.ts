@@ -91,19 +91,34 @@ describe('AnalystRepository', () => {
   };
 
   const createMockClient = (overrides?: {
-    single?: { data: unknown | null; error: { message: string; code?: string } | null };
-    list?: { data: unknown[] | null; error: { message: string } | null };
-    insert?: { data: unknown | null; error: { message: string } | null };
-    update?: { data: unknown | null; error: { message: string } | null };
+    single?: {
+      data: unknown;
+      error: { message: string; code?: string } | null;
+    };
+    list?: { data: unknown; error: { message: string } | null };
+    insert?: { data: unknown; error: { message: string } | null };
+    update?: { data: unknown; error: { message: string } | null };
     delete?: { error: { message: string } | null };
-    rpc?: { data: unknown[] | null; error: { message: string } | null };
+    rpc?: { data: unknown; error: { message: string } | null };
   }) => {
-    const singleResult = overrides?.single ?? { data: mockAnalyst, error: null };
+    const singleResult = overrides?.single ?? {
+      data: mockAnalyst,
+      error: null,
+    };
     const listResult = overrides?.list ?? { data: [mockAnalyst], error: null };
-    const insertResult = overrides?.insert ?? { data: mockAnalyst, error: null };
-    const updateResult = overrides?.update ?? { data: mockAnalyst, error: null };
+    const insertResult = overrides?.insert ?? {
+      data: mockAnalyst,
+      error: null,
+    };
+    const updateResult = overrides?.update ?? {
+      data: mockAnalyst,
+      error: null,
+    };
     const deleteResult = overrides?.delete ?? { error: null };
-    const rpcResult = overrides?.rpc ?? { data: [mockActiveAnalyst], error: null };
+    const rpcResult = overrides?.rpc ?? {
+      data: [mockActiveAnalyst],
+      error: null,
+    };
 
     const createChain = () => {
       const chainableResult: Record<string, unknown> = {
@@ -198,7 +213,9 @@ describe('AnalystRepository', () => {
       const mockClient = createMockClient({
         rpc: { data: [mockActiveAnalyst], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.getActiveAnalysts('target-123');
 
@@ -209,7 +226,9 @@ describe('AnalystRepository', () => {
       const mockClient = createMockClient({
         rpc: { data: [mockActiveAnalyst], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.getActiveAnalysts('target-123', 'gold');
 
@@ -220,7 +239,9 @@ describe('AnalystRepository', () => {
       const mockClient = createMockClient({
         rpc: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.getActiveAnalysts('target-123');
 
@@ -231,7 +252,9 @@ describe('AnalystRepository', () => {
       const mockClient = createMockClient({
         rpc: { data: null, error: { message: 'RPC failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.getActiveAnalysts('target-123')).rejects.toThrow(
         'Failed to get active analysts: RPC failed',
@@ -248,9 +271,14 @@ describe('AnalystRepository', () => {
 
     it('should return null when analyst not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('nonexistent');
 
@@ -261,7 +289,9 @@ describe('AnalystRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findById('analyst-123')).rejects.toThrow(
         'Failed to fetch analyst: Database error',
@@ -278,11 +308,18 @@ describe('AnalystRepository', () => {
 
     it('should throw NotFoundException when analyst not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(repository.findByIdOrThrow('nonexistent')).rejects.toThrow(NotFoundException);
+      await expect(repository.findByIdOrThrow('nonexistent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -315,7 +352,9 @@ describe('AnalystRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findBySlug('nonexistent');
 
@@ -326,7 +365,9 @@ describe('AnalystRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findBySlug('fred')).rejects.toThrow(
         'Failed to find analysts by slug: Query failed',
@@ -353,7 +394,9 @@ describe('AnalystRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.create({ slug: 'test' })).rejects.toThrow(
         'Create succeeded but no analyst returned',
@@ -364,7 +407,9 @@ describe('AnalystRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: { message: 'Insert failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.create({ slug: 'test' })).rejects.toThrow(
         'Failed to create analyst: Insert failed',
@@ -374,7 +419,9 @@ describe('AnalystRepository', () => {
 
   describe('update', () => {
     it('should update analyst successfully', async () => {
-      const result = await repository.update('analyst-123', { name: 'Updated Name' });
+      const result = await repository.update('analyst-123', {
+        name: 'Updated Name',
+      });
 
       expect(result).toEqual(mockAnalyst);
     });
@@ -383,22 +430,26 @@ describe('AnalystRepository', () => {
       const mockClient = createMockClient({
         update: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.update('analyst-123', { name: 'Updated' })).rejects.toThrow(
-        'Update succeeded but no analyst returned',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.update('analyst-123', { name: 'Updated' }),
+      ).rejects.toThrow('Update succeeded but no analyst returned');
     });
 
     it('should throw error on update failure', async () => {
       const mockClient = createMockClient({
         update: { data: null, error: { message: 'Update failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.update('analyst-123', { name: 'Updated' })).rejects.toThrow(
-        'Failed to update analyst: Update failed',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.update('analyst-123', { name: 'Updated' }),
+      ).rejects.toThrow('Failed to update analyst: Update failed');
     });
   });
 
@@ -413,7 +464,9 @@ describe('AnalystRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.getActive();
 
@@ -424,7 +477,9 @@ describe('AnalystRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.getActive()).rejects.toThrow(
         'Failed to get active analysts: Query failed',
@@ -443,7 +498,9 @@ describe('AnalystRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findByDomain('crypto');
 
@@ -454,7 +511,9 @@ describe('AnalystRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findByDomain('stocks')).rejects.toThrow(
         'Failed to find analysts by domain: Query failed',
@@ -473,7 +532,9 @@ describe('AnalystRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findRunnerLevel();
 
@@ -484,7 +545,9 @@ describe('AnalystRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findRunnerLevel()).rejects.toThrow(
         'Failed to find runner-level analysts: Query failed',
@@ -497,7 +560,9 @@ describe('AnalystRepository', () => {
       const mockClient = createMockClient({
         rpc: { data: [mockPersonalityAnalyst], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.getPersonalityAnalysts();
 
@@ -508,7 +573,9 @@ describe('AnalystRepository', () => {
       const mockClient = createMockClient({
         rpc: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.getPersonalityAnalysts();
 
@@ -519,7 +586,9 @@ describe('AnalystRepository', () => {
       const mockClient = createMockClient({
         rpc: { data: null, error: { message: 'RPC failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.getPersonalityAnalysts()).rejects.toThrow(
         'Failed to get personality analysts: RPC failed',
@@ -532,9 +601,12 @@ describe('AnalystRepository', () => {
       const mockClient = createMockClient({
         rpc: { data: [mockContextProvider], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.getContextProvidersForTarget('target-123');
+      const result =
+        await repository.getContextProvidersForTarget('target-123');
 
       expect(result).toEqual([mockContextProvider]);
     });
@@ -543,9 +615,12 @@ describe('AnalystRepository', () => {
       const mockClient = createMockClient({
         rpc: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.getContextProvidersForTarget('target-123');
+      const result =
+        await repository.getContextProvidersForTarget('target-123');
 
       expect(result).toEqual([]);
     });
@@ -554,9 +629,13 @@ describe('AnalystRepository', () => {
       const mockClient = createMockClient({
         rpc: { data: null, error: { message: 'RPC failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(repository.getContextProvidersForTarget('target-123')).rejects.toThrow(
+      await expect(
+        repository.getContextProvidersForTarget('target-123'),
+      ).rejects.toThrow(
         'Failed to get context providers for target: RPC failed',
       );
     });
@@ -571,7 +650,9 @@ describe('AnalystRepository', () => {
       const mockClient = createMockClient({
         delete: { error: { message: 'Delete failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.delete('analyst-123')).rejects.toThrow(
         'Failed to delete analyst: Delete failed',
@@ -584,20 +665,33 @@ describe('AnalystRepository', () => {
       const mockClient = createMockClient({
         single: { data: mockContextVersion, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.getCurrentContextVersion('analyst-123', 'user');
+      const result = await repository.getCurrentContextVersion(
+        'analyst-123',
+        'user',
+      );
 
       expect(result).toEqual(mockContextVersion);
     });
 
     it('should return null when no current version', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.getCurrentContextVersion('analyst-123', 'user');
+      const result = await repository.getCurrentContextVersion(
+        'analyst-123',
+        'user',
+      );
 
       expect(result).toBeNull();
     });
@@ -606,11 +700,13 @@ describe('AnalystRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.getCurrentContextVersion('analyst-123', 'user')).rejects.toThrow(
-        'Failed to get current context version: Query failed',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.getCurrentContextVersion('analyst-123', 'user'),
+      ).rejects.toThrow('Failed to get current context version: Query failed');
     });
   });
 
@@ -619,9 +715,14 @@ describe('AnalystRepository', () => {
       const mockClient = createMockClient({
         list: { data: [mockContextVersion], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.getContextVersionHistory('analyst-123', 'user');
+      const result = await repository.getContextVersionHistory(
+        'analyst-123',
+        'user',
+      );
 
       expect(result).toEqual([mockContextVersion]);
     });
@@ -630,9 +731,14 @@ describe('AnalystRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.getContextVersionHistory('analyst-123', 'user');
+      const result = await repository.getContextVersionHistory(
+        'analyst-123',
+        'user',
+      );
 
       expect(result).toEqual([]);
     });
@@ -641,11 +747,13 @@ describe('AnalystRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.getContextVersionHistory('analyst-123', 'user')).rejects.toThrow(
-        'Failed to get context version history: Query failed',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.getContextVersionHistory('analyst-123', 'user'),
+      ).rejects.toThrow('Failed to get context version history: Query failed');
     });
   });
 
@@ -654,7 +762,9 @@ describe('AnalystRepository', () => {
       const mockClient = createMockClient({
         list: { data: [mockContextVersion], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.getAllCurrentContextVersions('user');
 
@@ -665,7 +775,9 @@ describe('AnalystRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.getAllCurrentContextVersions('user');
 
@@ -676,9 +788,13 @@ describe('AnalystRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(repository.getAllCurrentContextVersions('user')).rejects.toThrow(
+      await expect(
+        repository.getAllCurrentContextVersions('user'),
+      ).rejects.toThrow(
         'Failed to get all current context versions: Query failed',
       );
     });
@@ -693,7 +809,9 @@ describe('AnalystRepository', () => {
         const mockClient = createMockClient({
           single: { data: analystWithScope, error: null },
         });
-        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+          mockClient,
+        );
 
         const result = await repository.findById('analyst-123');
 
@@ -711,7 +829,9 @@ describe('AnalystRepository', () => {
         const mockClient = createMockClient({
           single: { data: analystWithType, error: null },
         });
-        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+          mockClient,
+        );
 
         const result = await repository.findById('analyst-123');
 
@@ -725,11 +845,16 @@ describe('AnalystRepository', () => {
 
     tiers.forEach((tier) => {
       it(`should handle ${tier} tier`, async () => {
-        const activeAnalystWithTier = { ...mockActiveAnalyst, effective_tier: tier };
+        const activeAnalystWithTier = {
+          ...mockActiveAnalyst,
+          effective_tier: tier,
+        };
         const mockClient = createMockClient({
           rpc: { data: [activeAnalystWithTier], error: null },
         });
-        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+          mockClient,
+        );
 
         const result = await repository.getActiveAnalysts('target-123', tier);
 

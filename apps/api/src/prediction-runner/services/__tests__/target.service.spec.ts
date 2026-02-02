@@ -109,7 +109,9 @@ describe('TargetService', () => {
     it('should return target when found', async () => {
       const result = await service.findByIdOrThrow('target-123');
 
-      expect(targetRepository.findByIdOrThrow).toHaveBeenCalledWith('target-123');
+      expect(targetRepository.findByIdOrThrow).toHaveBeenCalledWith(
+        'target-123',
+      );
       expect(result).toEqual(mockTarget);
     });
   });
@@ -135,7 +137,9 @@ describe('TargetService', () => {
     it('should return only active targets', async () => {
       const result = await service.findActiveByUniverse('universe-123');
 
-      expect(targetRepository.findActiveByUniverse).toHaveBeenCalledWith('universe-123');
+      expect(targetRepository.findActiveByUniverse).toHaveBeenCalledWith(
+        'universe-123',
+      );
       expect(result).toEqual([mockTarget]);
     });
   });
@@ -144,7 +148,10 @@ describe('TargetService', () => {
     it('should find target by symbol in universe', async () => {
       const result = await service.findBySymbol('universe-123', 'AAPL');
 
-      expect(targetRepository.findBySymbol).toHaveBeenCalledWith('universe-123', 'AAPL');
+      expect(targetRepository.findBySymbol).toHaveBeenCalledWith(
+        'universe-123',
+        'AAPL',
+      );
       expect(result).toEqual(mockTarget);
     });
 
@@ -179,7 +186,10 @@ describe('TargetService', () => {
 
       const result = await service.update('target-123', updateDto);
 
-      expect(targetRepository.update).toHaveBeenCalledWith('target-123', updateDto);
+      expect(targetRepository.update).toHaveBeenCalledWith(
+        'target-123',
+        updateDto,
+      );
       expect(result).toBeDefined();
     });
   });
@@ -213,7 +223,9 @@ describe('TargetService', () => {
     it('should return universe config when no target override', async () => {
       const result = await service.getEffectiveLlmConfig(mockTarget);
 
-      expect(universeRepository.findByIdOrThrow).toHaveBeenCalledWith('universe-123');
+      expect(universeRepository.findByIdOrThrow).toHaveBeenCalledWith(
+        'universe-123',
+      );
       expect(result).toEqual(mockUniverse.llm_config);
     });
 

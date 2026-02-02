@@ -73,9 +73,9 @@ describe('MissedOpportunityHandler', () => {
     timeframe_hours: 24,
     predicted_at: '2024-01-01T09:00:00Z',
     expires_at: '2024-01-02T09:00:00Z',
-    entry_price: 185.50,
-    target_price: 186.00,
-    stop_loss: 184.00,
+    entry_price: 185.5,
+    target_price: 186.0,
+    stop_loss: 184.0,
     analyst_ensemble: { 'technical-tina': 0.5, 'sentiment-sam': 0.5 },
     llm_ensemble: { claude: 0.6, gpt: 0.4 },
     status: 'resolved',
@@ -268,7 +268,11 @@ describe('MissedOpportunityHandler', () => {
     it('should filter by status', async () => {
       const opportunities: MissedOpportunity[] = [
         { ...mockMissedOpportunity, analysis_status: 'pending' },
-        { ...mockMissedOpportunity, id: 'miss-2', analysis_status: 'completed' },
+        {
+          ...mockMissedOpportunity,
+          id: 'miss-2',
+          analysis_status: 'completed',
+        },
       ];
       detectionService.detectMissedOpportunities.mockResolvedValue(
         opportunities,
@@ -505,7 +509,9 @@ describe('MissedOpportunityHandler', () => {
         analysis: MissAnalysisResult;
       };
       expect(data.missedOpportunityId).toBe('miss-1');
-      expect(data.analysis.discoveredDrivers).toContain('Strong earnings report');
+      expect(data.analysis.discoveredDrivers).toContain(
+        'Strong earnings report',
+      );
     });
 
     it('should handle analysis service error', async () => {
@@ -525,7 +531,9 @@ describe('MissedOpportunityHandler', () => {
     });
 
     it('should handle non-Error throws in analysis', async () => {
-      analysisService.analyzeMissedOpportunity.mockRejectedValue('String error');
+      analysisService.analyzeMissedOpportunity.mockRejectedValue(
+        'String error',
+      );
 
       const payload: DashboardRequestPayload = {
         action: 'analyze',
@@ -535,7 +543,9 @@ describe('MissedOpportunityHandler', () => {
 
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe('ANALYZE_FAILED');
-      expect(result.error?.message).toBe('Failed to analyze missed opportunity');
+      expect(result.error?.message).toBe(
+        'Failed to analyze missed opportunity',
+      );
     });
   });
 
@@ -672,9 +682,9 @@ describe('MissedOpportunityHandler', () => {
       const result = await handler.execute('investigate', payload, mockContext);
 
       expect(result.success).toBe(true);
-      expect(
-        missInvestigationService.investigateMissById,
-      ).toHaveBeenCalledWith('pred-1');
+      expect(missInvestigationService.investigateMissById).toHaveBeenCalledWith(
+        'pred-1',
+      );
       const data = result.data as MissInvestigation;
       expect(data.prediction.id).toBe('pred-1');
       expect(data.missType).toBe('direction_wrong');

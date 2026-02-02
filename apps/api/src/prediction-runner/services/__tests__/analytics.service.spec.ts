@@ -62,7 +62,9 @@ describe('AnalyticsService', () => {
     const createChain = (finalResult: unknown) => {
       const chain: Record<string, jest.Mock> = {};
       chain.single = jest.fn().mockResolvedValue({ data: null, error: null });
-      chain.maybeSingle = jest.fn().mockResolvedValue({ data: null, error: null });
+      chain.maybeSingle = jest
+        .fn()
+        .mockResolvedValue({ data: null, error: null });
       chain.limit = jest.fn().mockReturnValue(chain);
       chain.range = jest.fn().mockReturnValue(chain);
       chain.order = jest.fn().mockImplementation(() => {
@@ -121,7 +123,9 @@ describe('AnalyticsService', () => {
       const mockClient = createMockClient({
         order: { data: mockAccuracyData, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await service.getAccuracyComparison('test-org');
 
@@ -133,9 +137,15 @@ describe('AnalyticsService', () => {
       const mockClient = createMockClient({
         order: { data: mockAccuracyData, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await service.getAccuracyComparison('test-org', '2024-01-01', '2024-01-31');
+      await service.getAccuracyComparison(
+        'test-org',
+        '2024-01-01',
+        '2024-01-31',
+      );
 
       expect(supabaseService.getServiceClient).toHaveBeenCalled();
     });
@@ -144,7 +154,9 @@ describe('AnalyticsService', () => {
       const mockClient = createMockClient({
         order: { data: mockAccuracyData, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await service.getAccuracyComparison('test-org');
 
@@ -170,7 +182,9 @@ describe('AnalyticsService', () => {
       const mockClient = createMockClient({
         order: { data: dataWithNulls, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await service.getAccuracyComparison('test-org');
 
@@ -181,7 +195,9 @@ describe('AnalyticsService', () => {
       const mockClient = createMockClient({
         order: { data: null, error: { message: 'DB error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(service.getAccuracyComparison('test-org')).rejects.toThrow(
         'Failed to fetch accuracy comparison',
@@ -194,7 +210,9 @@ describe('AnalyticsService', () => {
       const mockClient = createMockClient({
         order: { data: mockVelocityData, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await service.getLearningVelocity('test-org');
 
@@ -205,7 +223,9 @@ describe('AnalyticsService', () => {
       const mockClient = createMockClient({
         order: { data: mockVelocityData, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await service.getLearningVelocity('test-org', '2024-01-01', '2024-12-31');
 
@@ -216,7 +236,9 @@ describe('AnalyticsService', () => {
       const mockClient = createMockClient({
         order: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(service.getLearningVelocity('test-org')).rejects.toThrow();
     });
@@ -227,7 +249,9 @@ describe('AnalyticsService', () => {
       const mockClient = createMockClient({
         order: { data: mockScenarioData, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await service.getScenarioEffectiveness('test-org');
 
@@ -238,7 +262,9 @@ describe('AnalyticsService', () => {
       const mockClient = createMockClient({
         order: { data: mockScenarioData, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await service.getScenarioEffectiveness('test-org');
 
@@ -255,7 +281,9 @@ describe('AnalyticsService', () => {
       const mockClient = createMockClient({
         order: { data: mockFunnelData, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await service.getPromotionFunnel('test-org');
 
@@ -266,7 +294,9 @@ describe('AnalyticsService', () => {
       const mockClient = createMockClient({
         order: { data: mockFunnelData, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await service.getPromotionFunnel('test-org');
 
@@ -284,7 +314,9 @@ describe('AnalyticsService', () => {
       const mockClient = createMockClient({
         order: { data: mockAccuracyData, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await service.getSummary('test-org');
 
@@ -298,7 +330,9 @@ describe('AnalyticsService', () => {
       const mockClient = createMockClient({
         order: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await service.getSummary('test-org');
 
@@ -314,7 +348,9 @@ describe('AnalyticsService', () => {
       });
       const chain = mockClient.schema('prediction').from('predictions');
       chain.eq = jest.fn().mockResolvedValue({ data: [], error: null });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await service.getAccuracyByStrategy('test-org');
 
@@ -327,7 +363,9 @@ describe('AnalyticsService', () => {
       });
       const chain = mockClient.schema('prediction').from('predictions');
       chain.eq = jest.fn().mockResolvedValue({ data: [], error: null });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await service.getAccuracyByStrategy('test-org', true);
 
@@ -342,7 +380,9 @@ describe('AnalyticsService', () => {
       });
       const chain = mockClient.schema('prediction').from('predictions');
       chain.eq = jest.fn().mockResolvedValue({ data: [], error: null });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await service.getAccuracyByTarget('test-org');
 
@@ -355,7 +395,9 @@ describe('AnalyticsService', () => {
       });
       const chain = mockClient.schema('prediction').from('predictions');
       chain.eq = jest.fn().mockResolvedValue({ data: [], error: null });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await service.getAccuracyByTarget('test-org', true);
 
@@ -370,7 +412,9 @@ describe('AnalyticsService', () => {
       });
       const chain = mockClient.schema('prediction').from('signals');
       chain.eq = jest.fn().mockReturnValue(chain);
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await service.getSignalDetectionRate('test-org');
 
@@ -383,15 +427,13 @@ describe('AnalyticsService', () => {
       });
       const chain = mockClient.schema('prediction').from('signals');
       chain.eq = jest.fn().mockReturnValue(chain);
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const groupByOptions: Array<'day' | 'week' | 'month' | 'source' | 'target'> = [
-        'day',
-        'week',
-        'month',
-        'source',
-        'target',
-      ];
+      const groupByOptions: Array<
+        'day' | 'week' | 'month' | 'source' | 'target'
+      > = ['day', 'week', 'month', 'source', 'target'];
 
       for (const groupBy of groupByOptions) {
         const result = await service.getSignalDetectionRate(
@@ -410,7 +452,9 @@ describe('AnalyticsService', () => {
       });
       const chain = mockClient.schema('prediction').from('signals');
       chain.eq = jest.fn().mockReturnValue(chain);
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await service.getSignalDetectionRate(
         'test-org',
@@ -427,7 +471,9 @@ describe('AnalyticsService', () => {
       });
       const chain = mockClient.schema('prediction').from('signals');
       chain.eq = jest.fn().mockReturnValue(chain);
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await service.getSignalDetectionRate(
         'test-org',
@@ -446,7 +492,9 @@ describe('AnalyticsService', () => {
       });
       const chain = mockClient.schema('prediction').from('signals');
       chain.eq = jest.fn().mockReturnValue(chain);
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await service.getSignalDetectionRate(
         'test-org',
@@ -466,7 +514,9 @@ describe('AnalyticsService', () => {
       });
       const chain = mockClient.schema('prediction').from('signals');
       chain.eq = jest.fn().mockReturnValue(chain);
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await service.getSignalDetectionRate(
         'test-org',

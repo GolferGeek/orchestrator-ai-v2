@@ -34,20 +34,41 @@ describe('TestArticleRepository', () => {
   };
 
   const createMockClient = (overrides?: {
-    single?: { data: unknown | null; error: { message: string; code?: string } | null };
+    single?: {
+      data: unknown;
+      error: { message: string; code?: string } | null;
+    };
     list?: { data: unknown[] | null; error: { message: string } | null };
-    insert?: { data: unknown | null; error: { message: string } | null };
+    insert?: { data: unknown; error: { message: string } | null };
     insertBatch?: { data: unknown[] | null; error: { message: string } | null };
-    update?: { data: unknown | null; error: { message: string; code?: string } | null };
+    update?: {
+      data: unknown;
+      error: { message: string; code?: string } | null;
+    };
     updateBatch?: { data: unknown[] | null; error: { message: string } | null };
     delete?: { data?: unknown[] | null; error: { message: string } | null };
   }) => {
-    const singleResult = overrides?.single ?? { data: mockArticle, error: null };
+    const singleResult = overrides?.single ?? {
+      data: mockArticle,
+      error: null,
+    };
     const listResult = overrides?.list ?? { data: [mockArticle], error: null };
-    const insertResult = overrides?.insert ?? { data: mockArticle, error: null };
-    const insertBatchResult = overrides?.insertBatch ?? { data: [mockArticle], error: null };
-    const updateResult = overrides?.update ?? { data: mockArticle, error: null };
-    const updateBatchResult = overrides?.updateBatch ?? { data: [mockArticle], error: null };
+    const insertResult = overrides?.insert ?? {
+      data: mockArticle,
+      error: null,
+    };
+    const insertBatchResult = overrides?.insertBatch ?? {
+      data: [mockArticle],
+      error: null,
+    };
+    const updateResult = overrides?.update ?? {
+      data: mockArticle,
+      error: null,
+    };
+    const updateBatchResult = overrides?.updateBatch ?? {
+      data: [mockArticle],
+      error: null,
+    };
     const deleteResult = overrides?.delete ?? { data: [], error: null };
 
     const createChain = () => {
@@ -78,7 +99,8 @@ describe('TestArticleRepository', () => {
           return {
             ...chainableResult,
             select: jest.fn().mockReturnValue({
-              then: (resolve: (v: unknown) => void) => resolve(insertBatchResult),
+              then: (resolve: (v: unknown) => void) =>
+                resolve(insertBatchResult),
             }),
           };
         }
@@ -160,9 +182,14 @@ describe('TestArticleRepository', () => {
 
     it('should return null when article not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('nonexistent');
 
@@ -173,7 +200,9 @@ describe('TestArticleRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findById('article-123')).rejects.toThrow(
         'Failed to fetch test article: Database error',
@@ -192,7 +221,9 @@ describe('TestArticleRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findByOrganization('test-org');
 
@@ -203,7 +234,9 @@ describe('TestArticleRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findByOrganization('test-org')).rejects.toThrow(
         'Failed to fetch test articles: Query failed',
@@ -222,7 +255,9 @@ describe('TestArticleRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findByScenario('scenario-123');
 
@@ -233,7 +268,9 @@ describe('TestArticleRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findByScenario('scenario-123')).rejects.toThrow(
         'Failed to fetch test articles by scenario: Query failed',
@@ -252,7 +289,9 @@ describe('TestArticleRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findByTargetSymbol('TSLA');
 
@@ -263,7 +302,9 @@ describe('TestArticleRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findByTargetSymbol('AAPL')).rejects.toThrow(
         'Failed to fetch test articles by target symbol: Query failed',
@@ -288,7 +329,9 @@ describe('TestArticleRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findUnprocessed();
 
@@ -299,7 +342,9 @@ describe('TestArticleRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findUnprocessed()).rejects.toThrow(
         'Failed to fetch unprocessed test articles: Query failed',
@@ -348,7 +393,9 @@ describe('TestArticleRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.create({
@@ -364,7 +411,9 @@ describe('TestArticleRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: { message: 'Insert failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.create({
@@ -380,13 +429,28 @@ describe('TestArticleRepository', () => {
   describe('bulkCreate', () => {
     it('should bulk create articles', async () => {
       const articles = [
-        { organization_slug: 'test-org', title: 'Article 1', content: 'Content 1', published_at: '2024-01-01T10:00:00Z' },
-        { organization_slug: 'test-org', title: 'Article 2', content: 'Content 2', published_at: '2024-01-01T11:00:00Z' },
+        {
+          organization_slug: 'test-org',
+          title: 'Article 1',
+          content: 'Content 1',
+          published_at: '2024-01-01T10:00:00Z',
+        },
+        {
+          organization_slug: 'test-org',
+          title: 'Article 2',
+          content: 'Content 2',
+          published_at: '2024-01-01T11:00:00Z',
+        },
       ];
       const mockClient = createMockClient({
-        insertBatch: { data: [mockArticle, { ...mockArticle, id: 'article-124' }], error: null },
+        insertBatch: {
+          data: [mockArticle, { ...mockArticle, id: 'article-124' }],
+          error: null,
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.bulkCreate(articles);
 
@@ -403,19 +467,30 @@ describe('TestArticleRepository', () => {
       const mockClient = createMockClient({
         insertBatch: { data: null, error: { message: 'Bulk insert failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.bulkCreate([
-          { organization_slug: 'test-org', title: 'Test', content: 'Content', published_at: '2024-01-01T10:00:00Z' },
+          {
+            organization_slug: 'test-org',
+            title: 'Test',
+            content: 'Content',
+            published_at: '2024-01-01T10:00:00Z',
+          },
         ]),
-      ).rejects.toThrow('Failed to bulk create test articles: Bulk insert failed');
+      ).rejects.toThrow(
+        'Failed to bulk create test articles: Bulk insert failed',
+      );
     });
   });
 
   describe('update', () => {
     it('should update article successfully', async () => {
-      const result = await repository.update('article-123', { title: 'Updated Title' });
+      const result = await repository.update('article-123', {
+        title: 'Updated Title',
+      });
 
       expect(result).toEqual(mockArticle);
     });
@@ -424,22 +499,26 @@ describe('TestArticleRepository', () => {
       const mockClient = createMockClient({
         update: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.update('article-123', { title: 'Updated' })).rejects.toThrow(
-        'Update succeeded but no test article returned',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.update('article-123', { title: 'Updated' }),
+      ).rejects.toThrow('Update succeeded but no test article returned');
     });
 
     it('should throw error on update failure', async () => {
       const mockClient = createMockClient({
         update: { data: null, error: { message: 'Update failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.update('article-123', { title: 'Updated' })).rejects.toThrow(
-        'Failed to update test article: Update failed',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.update('article-123', { title: 'Updated' }),
+      ).rejects.toThrow('Failed to update test article: Update failed');
     });
   });
 
@@ -448,7 +527,9 @@ describe('TestArticleRepository', () => {
       const mockClient = createMockClient({
         update: { data: mockProcessedArticle, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.markProcessed('article-123');
 
@@ -461,7 +542,9 @@ describe('TestArticleRepository', () => {
       const mockClient = createMockClient({
         updateBatch: { data: [mockProcessedArticle], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const count = await repository.bulkMarkProcessed(['article-123']);
 
@@ -478,9 +561,13 @@ describe('TestArticleRepository', () => {
       const mockClient = createMockClient({
         updateBatch: { data: null, error: { message: 'Update failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(repository.bulkMarkProcessed(['article-123'])).rejects.toThrow(
+      await expect(
+        repository.bulkMarkProcessed(['article-123']),
+      ).rejects.toThrow(
         'Failed to bulk mark test articles as processed: Update failed',
       );
     });
@@ -495,7 +582,9 @@ describe('TestArticleRepository', () => {
       const mockClient = createMockClient({
         delete: { error: { message: 'Delete failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.delete('article-123')).rejects.toThrow(
         'Failed to delete test article: Delete failed',
@@ -506,9 +595,14 @@ describe('TestArticleRepository', () => {
   describe('deleteByScenario', () => {
     it('should delete articles by scenario', async () => {
       const mockClient = createMockClient({
-        delete: { data: [{ id: 'article-123' }, { id: 'article-124' }], error: null },
+        delete: {
+          data: [{ id: 'article-123' }, { id: 'article-124' }],
+          error: null,
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const count = await repository.deleteByScenario('scenario-123');
 
@@ -519,7 +613,9 @@ describe('TestArticleRepository', () => {
       const mockClient = createMockClient({
         delete: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const count = await repository.deleteByScenario('scenario-123');
 
@@ -530,7 +626,9 @@ describe('TestArticleRepository', () => {
       const mockClient = createMockClient({
         delete: { error: { message: 'Delete failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.deleteByScenario('scenario-123')).rejects.toThrow(
         'Failed to delete test articles by scenario: Delete failed',
@@ -543,11 +641,16 @@ describe('TestArticleRepository', () => {
 
     sentiments.forEach((sentiment) => {
       it(`should handle ${sentiment} sentiment`, async () => {
-        const articleWithSentiment = { ...mockArticle, sentiment_expected: sentiment };
+        const articleWithSentiment = {
+          ...mockArticle,
+          sentiment_expected: sentiment,
+        };
         const mockClient = createMockClient({
           single: { data: articleWithSentiment, error: null },
         });
-        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+          mockClient,
+        );
 
         const result = await repository.findById('article-123');
 

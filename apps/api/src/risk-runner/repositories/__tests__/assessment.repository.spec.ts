@@ -1,8 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
-import { AssessmentRepository, AssessmentFilter } from '../assessment.repository';
+import {
+  AssessmentRepository,
+  AssessmentFilter,
+} from '../assessment.repository';
 import { SupabaseService } from '@/supabase/supabase.service';
-import { RiskAssessment, AssessmentSignal, AssessmentAnalystResponse } from '../../interfaces/assessment.interface';
+import {
+  RiskAssessment,
+  AssessmentSignal,
+  AssessmentAnalystResponse,
+} from '../../interfaces/assessment.interface';
 
 describe('AssessmentRepository', () => {
   let repository: AssessmentRepository;
@@ -54,18 +61,36 @@ describe('AssessmentRepository', () => {
   };
 
   const createMockClient = (overrides?: {
-    single?: { data: unknown | null; error: { message: string; code?: string } | null };
+    single?: {
+      data: unknown;
+      error: { message: string; code?: string } | null;
+    };
     list?: { data: unknown[] | null; error: { message: string } | null };
-    insert?: { data: unknown | null; error: { message: string } | null };
-    update?: { data: unknown | null; error: { message: string } | null };
+    insert?: { data: unknown; error: { message: string } | null };
+    update?: { data: unknown; error: { message: string } | null };
     upsert?: { data: unknown[] | null; error: { message: string } | null };
     delete?: { error: { message: string } | null };
   }) => {
-    const singleResult = overrides?.single ?? { data: mockAssessment, error: null };
-    const listResult = overrides?.list ?? { data: [mockAssessmentWithDimensions], error: null };
-    const insertResult = overrides?.insert ?? { data: mockAssessment, error: null };
-    const updateResult = overrides?.update ?? { data: mockAssessment, error: null };
-    const upsertResult = overrides?.upsert ?? { data: [mockAssessment], error: null };
+    const singleResult = overrides?.single ?? {
+      data: mockAssessment,
+      error: null,
+    };
+    const listResult = overrides?.list ?? {
+      data: [mockAssessmentWithDimensions],
+      error: null,
+    };
+    const insertResult = overrides?.insert ?? {
+      data: mockAssessment,
+      error: null,
+    };
+    const updateResult = overrides?.update ?? {
+      data: mockAssessment,
+      error: null,
+    };
+    const upsertResult = overrides?.upsert ?? {
+      data: [mockAssessment],
+      error: null,
+    };
     const deleteResult = overrides?.delete ?? { error: null };
 
     const createChain = () => {
@@ -172,7 +197,9 @@ describe('AssessmentRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findBySubject('subject-123');
 
@@ -183,7 +210,9 @@ describe('AssessmentRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findBySubject('subject-123')).rejects.toThrow(
         'Failed to fetch assessments: Query failed',
@@ -207,18 +236,29 @@ describe('AssessmentRepository', () => {
 
   describe('findLatestBySubjectAndDimension', () => {
     it('should return latest assessment for subject-dimension pair', async () => {
-      const result = await repository.findLatestBySubjectAndDimension('subject-123', 'dim-123');
+      const result = await repository.findLatestBySubjectAndDimension(
+        'subject-123',
+        'dim-123',
+      );
 
       expect(result).toEqual(mockAssessment);
     });
 
     it('should return null when no assessment found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.findLatestBySubjectAndDimension('subject-123', 'dim-123');
+      const result = await repository.findLatestBySubjectAndDimension(
+        'subject-123',
+        'dim-123',
+      );
 
       expect(result).toBeNull();
     });
@@ -227,7 +267,9 @@ describe('AssessmentRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.findLatestBySubjectAndDimension('subject-123', 'dim-123'),
@@ -236,7 +278,11 @@ describe('AssessmentRepository', () => {
 
     it('should apply filter', async () => {
       const filter: AssessmentFilter = { includeTest: true };
-      const result = await repository.findLatestBySubjectAndDimension('subject-123', 'dim-123', filter);
+      const result = await repository.findLatestBySubjectAndDimension(
+        'subject-123',
+        'dim-123',
+        filter,
+      );
 
       expect(result).toEqual(mockAssessment);
     });
@@ -247,7 +293,9 @@ describe('AssessmentRepository', () => {
       const mockClient = createMockClient({
         list: { data: [mockAssessment], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findByTask('task-123');
 
@@ -258,7 +306,9 @@ describe('AssessmentRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findByTask('task-123');
 
@@ -269,7 +319,9 @@ describe('AssessmentRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findByTask('task-123')).rejects.toThrow(
         'Failed to fetch assessments by task: Query failed',
@@ -286,9 +338,14 @@ describe('AssessmentRepository', () => {
 
     it('should return null when assessment not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('nonexistent');
 
@@ -299,7 +356,9 @@ describe('AssessmentRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findById('assessment-123')).rejects.toThrow(
         'Failed to fetch assessment: Database error',
@@ -316,11 +375,18 @@ describe('AssessmentRepository', () => {
 
     it('should throw NotFoundException when assessment not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(repository.findByIdOrThrow('nonexistent')).rejects.toThrow(NotFoundException);
+      await expect(repository.findByIdOrThrow('nonexistent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -342,7 +408,9 @@ describe('AssessmentRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.create({
@@ -358,7 +426,9 @@ describe('AssessmentRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: { message: 'Insert failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.create({
@@ -374,8 +444,18 @@ describe('AssessmentRepository', () => {
   describe('createBatch', () => {
     it('should create batch of assessments successfully', async () => {
       const result = await repository.createBatch([
-        { subject_id: 'subject-123', dimension_id: 'dim-1', score: 65, confidence: 0.85 },
-        { subject_id: 'subject-123', dimension_id: 'dim-2', score: 70, confidence: 0.9 },
+        {
+          subject_id: 'subject-123',
+          dimension_id: 'dim-1',
+          score: 65,
+          confidence: 0.85,
+        },
+        {
+          subject_id: 'subject-123',
+          dimension_id: 'dim-2',
+          score: 70,
+          confidence: 0.9,
+        },
       ]);
 
       expect(result).toEqual([mockAssessment]);
@@ -391,26 +471,39 @@ describe('AssessmentRepository', () => {
       const mockClient = createMockClient({
         upsert: { data: null, error: { message: 'Batch insert failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.createBatch([
-          { subject_id: 'subject-123', dimension_id: 'dim-1', score: 65, confidence: 0.85 },
+          {
+            subject_id: 'subject-123',
+            dimension_id: 'dim-1',
+            score: 65,
+            confidence: 0.85,
+          },
         ]),
-      ).rejects.toThrow('Failed to create assessments batch: Batch insert failed');
+      ).rejects.toThrow(
+        'Failed to create assessments batch: Batch insert failed',
+      );
     });
   });
 
   describe('delete', () => {
     it('should delete assessment successfully', async () => {
-      await expect(repository.delete('assessment-123')).resolves.toBeUndefined();
+      await expect(
+        repository.delete('assessment-123'),
+      ).resolves.toBeUndefined();
     });
 
     it('should throw error on delete failure', async () => {
       const mockClient = createMockClient({
         delete: { error: { message: 'Delete failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.delete('assessment-123')).rejects.toThrow(
         'Failed to delete assessment: Delete failed',
@@ -421,10 +514,15 @@ describe('AssessmentRepository', () => {
   describe('upsertWithMerge', () => {
     it('should create new assessment when none exists', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
         insert: { data: mockAssessment, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.upsertWithMerge({
         subject_id: 'subject-123',
@@ -447,14 +545,17 @@ describe('AssessmentRepository', () => {
       const mergedAssessment = {
         ...mockAssessment,
         evidence: ['Old evidence', 'New evidence'],
-        reasoning: '[new-model] New reasoning\n\n---\n\n[old-model] Old reasoning',
+        reasoning:
+          '[new-model] New reasoning\n\n---\n\n[old-model] Old reasoning',
       };
 
       const mockClient = createMockClient({
         single: { data: existingAssessment, error: null },
         update: { data: mergedAssessment, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.upsertWithMerge({
         subject_id: 'subject-123',
@@ -476,7 +577,9 @@ describe('AssessmentRepository', () => {
         single: { data: existingAssessment, error: null },
         update: { data: null, error: { message: 'Update failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.upsertWithMerge({
@@ -506,7 +609,9 @@ describe('AssessmentRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findRecentBySubject('subject-123');
 
@@ -517,16 +622,22 @@ describe('AssessmentRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.findRecentBySubject('subject-123')).rejects.toThrow(
-        'Failed to fetch recent assessments: Query failed',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.findRecentBySubject('subject-123'),
+      ).rejects.toThrow('Failed to fetch recent assessments: Query failed');
     });
 
     it('should apply filter', async () => {
       const filter: AssessmentFilter = { includeTest: true };
-      const result = await repository.findRecentBySubject('subject-123', 10, filter);
+      const result = await repository.findRecentBySubject(
+        'subject-123',
+        10,
+        filter,
+      );
 
       expect(result.length).toBe(1);
     });
@@ -537,15 +648,32 @@ describe('AssessmentRepository', () => {
       const assessmentWithSignals = {
         ...mockAssessment,
         signals: [
-          { name: 'signal1', value: 0.5, impact: 'positive' as const, weight: 0.3 },
-          { name: 'signal2', value: -0.2, impact: 'negative' as const, weight: 0.4 },
-          { name: 'signal3', value: 0, impact: 'neutral' as const, weight: 0.3 },
+          {
+            name: 'signal1',
+            value: 0.5,
+            impact: 'positive' as const,
+            weight: 0.3,
+          },
+          {
+            name: 'signal2',
+            value: -0.2,
+            impact: 'negative' as const,
+            weight: 0.4,
+          },
+          {
+            name: 'signal3',
+            value: 0,
+            impact: 'neutral' as const,
+            weight: 0.3,
+          },
         ],
       };
       const mockClient = createMockClient({
         single: { data: assessmentWithSignals, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('assessment-123');
 
@@ -557,7 +685,9 @@ describe('AssessmentRepository', () => {
       const mockClient = createMockClient({
         single: { data: assessmentWithEmptySignals, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('assessment-123');
 
@@ -575,11 +705,16 @@ describe('AssessmentRepository', () => {
     });
 
     it('should handle assessment with empty analyst response', async () => {
-      const assessmentWithEmptyResponse = { ...mockAssessment, analyst_response: {} };
+      const assessmentWithEmptyResponse = {
+        ...mockAssessment,
+        analyst_response: {},
+      };
       const mockClient = createMockClient({
         single: { data: assessmentWithEmptyResponse, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('assessment-123');
 
@@ -596,7 +731,9 @@ describe('AssessmentRepository', () => {
       const mockClient = createMockClient({
         single: { data: assessmentWithEvidence, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('assessment-123');
 
@@ -608,7 +745,9 @@ describe('AssessmentRepository', () => {
       const mockClient = createMockClient({
         single: { data: assessmentWithEmptyEvidence, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('assessment-123');
 

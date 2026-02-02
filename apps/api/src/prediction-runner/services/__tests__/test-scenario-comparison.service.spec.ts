@@ -53,25 +53,63 @@ describe('TestScenarioComparisonService', () => {
   ];
 
   const mockTestSignals = [
-    { id: 'test-sig-1', content: 'Strong momentum', url: 'http://test.com/1', target_id: 'target-123' },
-    { id: 'test-sig-2', content: 'Price breakout', url: 'http://test.com/2', target_id: 'target-456' },
+    {
+      id: 'test-sig-1',
+      content: 'Strong momentum',
+      url: 'http://test.com/1',
+      target_id: 'target-123',
+    },
+    {
+      id: 'test-sig-2',
+      content: 'Price breakout',
+      url: 'http://test.com/2',
+      target_id: 'target-456',
+    },
   ];
 
   const mockProdSignals = [
-    { id: 'prod-sig-1', content: 'Strong momentum', url: 'http://test.com/1', target_id: 'target-123' },
-    { id: 'prod-sig-2', content: 'Different signal', url: 'http://other.com/1', target_id: 'target-456' },
+    {
+      id: 'prod-sig-1',
+      content: 'Strong momentum',
+      url: 'http://test.com/1',
+      target_id: 'target-123',
+    },
+    {
+      id: 'prod-sig-2',
+      content: 'Different signal',
+      url: 'http://other.com/1',
+      target_id: 'target-456',
+    },
   ];
 
   const createMockClient = (overrides?: {
-    testPredictions?: { data: unknown[] | null; error: { message: string } | null };
-    prodPredictions?: { data: unknown[] | null; error: { message: string } | null };
+    testPredictions?: {
+      data: unknown[] | null;
+      error: { message: string } | null;
+    };
+    prodPredictions?: {
+      data: unknown[] | null;
+      error: { message: string } | null;
+    };
     testSignals?: { data: unknown[] | null; error: { message: string } | null };
     prodSignals?: { data: unknown[] | null; error: { message: string } | null };
   }) => {
-    const testPredResult = overrides?.testPredictions ?? { data: mockTestPredictions, error: null };
-    const prodPredResult = overrides?.prodPredictions ?? { data: mockProductionPredictions, error: null };
-    const testSigResult = overrides?.testSignals ?? { data: mockTestSignals, error: null };
-    const prodSigResult = overrides?.prodSignals ?? { data: mockProdSignals, error: null };
+    const testPredResult = overrides?.testPredictions ?? {
+      data: mockTestPredictions,
+      error: null,
+    };
+    const prodPredResult = overrides?.prodPredictions ?? {
+      data: mockProductionPredictions,
+      error: null,
+    };
+    const testSigResult = overrides?.testSignals ?? {
+      data: mockTestSignals,
+      error: null,
+    };
+    const prodSigResult = overrides?.prodSignals ?? {
+      data: mockProdSignals,
+      error: null,
+    };
 
     let queryCount = 0;
     let signalQueryCount = 0;
@@ -89,7 +127,9 @@ describe('TestScenarioComparisonService', () => {
             return resolve(queryCount === 1 ? testPredResult : prodPredResult);
           } else if (fromTable === 'signals') {
             signalQueryCount++;
-            return resolve(signalQueryCount === 1 ? testSigResult : prodSigResult);
+            return resolve(
+              signalQueryCount === 1 ? testSigResult : prodSigResult,
+            );
           }
           return resolve({ data: [], error: null });
         },
@@ -106,7 +146,9 @@ describe('TestScenarioComparisonService', () => {
 
     return {
       schema: jest.fn().mockReturnValue({
-        from: jest.fn().mockImplementation((table: string) => createChain(table)),
+        from: jest
+          .fn()
+          .mockImplementation((table: string) => createChain(table)),
       }),
     };
   };
@@ -127,7 +169,9 @@ describe('TestScenarioComparisonService', () => {
     }).compile();
 
     module.useLogger(false);
-    service = module.get<TestScenarioComparisonService>(TestScenarioComparisonService);
+    service = module.get<TestScenarioComparisonService>(
+      TestScenarioComparisonService,
+    );
     supabaseService = module.get(SupabaseService);
   });
 
@@ -137,7 +181,10 @@ describe('TestScenarioComparisonService', () => {
 
   describe('compareTestScenarioVsProduction', () => {
     it('should compare test predictions against production', async () => {
-      const result = await service.compareTestScenarioVsProduction('universe-123', 'scenario-123');
+      const result = await service.compareTestScenarioVsProduction(
+        'universe-123',
+        'scenario-123',
+      );
 
       expect(supabaseService.getServiceClient).toHaveBeenCalled();
       expect(result.scenario_id).toBe('scenario-123');
@@ -151,9 +198,14 @@ describe('TestScenarioComparisonService', () => {
       const mockClient = createMockClient({
         testPredictions: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await service.compareTestScenarioVsProduction('universe-123', 'scenario-123');
+      const result = await service.compareTestScenarioVsProduction(
+        'universe-123',
+        'scenario-123',
+      );
 
       expect(result.metrics.total_test_predictions).toBe(0);
       expect(result.details).toEqual([]);
@@ -164,7 +216,9 @@ describe('TestScenarioComparisonService', () => {
       const mockClient = createMockClient({
         testPredictions: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         service.compareTestScenarioVsProduction('universe-123', 'scenario-123'),
@@ -175,7 +229,9 @@ describe('TestScenarioComparisonService', () => {
       const mockClient = createMockClient({
         prodPredictions: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         service.compareTestScenarioVsProduction('universe-123', 'scenario-123'),
@@ -183,7 +239,10 @@ describe('TestScenarioComparisonService', () => {
     });
 
     it('should include comparison details for each test prediction', async () => {
-      const result = await service.compareTestScenarioVsProduction('universe-123', 'scenario-123');
+      const result = await service.compareTestScenarioVsProduction(
+        'universe-123',
+        'scenario-123',
+      );
 
       expect(result.details.length).toBe(mockTestPredictions.length);
       expect(result.details[0]?.test_prediction_id).toBe('test-pred-1');
@@ -191,7 +250,10 @@ describe('TestScenarioComparisonService', () => {
     });
 
     it('should calculate direction match correctly', async () => {
-      const result = await service.compareTestScenarioVsProduction('universe-123', 'scenario-123');
+      const result = await service.compareTestScenarioVsProduction(
+        'universe-123',
+        'scenario-123',
+      );
 
       // First prediction: both 'up' - should match
       expect(result.details[0]?.direction_match).toBe(true);
@@ -200,14 +262,20 @@ describe('TestScenarioComparisonService', () => {
     });
 
     it('should calculate confidence difference', async () => {
-      const result = await service.compareTestScenarioVsProduction('universe-123', 'scenario-123');
+      const result = await service.compareTestScenarioVsProduction(
+        'universe-123',
+        'scenario-123',
+      );
 
       // First: test=0.8, prod=0.75, diff=0.05
       expect(result.details[0]?.confidence_diff).toBeCloseTo(0.05, 2);
     });
 
     it('should identify both resolved predictions', async () => {
-      const result = await service.compareTestScenarioVsProduction('universe-123', 'scenario-123');
+      const result = await service.compareTestScenarioVsProduction(
+        'universe-123',
+        'scenario-123',
+      );
 
       // First: both resolved
       expect(result.details[0]?.both_resolved).toBe(true);
@@ -218,7 +286,10 @@ describe('TestScenarioComparisonService', () => {
 
   describe('metrics calculation', () => {
     it('should calculate match rate percentage', async () => {
-      const result = await service.compareTestScenarioVsProduction('universe-123', 'scenario-123');
+      const result = await service.compareTestScenarioVsProduction(
+        'universe-123',
+        'scenario-123',
+      );
 
       expect(result.metrics.total_test_predictions).toBe(2);
       expect(result.metrics.matched_predictions).toBe(2);
@@ -226,7 +297,10 @@ describe('TestScenarioComparisonService', () => {
     });
 
     it('should calculate direction agreement percentage', async () => {
-      const result = await service.compareTestScenarioVsProduction('universe-123', 'scenario-123');
+      const result = await service.compareTestScenarioVsProduction(
+        'universe-123',
+        'scenario-123',
+      );
 
       // 1 out of 2 matched predictions have same direction
       expect(result.metrics.direction_agreement_count).toBe(1);
@@ -234,7 +308,10 @@ describe('TestScenarioComparisonService', () => {
     });
 
     it('should calculate average confidence difference', async () => {
-      const result = await service.compareTestScenarioVsProduction('universe-123', 'scenario-123');
+      const result = await service.compareTestScenarioVsProduction(
+        'universe-123',
+        'scenario-123',
+      );
 
       expect(result.metrics.avg_confidence_diff).toBeDefined();
     });
@@ -243,9 +320,14 @@ describe('TestScenarioComparisonService', () => {
       const mockClient = createMockClient({
         prodPredictions: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await service.compareTestScenarioVsProduction('universe-123', 'scenario-123');
+      const result = await service.compareTestScenarioVsProduction(
+        'universe-123',
+        'scenario-123',
+      );
 
       expect(result.metrics.matched_predictions).toBe(0);
       expect(result.metrics.direction_agreement_pct).toBe(0);
@@ -253,7 +335,10 @@ describe('TestScenarioComparisonService', () => {
     });
 
     it('should calculate test and production accuracy', async () => {
-      const result = await service.compareTestScenarioVsProduction('universe-123', 'scenario-123');
+      const result = await service.compareTestScenarioVsProduction(
+        'universe-123',
+        'scenario-123',
+      );
 
       // Only resolved predictions count for accuracy
       expect(result.metrics.both_resolved_count).toBeGreaterThanOrEqual(0);
@@ -262,14 +347,20 @@ describe('TestScenarioComparisonService', () => {
 
   describe('signal comparison', () => {
     it('should compare signals between test and production', async () => {
-      const result = await service.compareTestScenarioVsProduction('universe-123', 'scenario-123');
+      const result = await service.compareTestScenarioVsProduction(
+        'universe-123',
+        'scenario-123',
+      );
 
       expect(result.signal_comparison.test_signals_count).toBe(2);
       expect(result.signal_comparison.production_signals_count).toBe(2);
     });
 
     it('should calculate signal overlap', async () => {
-      const result = await service.compareTestScenarioVsProduction('universe-123', 'scenario-123');
+      const result = await service.compareTestScenarioVsProduction(
+        'universe-123',
+        'scenario-123',
+      );
 
       // 1 shared signal out of 2 test signals = 50% overlap
       expect(result.signal_comparison.shared_signals_count).toBe(1);
@@ -280,9 +371,14 @@ describe('TestScenarioComparisonService', () => {
       const mockClient = createMockClient({
         testSignals: { data: null, error: { message: 'Signal fetch failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await service.compareTestScenarioVsProduction('universe-123', 'scenario-123');
+      const result = await service.compareTestScenarioVsProduction(
+        'universe-123',
+        'scenario-123',
+      );
 
       expect(result.signal_comparison.test_signals_count).toBe(0);
       expect(result.signal_comparison.overlap_pct).toBe(0);
@@ -292,9 +388,14 @@ describe('TestScenarioComparisonService', () => {
       const mockClient = createMockClient({
         prodSignals: { data: null, error: { message: 'Signal fetch failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await service.compareTestScenarioVsProduction('universe-123', 'scenario-123');
+      const result = await service.compareTestScenarioVsProduction(
+        'universe-123',
+        'scenario-123',
+      );
 
       expect(result.signal_comparison.production_signals_count).toBe(0);
     });
@@ -304,9 +405,14 @@ describe('TestScenarioComparisonService', () => {
         testSignals: { data: [], error: null },
         prodSignals: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await service.compareTestScenarioVsProduction('universe-123', 'scenario-123');
+      const result = await service.compareTestScenarioVsProduction(
+        'universe-123',
+        'scenario-123',
+      );
 
       expect(result.signal_comparison.test_signals_count).toBe(0);
       expect(result.signal_comparison.production_signals_count).toBe(0);
@@ -345,9 +451,14 @@ describe('TestScenarioComparisonService', () => {
         testPredictions: { data: testPreds, error: null },
         prodPredictions: { data: prodPreds, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await service.compareTestScenarioVsProduction('universe-123', 'scenario-123');
+      const result = await service.compareTestScenarioVsProduction(
+        'universe-123',
+        'scenario-123',
+      );
 
       expect(result.details[0]?.production_prediction_id).toBe('prod-1');
       expect(result.details[0]?.predicted_at_diff_minutes).toBe(30);
@@ -383,9 +494,14 @@ describe('TestScenarioComparisonService', () => {
         testPredictions: { data: testPreds, error: null },
         prodPredictions: { data: prodPreds, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await service.compareTestScenarioVsProduction('universe-123', 'scenario-123');
+      const result = await service.compareTestScenarioVsProduction(
+        'universe-123',
+        'scenario-123',
+      );
 
       expect(result.details[0]?.production_prediction_id).toBeNull();
     });
@@ -420,9 +536,14 @@ describe('TestScenarioComparisonService', () => {
         testPredictions: { data: testPreds, error: null },
         prodPredictions: { data: prodPreds, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await service.compareTestScenarioVsProduction('universe-123', 'scenario-123');
+      const result = await service.compareTestScenarioVsProduction(
+        'universe-123',
+        'scenario-123',
+      );
 
       expect(result.details[0]?.production_prediction_id).toBeNull();
     });
@@ -459,9 +580,14 @@ describe('TestScenarioComparisonService', () => {
         testPredictions: { data: testPreds, error: null },
         prodPredictions: { data: prodPreds, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await service.compareTestScenarioVsProduction('universe-123', 'scenario-123');
+      const result = await service.compareTestScenarioVsProduction(
+        'universe-123',
+        'scenario-123',
+      );
 
       expect(result.details[0]?.test_correct).toBe(true);
       expect(result.details[0]?.production_correct).toBe(true);
@@ -497,9 +623,14 @@ describe('TestScenarioComparisonService', () => {
         testPredictions: { data: testPreds, error: null },
         prodPredictions: { data: prodPreds, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await service.compareTestScenarioVsProduction('universe-123', 'scenario-123');
+      const result = await service.compareTestScenarioVsProduction(
+        'universe-123',
+        'scenario-123',
+      );
 
       expect(result.details[0]?.test_correct).toBe(false);
       expect(result.details[0]?.production_correct).toBe(true);

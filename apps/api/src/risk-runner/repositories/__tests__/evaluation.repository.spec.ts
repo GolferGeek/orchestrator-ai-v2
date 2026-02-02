@@ -1,8 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
-import { EvaluationRepository, EvaluationFilter } from '../evaluation.repository';
+import {
+  EvaluationRepository,
+  EvaluationFilter,
+} from '../evaluation.repository';
 import { SupabaseService } from '@/supabase/supabase.service';
-import { RiskEvaluation, ActualOutcome, DimensionAccuracy } from '../../interfaces/evaluation.interface';
+import {
+  RiskEvaluation,
+  ActualOutcome,
+  DimensionAccuracy,
+} from '../../interfaces/evaluation.interface';
 
 describe('EvaluationRepository', () => {
   let repository: EvaluationRepository;
@@ -51,7 +58,10 @@ describe('EvaluationRepository', () => {
     score_accuracy: 0.72,
     dimension_accuracy: mockDimensionAccuracy,
     calibration_error: 0.08,
-    learnings_suggested: ['Improve earnings anticipation', 'Weight fundamental higher'],
+    learnings_suggested: [
+      'Improve earnings anticipation',
+      'Weight fundamental higher',
+    ],
     notes: 'Model underestimated fundamental risk',
     is_test: false,
     test_scenario_id: null,
@@ -59,16 +69,31 @@ describe('EvaluationRepository', () => {
   };
 
   const createMockClient = (overrides?: {
-    single?: { data: unknown | null; error: { message: string; code?: string } | null };
+    single?: {
+      data: unknown;
+      error: { message: string; code?: string } | null;
+    };
     list?: { data: unknown[] | null; error: { message: string } | null };
-    insert?: { data: unknown | null; error: { message: string } | null };
-    update?: { data: unknown | null; error: { message: string } | null };
+    insert?: { data: unknown; error: { message: string } | null };
+    update?: { data: unknown; error: { message: string } | null };
     delete?: { error: { message: string } | null };
   }) => {
-    const singleResult = overrides?.single ?? { data: mockEvaluation, error: null };
-    const listResult = overrides?.list ?? { data: [mockEvaluation], error: null };
-    const insertResult = overrides?.insert ?? { data: mockEvaluation, error: null };
-    const updateResult = overrides?.update ?? { data: mockEvaluation, error: null };
+    const singleResult = overrides?.single ?? {
+      data: mockEvaluation,
+      error: null,
+    };
+    const listResult = overrides?.list ?? {
+      data: [mockEvaluation],
+      error: null,
+    };
+    const insertResult = overrides?.insert ?? {
+      data: mockEvaluation,
+      error: null,
+    };
+    const updateResult = overrides?.update ?? {
+      data: mockEvaluation,
+      error: null,
+    };
     const deleteResult = overrides?.delete ?? { error: null };
 
     const createChain = () => {
@@ -164,7 +189,9 @@ describe('EvaluationRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findBySubject('subject-123');
 
@@ -175,7 +202,9 @@ describe('EvaluationRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findBySubject('subject-123')).rejects.toThrow(
         'Failed to fetch evaluations: Query failed',
@@ -208,7 +237,9 @@ describe('EvaluationRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findByCompositeScore('score-123');
 
@@ -219,11 +250,13 @@ describe('EvaluationRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.findByCompositeScore('score-123')).rejects.toThrow(
-        'Failed to fetch evaluations by score: Query failed',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.findByCompositeScore('score-123'),
+      ).rejects.toThrow('Failed to fetch evaluations by score: Query failed');
     });
 
     it('should apply filter', async () => {
@@ -243,9 +276,14 @@ describe('EvaluationRepository', () => {
 
     it('should return null when evaluation not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('nonexistent');
 
@@ -256,7 +294,9 @@ describe('EvaluationRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findById('eval-123')).rejects.toThrow(
         'Failed to fetch evaluation: Database error',
@@ -273,11 +313,18 @@ describe('EvaluationRepository', () => {
 
     it('should throw NotFoundException when evaluation not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(repository.findByIdOrThrow('nonexistent')).rejects.toThrow(NotFoundException);
+      await expect(repository.findByIdOrThrow('nonexistent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -290,9 +337,14 @@ describe('EvaluationRepository', () => {
 
     it('should return null when no evaluation found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findByScoreAndWindow('score-123', '30d');
 
@@ -303,9 +355,13 @@ describe('EvaluationRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(repository.findByScoreAndWindow('score-123', '7d')).rejects.toThrow(
+      await expect(
+        repository.findByScoreAndWindow('score-123', '7d'),
+      ).rejects.toThrow(
         'Failed to fetch evaluation by score and window: Database error',
       );
     });
@@ -328,7 +384,9 @@ describe('EvaluationRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.create({
@@ -343,7 +401,9 @@ describe('EvaluationRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: { message: 'Insert failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.create({
@@ -361,9 +421,13 @@ describe('EvaluationRepository', () => {
       const mockClient = createMockClient({
         update: { data: updatedEvaluation, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.update('eval-123', { score_accuracy: 0.85 });
+      const result = await repository.update('eval-123', {
+        score_accuracy: 0.85,
+      });
 
       expect(result).toEqual(updatedEvaluation);
     });
@@ -372,22 +436,26 @@ describe('EvaluationRepository', () => {
       const mockClient = createMockClient({
         update: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.update('eval-123', { score_accuracy: 0.85 })).rejects.toThrow(
-        'Update succeeded but no evaluation returned',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.update('eval-123', { score_accuracy: 0.85 }),
+      ).rejects.toThrow('Update succeeded but no evaluation returned');
     });
 
     it('should throw error on update failure', async () => {
       const mockClient = createMockClient({
         update: { data: null, error: { message: 'Update failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.update('eval-123', { score_accuracy: 0.85 })).rejects.toThrow(
-        'Failed to update evaluation: Update failed',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.update('eval-123', { score_accuracy: 0.85 }),
+      ).rejects.toThrow('Failed to update evaluation: Update failed');
     });
   });
 
@@ -400,7 +468,9 @@ describe('EvaluationRepository', () => {
       const mockClient = createMockClient({
         delete: { error: { message: 'Delete failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.delete('eval-123')).rejects.toThrow(
         'Failed to delete evaluation: Delete failed',
@@ -419,7 +489,9 @@ describe('EvaluationRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findAllByWindow('30d');
 
@@ -430,7 +502,9 @@ describe('EvaluationRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findAllByWindow('7d')).rejects.toThrow(
         'Failed to fetch evaluations by window: Query failed',
@@ -454,7 +528,9 @@ describe('EvaluationRepository', () => {
       const mockClient = createMockClient({
         list: { data: evaluations, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.calculateAverageAccuracy('7d');
 
@@ -469,7 +545,9 @@ describe('EvaluationRepository', () => {
       const mockClient = createMockClient({
         list: { data: evaluations, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.calculateAverageAccuracy();
 
@@ -477,13 +555,13 @@ describe('EvaluationRepository', () => {
     });
 
     it('should return null when no evaluations with accuracy', async () => {
-      const evaluations = [
-        { ...mockEvaluation, score_accuracy: null },
-      ];
+      const evaluations = [{ ...mockEvaluation, score_accuracy: null }];
       const mockClient = createMockClient({
         list: { data: evaluations, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.calculateAverageAccuracy('7d');
 
@@ -494,7 +572,9 @@ describe('EvaluationRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.calculateAverageAccuracy('7d');
 
@@ -505,7 +585,9 @@ describe('EvaluationRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.calculateAverageAccuracy()).rejects.toThrow(
         'Failed to fetch evaluations: Query failed',
@@ -522,7 +604,9 @@ describe('EvaluationRepository', () => {
         const mockClient = createMockClient({
           single: { data: evalWithWindow, error: null },
         });
-        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+          mockClient,
+        );
 
         const result = await repository.findById('eval-123');
 
@@ -532,7 +616,12 @@ describe('EvaluationRepository', () => {
   });
 
   describe('outcome types', () => {
-    const outcomeTypes = ['no_event', 'minor_decline', 'significant_decline', 'major_event'] as const;
+    const outcomeTypes = [
+      'no_event',
+      'minor_decline',
+      'significant_decline',
+      'major_event',
+    ] as const;
 
     outcomeTypes.forEach((outcomeType) => {
       it(`should handle ${outcomeType} outcome type`, async () => {
@@ -543,7 +632,9 @@ describe('EvaluationRepository', () => {
         const mockClient = createMockClient({
           single: { data: evalWithOutcome, error: null },
         });
-        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+          mockClient,
+        );
 
         const result = await repository.findById('eval-123');
 
@@ -562,18 +653,27 @@ describe('EvaluationRepository', () => {
           actual_outcome: {
             ...mockActualOutcome,
             adverse_events: [
-              { type: 'test_event', description: 'Test', severity, date: '2024-01-01' },
+              {
+                type: 'test_event',
+                description: 'Test',
+                severity,
+                date: '2024-01-01',
+              },
             ],
           },
         };
         const mockClient = createMockClient({
           single: { data: evalWithSeverity, error: null },
         });
-        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+          mockClient,
+        );
 
         const result = await repository.findById('eval-123');
 
-        expect(result?.actual_outcome?.adverse_events?.[0]?.severity).toBe(severity);
+        expect(result?.actual_outcome?.adverse_events?.[0]?.severity).toBe(
+          severity,
+        );
       });
     });
   });
@@ -588,11 +688,16 @@ describe('EvaluationRepository', () => {
     });
 
     it('should handle evaluation with empty dimension accuracy', async () => {
-      const evalWithEmptyAccuracy = { ...mockEvaluation, dimension_accuracy: {} };
+      const evalWithEmptyAccuracy = {
+        ...mockEvaluation,
+        dimension_accuracy: {},
+      };
       const mockClient = createMockClient({
         single: { data: evalWithEmptyAccuracy, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('eval-123');
 
@@ -608,11 +713,16 @@ describe('EvaluationRepository', () => {
     });
 
     it('should handle evaluation with no learnings', async () => {
-      const evalWithNoLearnings = { ...mockEvaluation, learnings_suggested: null };
+      const evalWithNoLearnings = {
+        ...mockEvaluation,
+        learnings_suggested: null,
+      };
       const mockClient = createMockClient({
         single: { data: evalWithNoLearnings, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('eval-123');
 

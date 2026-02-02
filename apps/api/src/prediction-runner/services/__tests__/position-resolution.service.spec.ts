@@ -53,20 +53,28 @@ describe('PositionResolutionService', () => {
         {
           provide: PortfolioRepository,
           useValue: {
-            getOpenAnalystPositionsByPrediction: jest.fn().mockResolvedValue([mockAnalystPosition]),
-            getOpenUserPositionsByPrediction: jest.fn().mockResolvedValue([mockUserPosition]),
+            getOpenAnalystPositionsByPrediction: jest
+              .fn()
+              .mockResolvedValue([mockAnalystPosition]),
+            getOpenUserPositionsByPrediction: jest
+              .fn()
+              .mockResolvedValue([mockUserPosition]),
           },
         },
         {
           provide: AnalystPositionService,
           useValue: {
-            closePosition: jest.fn().mockResolvedValue({ realizedPnl: 100, isWin: true }),
+            closePosition: jest
+              .fn()
+              .mockResolvedValue({ realizedPnl: 100, isWin: true }),
           },
         },
         {
           provide: UserPositionService,
           useValue: {
-            closePosition: jest.fn().mockResolvedValue({ realizedPnl: 50, isWin: true }),
+            closePosition: jest
+              .fn()
+              .mockResolvedValue({ realizedPnl: 50, isWin: true }),
           },
         },
       ],
@@ -87,10 +95,20 @@ describe('PositionResolutionService', () => {
     it('should close all positions for a prediction', async () => {
       const result = await service.closePositionsForPrediction('pred-123', 110);
 
-      expect(portfolioRepository.getOpenAnalystPositionsByPrediction).toHaveBeenCalledWith('pred-123');
-      expect(portfolioRepository.getOpenUserPositionsByPrediction).toHaveBeenCalledWith('pred-123');
-      expect(analystPositionService.closePosition).toHaveBeenCalledWith('analyst-position-123', 110);
-      expect(userPositionService.closePosition).toHaveBeenCalledWith('user-position-123', 110);
+      expect(
+        portfolioRepository.getOpenAnalystPositionsByPrediction,
+      ).toHaveBeenCalledWith('pred-123');
+      expect(
+        portfolioRepository.getOpenUserPositionsByPrediction,
+      ).toHaveBeenCalledWith('pred-123');
+      expect(analystPositionService.closePosition).toHaveBeenCalledWith(
+        'analyst-position-123',
+        110,
+      );
+      expect(userPositionService.closePosition).toHaveBeenCalledWith(
+        'user-position-123',
+        110,
+      );
       expect(result.predictionId).toBe('pred-123');
       expect(result.exitPrice).toBe(110);
       expect(result.analystPositionsClosed).toBe(1);
@@ -101,8 +119,12 @@ describe('PositionResolutionService', () => {
     });
 
     it('should handle no open positions', async () => {
-      portfolioRepository.getOpenAnalystPositionsByPrediction.mockResolvedValue([]);
-      portfolioRepository.getOpenUserPositionsByPrediction.mockResolvedValue([]);
+      portfolioRepository.getOpenAnalystPositionsByPrediction.mockResolvedValue(
+        [],
+      );
+      portfolioRepository.getOpenUserPositionsByPrediction.mockResolvedValue(
+        [],
+      );
 
       const result = await service.closePositionsForPrediction('pred-123', 110);
 
@@ -113,11 +135,13 @@ describe('PositionResolutionService', () => {
     });
 
     it('should handle multiple analyst positions', async () => {
-      portfolioRepository.getOpenAnalystPositionsByPrediction.mockResolvedValue([
-        { ...mockAnalystPosition, id: 'ap-1' },
-        { ...mockAnalystPosition, id: 'ap-2' },
-        { ...mockAnalystPosition, id: 'ap-3' },
-      ]);
+      portfolioRepository.getOpenAnalystPositionsByPrediction.mockResolvedValue(
+        [
+          { ...mockAnalystPosition, id: 'ap-1' },
+          { ...mockAnalystPosition, id: 'ap-2' },
+          { ...mockAnalystPosition, id: 'ap-3' },
+        ],
+      );
 
       const result = await service.closePositionsForPrediction('pred-123', 110);
 
@@ -140,7 +164,9 @@ describe('PositionResolutionService', () => {
     });
 
     it('should handle analyst position close errors', async () => {
-      analystPositionService.closePosition.mockRejectedValue(new Error('Close failed'));
+      analystPositionService.closePosition.mockRejectedValue(
+        new Error('Close failed'),
+      );
 
       const result = await service.closePositionsForPrediction('pred-123', 110);
 
@@ -150,7 +176,9 @@ describe('PositionResolutionService', () => {
     });
 
     it('should handle user position close errors', async () => {
-      userPositionService.closePosition.mockRejectedValue(new Error('Close failed'));
+      userPositionService.closePosition.mockRejectedValue(
+        new Error('Close failed'),
+      );
 
       const result = await service.closePositionsForPrediction('pred-123', 110);
 
@@ -160,10 +188,12 @@ describe('PositionResolutionService', () => {
     });
 
     it('should continue closing other positions after error', async () => {
-      portfolioRepository.getOpenAnalystPositionsByPrediction.mockResolvedValue([
-        { ...mockAnalystPosition, id: 'ap-1' },
-        { ...mockAnalystPosition, id: 'ap-2' },
-      ]);
+      portfolioRepository.getOpenAnalystPositionsByPrediction.mockResolvedValue(
+        [
+          { ...mockAnalystPosition, id: 'ap-1' },
+          { ...mockAnalystPosition, id: 'ap-2' },
+        ],
+      );
       analystPositionService.closePosition
         .mockRejectedValueOnce(new Error('First failed'))
         .mockResolvedValueOnce({ realizedPnl: 100, isWin: true });
@@ -198,17 +228,25 @@ describe('PositionResolutionService', () => {
     });
 
     it('should calculate total P&L correctly', async () => {
-      portfolioRepository.getOpenAnalystPositionsByPrediction.mockResolvedValue([
-        { ...mockAnalystPosition, id: 'ap-1' },
-        { ...mockAnalystPosition, id: 'ap-2' },
-      ]);
+      portfolioRepository.getOpenAnalystPositionsByPrediction.mockResolvedValue(
+        [
+          { ...mockAnalystPosition, id: 'ap-1' },
+          { ...mockAnalystPosition, id: 'ap-2' },
+        ],
+      );
       portfolioRepository.getOpenUserPositionsByPrediction.mockResolvedValue([
         { ...mockUserPosition, id: 'up-1' },
         { ...mockUserPosition, id: 'up-2' },
         { ...mockUserPosition, id: 'up-3' },
       ]);
-      analystPositionService.closePosition.mockResolvedValue({ realizedPnl: 50, isWin: true });
-      userPositionService.closePosition.mockResolvedValue({ realizedPnl: 25, isWin: true });
+      analystPositionService.closePosition.mockResolvedValue({
+        realizedPnl: 50,
+        isWin: true,
+      });
+      userPositionService.closePosition.mockResolvedValue({
+        realizedPnl: 25,
+        isWin: true,
+      });
 
       const result = await service.closePositionsForPrediction('pred-123', 110);
 
@@ -217,8 +255,14 @@ describe('PositionResolutionService', () => {
     });
 
     it('should handle negative P&L', async () => {
-      analystPositionService.closePosition.mockResolvedValue({ realizedPnl: -100, isWin: false });
-      userPositionService.closePosition.mockResolvedValue({ realizedPnl: -50, isWin: false });
+      analystPositionService.closePosition.mockResolvedValue({
+        realizedPnl: -100,
+        isWin: false,
+      });
+      userPositionService.closePosition.mockResolvedValue({
+        realizedPnl: -50,
+        isWin: false,
+      });
 
       const result = await service.closePositionsForPrediction('pred-123', 90);
 

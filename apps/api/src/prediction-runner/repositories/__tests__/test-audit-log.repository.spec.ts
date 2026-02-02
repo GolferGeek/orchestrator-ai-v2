@@ -27,13 +27,25 @@ describe('TestAuditLogRepository', () => {
   };
 
   const createMockClient = (overrides?: {
-    single?: { data: unknown | null; error: { message: string; code?: string } | null };
+    single?: {
+      data: unknown;
+      error: { message: string; code?: string } | null;
+    };
     list?: { data: unknown[] | null; error: { message: string } | null };
-    insert?: { data: unknown | null; error: { message: string } | null };
+    insert?: { data: unknown; error: { message: string } | null };
   }) => {
-    const singleResult = overrides?.single ?? { data: mockAuditEntry, error: null };
-    const listResult = overrides?.list ?? { data: [mockAuditEntry], error: null };
-    const insertResult = overrides?.insert ?? { data: mockAuditEntry, error: null };
+    const singleResult = overrides?.single ?? {
+      data: mockAuditEntry,
+      error: null,
+    };
+    const listResult = overrides?.list ?? {
+      data: [mockAuditEntry],
+      error: null,
+    };
+    const insertResult = overrides?.insert ?? {
+      data: mockAuditEntry,
+      error: null,
+    };
 
     const createChain = () => {
       const chainableResult: Record<string, unknown> = {
@@ -136,7 +148,9 @@ describe('TestAuditLogRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.log({
@@ -153,7 +167,9 @@ describe('TestAuditLogRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: { message: 'Insert failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.log({
@@ -169,40 +185,59 @@ describe('TestAuditLogRepository', () => {
 
   describe('findByResource', () => {
     it('should return entries for resource', async () => {
-      const result = await repository.findByResource('test_scenario', 'scenario-123');
+      const result = await repository.findByResource(
+        'test_scenario',
+        'scenario-123',
+      );
 
       expect(result).toEqual([mockAuditEntry]);
     });
 
     it('should apply action filter', async () => {
-      const result = await repository.findByResource('test_scenario', 'scenario-123', {
-        action: 'scenario_created',
-      });
+      const result = await repository.findByResource(
+        'test_scenario',
+        'scenario-123',
+        {
+          action: 'scenario_created',
+        },
+      );
 
       expect(result).toEqual([mockAuditEntry]);
     });
 
     it('should apply user_id filter', async () => {
-      const result = await repository.findByResource('test_scenario', 'scenario-123', {
-        user_id: 'user-123',
-      });
+      const result = await repository.findByResource(
+        'test_scenario',
+        'scenario-123',
+        {
+          user_id: 'user-123',
+        },
+      );
 
       expect(result).toEqual([mockAuditEntry]);
     });
 
     it('should apply date range filters', async () => {
-      const result = await repository.findByResource('test_scenario', 'scenario-123', {
-        start_date: '2024-01-01T00:00:00Z',
-        end_date: '2024-01-02T00:00:00Z',
-      });
+      const result = await repository.findByResource(
+        'test_scenario',
+        'scenario-123',
+        {
+          start_date: '2024-01-01T00:00:00Z',
+          end_date: '2024-01-02T00:00:00Z',
+        },
+      );
 
       expect(result).toEqual([mockAuditEntry]);
     });
 
     it('should apply limit filter', async () => {
-      const result = await repository.findByResource('test_scenario', 'scenario-123', {
-        limit: 10,
-      });
+      const result = await repository.findByResource(
+        'test_scenario',
+        'scenario-123',
+        {
+          limit: 10,
+        },
+      );
 
       expect(result).toEqual([mockAuditEntry]);
     });
@@ -211,9 +246,14 @@ describe('TestAuditLogRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.findByResource('test_scenario', 'nonexistent');
+      const result = await repository.findByResource(
+        'test_scenario',
+        'nonexistent',
+      );
 
       expect(result).toEqual([]);
     });
@@ -222,9 +262,13 @@ describe('TestAuditLogRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(repository.findByResource('test_scenario', 'scenario-123')).rejects.toThrow(
+      await expect(
+        repository.findByResource('test_scenario', 'scenario-123'),
+      ).rejects.toThrow(
         'Failed to fetch audit log entries by resource: Query failed',
       );
     });
@@ -268,7 +312,9 @@ describe('TestAuditLogRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findByUser('user-456', 'test-org');
 
@@ -279,9 +325,13 @@ describe('TestAuditLogRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(repository.findByUser('user-123', 'test-org')).rejects.toThrow(
+      await expect(
+        repository.findByUser('user-123', 'test-org'),
+      ).rejects.toThrow(
         'Failed to fetch audit log entries by user: Query failed',
       );
     });
@@ -289,37 +339,52 @@ describe('TestAuditLogRepository', () => {
 
   describe('findByAction', () => {
     it('should return entries for action', async () => {
-      const result = await repository.findByAction('scenario_created', 'test-org');
+      const result = await repository.findByAction(
+        'scenario_created',
+        'test-org',
+      );
 
       expect(result).toEqual([mockAuditEntry]);
     });
 
     it('should apply resource filters', async () => {
-      const result = await repository.findByAction('scenario_created', 'test-org', {
-        resource_type: 'test_scenario',
-        resource_id: 'scenario-123',
-      });
+      const result = await repository.findByAction(
+        'scenario_created',
+        'test-org',
+        {
+          resource_type: 'test_scenario',
+          resource_id: 'scenario-123',
+        },
+      );
 
       expect(result).toEqual([mockAuditEntry]);
     });
 
     it('should apply user_id filter', async () => {
-      const result = await repository.findByAction('scenario_created', 'test-org', {
-        user_id: 'user-123',
-      });
+      const result = await repository.findByAction(
+        'scenario_created',
+        'test-org',
+        {
+          user_id: 'user-123',
+        },
+      );
 
       expect(result).toEqual([mockAuditEntry]);
     });
 
     it('should apply all filters', async () => {
-      const result = await repository.findByAction('scenario_created', 'test-org', {
-        resource_type: 'test_scenario',
-        resource_id: 'scenario-123',
-        user_id: 'user-123',
-        start_date: '2024-01-01T00:00:00Z',
-        end_date: '2024-01-02T00:00:00Z',
-        limit: 20,
-      });
+      const result = await repository.findByAction(
+        'scenario_created',
+        'test-org',
+        {
+          resource_type: 'test_scenario',
+          resource_id: 'scenario-123',
+          user_id: 'user-123',
+          start_date: '2024-01-01T00:00:00Z',
+          end_date: '2024-01-02T00:00:00Z',
+          limit: 20,
+        },
+      );
 
       expect(result).toEqual([mockAuditEntry]);
     });
@@ -328,9 +393,14 @@ describe('TestAuditLogRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.findByAction('nonexistent_action', 'test-org');
+      const result = await repository.findByAction(
+        'nonexistent_action',
+        'test-org',
+      );
 
       expect(result).toEqual([]);
     });
@@ -339,9 +409,13 @@ describe('TestAuditLogRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(repository.findByAction('scenario_created', 'test-org')).rejects.toThrow(
+      await expect(
+        repository.findByAction('scenario_created', 'test-org'),
+      ).rejects.toThrow(
         'Failed to fetch audit log entries by action: Query failed',
       );
     });
@@ -352,9 +426,14 @@ describe('TestAuditLogRepository', () => {
       const mockClient = createMockClient({
         list: { data: [mockAuditEntry, mockOtherEntry], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.getAuditTrail('test_scenario', 'scenario-123');
+      const result = await repository.getAuditTrail(
+        'test_scenario',
+        'scenario-123',
+      );
 
       expect(result.length).toBe(2);
     });
@@ -385,7 +464,9 @@ describe('TestAuditLogRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.find('test-org');
 
@@ -396,7 +477,9 @@ describe('TestAuditLogRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.find('test-org')).rejects.toThrow(
         'Failed to fetch audit log entries: Query failed',
@@ -421,7 +504,9 @@ describe('TestAuditLogRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.getRecent('test-org');
 
@@ -432,7 +517,9 @@ describe('TestAuditLogRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.getRecent('test-org')).rejects.toThrow(
         'Failed to fetch recent audit log entries: Query failed',
@@ -460,7 +547,9 @@ describe('TestAuditLogRepository', () => {
         const mockClient = createMockClient({
           list: { data: [entryWithAction], error: null },
         });
-        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+          mockClient,
+        );
 
         const result = await repository.findByAction(action, 'test-org');
 
@@ -470,17 +559,30 @@ describe('TestAuditLogRepository', () => {
   });
 
   describe('resource types', () => {
-    const resourceTypes = ['test_scenario', 'scenario_run', 'learning', 'injection'] as const;
+    const resourceTypes = [
+      'test_scenario',
+      'scenario_run',
+      'learning',
+      'injection',
+    ] as const;
 
     resourceTypes.forEach((resourceType) => {
       it(`should handle ${resourceType} resource type`, async () => {
-        const entryWithResource = { ...mockAuditEntry, resource_type: resourceType };
+        const entryWithResource = {
+          ...mockAuditEntry,
+          resource_type: resourceType,
+        };
         const mockClient = createMockClient({
           list: { data: [entryWithResource], error: null },
         });
-        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+          mockClient,
+        );
 
-        const result = await repository.findByResource(resourceType, 'resource-123');
+        const result = await repository.findByResource(
+          resourceType,
+          'resource-123',
+        );
 
         expect(result[0]?.resource_type).toBe(resourceType);
       });

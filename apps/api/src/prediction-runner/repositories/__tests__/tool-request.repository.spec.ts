@@ -2,7 +2,11 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { ToolRequestRepository } from '../tool-request.repository';
 import { SupabaseService } from '@/supabase/supabase.service';
-import { ToolRequest, ToolRequestStatus, ToolRequestPriority } from '../../interfaces/tool-request.interface';
+import {
+  ToolRequest,
+  ToolRequestStatus,
+  ToolRequestPriority,
+} from '../../interfaces/tool-request.interface';
 
 describe('ToolRequestRepository', () => {
   let repository: ToolRequestRepository;
@@ -28,16 +32,31 @@ describe('ToolRequestRepository', () => {
   };
 
   const createMockClient = (overrides?: {
-    single?: { data: unknown | null; error: { message: string; code?: string } | null };
+    single?: {
+      data: unknown;
+      error: { message: string; code?: string } | null;
+    };
     list?: { data: unknown[] | null; error: { message: string } | null };
-    insert?: { data: unknown | null; error: { message: string } | null };
-    update?: { data: unknown | null; error: { message: string } | null };
+    insert?: { data: unknown; error: { message: string } | null };
+    update?: { data: unknown; error: { message: string } | null };
     delete?: { error: { message: string } | null };
   }) => {
-    const singleResult = overrides?.single ?? { data: mockToolRequest, error: null };
-    const listResult = overrides?.list ?? { data: [mockToolRequest], error: null };
-    const insertResult = overrides?.insert ?? { data: mockToolRequest, error: null };
-    const updateResult = overrides?.update ?? { data: mockToolRequest, error: null };
+    const singleResult = overrides?.single ?? {
+      data: mockToolRequest,
+      error: null,
+    };
+    const listResult = overrides?.list ?? {
+      data: [mockToolRequest],
+      error: null,
+    };
+    const insertResult = overrides?.insert ?? {
+      data: mockToolRequest,
+      error: null,
+    };
+    const updateResult = overrides?.update ?? {
+      data: mockToolRequest,
+      error: null,
+    };
     const deleteResult = overrides?.delete ?? { error: null };
 
     const createChain = () => {
@@ -139,7 +158,9 @@ describe('ToolRequestRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findAll();
 
@@ -150,7 +171,9 @@ describe('ToolRequestRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findAll()).rejects.toThrow(
         'Failed to fetch tool requests: Query failed',
@@ -167,9 +190,14 @@ describe('ToolRequestRepository', () => {
 
     it('should return null when request not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('nonexistent');
 
@@ -180,7 +208,9 @@ describe('ToolRequestRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findById('request-123')).rejects.toThrow(
         'Failed to fetch tool request: Database error',
@@ -197,11 +227,18 @@ describe('ToolRequestRepository', () => {
 
     it('should throw NotFoundException when request not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(repository.findByIdOrThrow('nonexistent')).rejects.toThrow(NotFoundException);
+      await expect(repository.findByIdOrThrow('nonexistent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -222,7 +259,9 @@ describe('ToolRequestRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findByStatus('done');
 
@@ -233,7 +272,9 @@ describe('ToolRequestRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findByStatus('wishlist')).rejects.toThrow(
         'Failed to fetch tool requests by status: Query failed',
@@ -252,7 +293,9 @@ describe('ToolRequestRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findByMissedOpportunity('missed-123');
 
@@ -263,9 +306,13 @@ describe('ToolRequestRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(repository.findByMissedOpportunity('missed-123')).rejects.toThrow(
+      await expect(
+        repository.findByMissedOpportunity('missed-123'),
+      ).rejects.toThrow(
         'Failed to fetch tool requests by missed opportunity: Query failed',
       );
     });
@@ -302,7 +349,9 @@ describe('ToolRequestRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findByPriority('high')).rejects.toThrow(
         'Failed to fetch tool requests by priority: Query failed',
@@ -348,7 +397,9 @@ describe('ToolRequestRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.create({
@@ -365,7 +416,9 @@ describe('ToolRequestRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: { message: 'Insert failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.create({
@@ -381,7 +434,9 @@ describe('ToolRequestRepository', () => {
 
   describe('update', () => {
     it('should update request successfully', async () => {
-      const result = await repository.update('request-123', { name: 'Updated Name' });
+      const result = await repository.update('request-123', {
+        name: 'Updated Name',
+      });
 
       expect(result).toEqual(mockToolRequest);
     });
@@ -390,22 +445,26 @@ describe('ToolRequestRepository', () => {
       const mockClient = createMockClient({
         update: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.update('request-123', { name: 'Updated' })).rejects.toThrow(
-        'Update succeeded but no tool request returned',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.update('request-123', { name: 'Updated' }),
+      ).rejects.toThrow('Update succeeded but no tool request returned');
     });
 
     it('should throw error on update failure', async () => {
       const mockClient = createMockClient({
         update: { data: null, error: { message: 'Update failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.update('request-123', { name: 'Updated' })).rejects.toThrow(
-        'Failed to update tool request: Update failed',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.update('request-123', { name: 'Updated' }),
+      ).rejects.toThrow('Failed to update tool request: Update failed');
     });
   });
 
@@ -417,13 +476,23 @@ describe('ToolRequestRepository', () => {
     });
 
     it('should set resolved fields when marking done', async () => {
-      const result = await repository.updateStatus('request-123', 'done', 'user-123', 'Completed');
+      const result = await repository.updateStatus(
+        'request-123',
+        'done',
+        'user-123',
+        'Completed',
+      );
 
       expect(result).toBeDefined();
     });
 
     it('should set resolved fields when rejecting', async () => {
-      const result = await repository.updateStatus('request-123', 'rejected', 'user-123', 'Not needed');
+      const result = await repository.updateStatus(
+        'request-123',
+        'rejected',
+        'user-123',
+        'Not needed',
+      );
 
       expect(result).toBeDefined();
     });
@@ -438,7 +507,9 @@ describe('ToolRequestRepository', () => {
       const mockClient = createMockClient({
         delete: { error: { message: 'Delete failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.delete('request-123')).rejects.toThrow(
         'Failed to delete tool request: Delete failed',
@@ -458,7 +529,9 @@ describe('ToolRequestRepository', () => {
           error: null,
         },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.getStats();
 
@@ -472,7 +545,9 @@ describe('ToolRequestRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.getStats('universe-123');
 
@@ -483,7 +558,9 @@ describe('ToolRequestRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.getStats()).rejects.toThrow(
         'Failed to fetch tool request stats: Query failed',
@@ -492,7 +569,13 @@ describe('ToolRequestRepository', () => {
   });
 
   describe('statuses', () => {
-    const statuses: ToolRequestStatus[] = ['wishlist', 'planned', 'in_progress', 'done', 'rejected'];
+    const statuses: ToolRequestStatus[] = [
+      'wishlist',
+      'planned',
+      'in_progress',
+      'done',
+      'rejected',
+    ];
 
     statuses.forEach((status) => {
       it(`should handle ${status} status`, async () => {
@@ -500,7 +583,9 @@ describe('ToolRequestRepository', () => {
         const mockClient = createMockClient({
           single: { data: requestWithStatus, error: null },
         });
-        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+          mockClient,
+        );
 
         const result = await repository.findById('request-123');
 
@@ -510,7 +595,12 @@ describe('ToolRequestRepository', () => {
   });
 
   describe('priorities', () => {
-    const priorities: ToolRequestPriority[] = ['low', 'medium', 'high', 'critical'];
+    const priorities: ToolRequestPriority[] = [
+      'low',
+      'medium',
+      'high',
+      'critical',
+    ];
 
     priorities.forEach((priority) => {
       it(`should handle ${priority} priority`, async () => {
@@ -518,7 +608,9 @@ describe('ToolRequestRepository', () => {
         const mockClient = createMockClient({
           single: { data: requestWithPriority, error: null },
         });
-        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+          mockClient,
+        );
 
         const result = await repository.findById('request-123');
 
@@ -536,7 +628,9 @@ describe('ToolRequestRepository', () => {
         const mockClient = createMockClient({
           single: { data: requestWithType, error: null },
         });
-        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+          mockClient,
+        );
 
         const result = await repository.findById('request-123');
 

@@ -191,7 +191,9 @@ describe('DimensionAnalyzerService', () => {
           sentiment: 0.7,
           sentimentLabel: 'positive',
           confidence: 0.9,
-          riskIndicators: [{ type: 'financial', keywords: ['earnings', 'revenue'] }],
+          riskIndicators: [
+            { type: 'financial', keywords: ['earnings', 'revenue'] },
+          ],
         },
       ];
 
@@ -287,7 +289,8 @@ describe('DimensionAnalyzerService', () => {
     it('should handle JSON wrapped in markdown code blocks', async () => {
       llmService.generateResponse.mockResolvedValue({
         ...mockLLMResponse,
-        content: '```json\n{"score": 40, "confidence": 0.9, "reasoning": "Test", "evidence": [], "signals": []}\n```',
+        content:
+          '```json\n{"score": 40, "confidence": 0.9, "reasoning": "Test", "evidence": [], "signals": []}\n```',
       });
 
       const result = await service.analyzeDimension({

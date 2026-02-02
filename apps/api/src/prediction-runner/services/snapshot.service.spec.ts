@@ -136,9 +136,7 @@ describe('SnapshotService', () => {
     });
 
     it('should pass through repository errors', async () => {
-      snapshotRepository.create.mockRejectedValue(
-        new Error('Database error'),
-      );
+      snapshotRepository.create.mockRejectedValue(new Error('Database error'));
 
       await expect(
         service.createSnapshot({

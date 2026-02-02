@@ -26,10 +26,13 @@ describe('SourceCrawlRepository', () => {
   };
 
   const createMockClient = (overrides?: {
-    single?: { data: unknown | null; error: { message: string; code?: string } | null };
-    list?: { data: unknown[] | null; error: { message: string } | null };
-    insert?: { data: unknown | null; error: { message: string } | null };
-    update?: { data: unknown | null; error: { message: string } | null };
+    single?: {
+      data: unknown;
+      error: { message: string; code?: string } | null;
+    };
+    list?: { data: unknown; error: { message: string } | null };
+    insert?: { data: unknown; error: { message: string } | null };
+    update?: { data: unknown; error: { message: string } | null };
   }) => {
     const singleResult = overrides?.single ?? { data: mockCrawl, error: null };
     const listResult = overrides?.list ?? { data: [mockCrawl], error: null };
@@ -123,9 +126,14 @@ describe('SourceCrawlRepository', () => {
 
     it('should return null when crawl not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('nonexistent');
 
@@ -136,7 +144,9 @@ describe('SourceCrawlRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findById('crawl-123')).rejects.toThrow(
         'Failed to fetch crawl: Database error',
@@ -161,7 +171,9 @@ describe('SourceCrawlRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findRecentForSource('source-123');
 
@@ -172,9 +184,13 @@ describe('SourceCrawlRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(repository.findRecentForSource('source-123')).rejects.toThrow(
+      await expect(
+        repository.findRecentForSource('source-123'),
+      ).rejects.toThrow(
         'Failed to fetch recent crawls for source: Query failed',
       );
     });
@@ -191,7 +207,9 @@ describe('SourceCrawlRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findLatestForSource('source-123');
 
@@ -229,22 +247,26 @@ describe('SourceCrawlRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.create({ source_id: 'source-123' })).rejects.toThrow(
-        'Create succeeded but no crawl record returned',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.create({ source_id: 'source-123' }),
+      ).rejects.toThrow('Create succeeded but no crawl record returned');
     });
 
     it('should throw error on create failure', async () => {
       const mockClient = createMockClient({
         insert: { data: null, error: { message: 'Insert failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.create({ source_id: 'source-123' })).rejects.toThrow(
-        'Failed to create crawl record: Insert failed',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.create({ source_id: 'source-123' }),
+      ).rejects.toThrow('Failed to create crawl record: Insert failed');
     });
   });
 
@@ -254,7 +276,9 @@ describe('SourceCrawlRepository', () => {
       const mockClient = createMockClient({
         update: { data: updatedCrawl, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.update('crawl-123', { status: 'error' });
 
@@ -265,22 +289,26 @@ describe('SourceCrawlRepository', () => {
       const mockClient = createMockClient({
         update: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.update('crawl-123', { status: 'error' })).rejects.toThrow(
-        'Update succeeded but no crawl record returned',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.update('crawl-123', { status: 'error' }),
+      ).rejects.toThrow('Update succeeded but no crawl record returned');
     });
 
     it('should throw error on update failure', async () => {
       const mockClient = createMockClient({
         update: { data: null, error: { message: 'Update failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.update('crawl-123', { status: 'error' })).rejects.toThrow(
-        'Failed to update crawl record: Update failed',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.update('crawl-123', { status: 'error' }),
+      ).rejects.toThrow('Failed to update crawl record: Update failed');
     });
   });
 
@@ -290,7 +318,9 @@ describe('SourceCrawlRepository', () => {
       const mockClient = createMockClient({
         update: { data: successCrawl, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.markSuccess('crawl-123', {
         articles_found: 10,
@@ -308,13 +338,22 @@ describe('SourceCrawlRepository', () => {
 
   describe('markError', () => {
     it('should mark crawl as error with message', async () => {
-      const errorCrawl = { ...mockCrawl, status: 'error' as const, error_message: 'Connection failed' };
+      const errorCrawl = {
+        ...mockCrawl,
+        status: 'error' as const,
+        error_message: 'Connection failed',
+      };
       const mockClient = createMockClient({
         update: { data: errorCrawl, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.markError('crawl-123', 'Connection failed');
+      const result = await repository.markError(
+        'crawl-123',
+        'Connection failed',
+      );
 
       expect(result.status).toBe('error');
     });
@@ -324,9 +363,15 @@ describe('SourceCrawlRepository', () => {
       const mockClient = createMockClient({
         update: { data: errorCrawl, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.markError('crawl-123', 'Connection failed', 5000);
+      const result = await repository.markError(
+        'crawl-123',
+        'Connection failed',
+        5000,
+      );
 
       expect(result).toBeDefined();
     });
@@ -338,7 +383,9 @@ describe('SourceCrawlRepository', () => {
       const mockClient = createMockClient({
         update: { data: timeoutCrawl, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.markTimeout('crawl-123');
 
@@ -350,7 +397,9 @@ describe('SourceCrawlRepository', () => {
       const mockClient = createMockClient({
         update: { data: timeoutCrawl, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.markTimeout('crawl-123', 60000);
 
@@ -367,7 +416,9 @@ describe('SourceCrawlRepository', () => {
       const mockClient = createMockClient({
         list: { data: crawls, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.getStatsForSource('source-123');
 
@@ -387,7 +438,9 @@ describe('SourceCrawlRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.getStatsForSource('source-123');
 
@@ -401,7 +454,9 @@ describe('SourceCrawlRepository', () => {
       const mockClient = createMockClient({
         list: { data: crawls, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.getStatsForSource('source-123');
 
@@ -417,7 +472,9 @@ describe('SourceCrawlRepository', () => {
       const mockClient = createMockClient({
         list: { data: crawls, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.getStatsForSource('source-123');
 
@@ -427,12 +484,20 @@ describe('SourceCrawlRepository', () => {
     it('should only count successful crawls in metrics', async () => {
       const crawls = [
         mockCrawl, // success
-        { ...mockCrawl, id: 'crawl-456', status: 'error' as const, articles_found: 0, articles_new: 0 },
+        {
+          ...mockCrawl,
+          id: 'crawl-456',
+          status: 'error' as const,
+          articles_found: 0,
+          articles_new: 0,
+        },
       ];
       const mockClient = createMockClient({
         list: { data: crawls, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.getStatsForSource('source-123');
 
@@ -445,7 +510,9 @@ describe('SourceCrawlRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.getStatsForSource('source-123')).rejects.toThrow(
         'Failed to fetch crawl stats: Query failed',
@@ -462,7 +529,9 @@ describe('SourceCrawlRepository', () => {
         const mockClient = createMockClient({
           single: { data: crawlWithStatus, error: null },
         });
-        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+          mockClient,
+        );
 
         const result = await repository.findById('crawl-123');
 

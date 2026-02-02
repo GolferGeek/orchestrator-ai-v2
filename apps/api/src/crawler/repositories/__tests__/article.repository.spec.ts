@@ -1,7 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ArticleRepository } from '../article.repository';
 import { SupabaseService } from '@/supabase/supabase.service';
-import { Article, ArticleFingerprint, ArticleWithPhraseOverlap } from '../../interfaces';
+import {
+  Article,
+  ArticleFingerprint,
+  ArticleWithPhraseOverlap,
+} from '../../interfaces';
 
 describe('ArticleRepository', () => {
   let repository: ArticleRepository;
@@ -46,18 +50,33 @@ describe('ArticleRepository', () => {
   };
 
   const createMockClient = (overrides?: {
-    single?: { data: unknown | null; error: { message: string; code?: string } | null };
-    list?: { data: unknown[] | null; error: { message: string } | null };
-    insert?: { data: unknown | null; error: { message: string; code?: string } | null };
+    single?: {
+      data: unknown;
+      error: { message: string; code?: string } | null;
+    };
+    list?: { data: unknown; error: { message: string } | null };
+    insert?: {
+      data: unknown;
+      error: { message: string; code?: string } | null;
+    };
     update?: { error: { message: string } | null };
     rpc?: { data: unknown; error: { message: string } | null };
     count?: { count: number | null; error: { message: string } | null };
   }) => {
-    const singleResult = overrides?.single ?? { data: mockArticle, error: null };
+    const singleResult = overrides?.single ?? {
+      data: mockArticle,
+      error: null,
+    };
     const listResult = overrides?.list ?? { data: [mockArticle], error: null };
-    const insertResult = overrides?.insert ?? { data: mockArticle, error: null };
+    const insertResult = overrides?.insert ?? {
+      data: mockArticle,
+      error: null,
+    };
     const updateResult = overrides?.update ?? { error: null };
-    const rpcResult = overrides?.rpc ?? { data: [mockFingerprint], error: null };
+    const rpcResult = overrides?.rpc ?? {
+      data: [mockFingerprint],
+      error: null,
+    };
     const countResult = overrides?.count ?? { count: 10, error: null };
 
     const createChain = () => {
@@ -74,16 +93,18 @@ describe('ArticleRepository', () => {
         then: (resolve: (v: unknown) => void) => resolve(listResult),
       };
 
-      (chainableResult.select as jest.Mock).mockImplementation((cols?: string, opts?: { count?: string; head?: boolean }) => {
-        if (opts?.count === 'exact' && opts?.head === true) {
-          return {
-            eq: jest.fn().mockReturnValue({
-              then: (resolve: (v: unknown) => void) => resolve(countResult),
-            }),
-          };
-        }
-        return chainableResult;
-      });
+      (chainableResult.select as jest.Mock).mockImplementation(
+        (cols?: string, opts?: { count?: string; head?: boolean }) => {
+          if (opts?.count === 'exact' && opts?.head === true) {
+            return {
+              eq: jest.fn().mockReturnValue({
+                then: (resolve: (v: unknown) => void) => resolve(countResult),
+              }),
+            };
+          }
+          return chainableResult;
+        },
+      );
       (chainableResult.eq as jest.Mock).mockReturnValue(chainableResult);
       (chainableResult.in as jest.Mock).mockReturnValue(chainableResult);
       (chainableResult.gt as jest.Mock).mockReturnValue(chainableResult);
@@ -156,9 +177,14 @@ describe('ArticleRepository', () => {
 
     it('should return null when article not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('nonexistent');
 
@@ -169,7 +195,9 @@ describe('ArticleRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findById('article-123')).rejects.toThrow(
         'Failed to fetch article: Database error',
@@ -179,18 +207,29 @@ describe('ArticleRepository', () => {
 
   describe('findByContentHash', () => {
     it('should return article when found', async () => {
-      const result = await repository.findByContentHash('test-org', 'abc123hash');
+      const result = await repository.findByContentHash(
+        'test-org',
+        'abc123hash',
+      );
 
       expect(result).toEqual(mockArticle);
     });
 
     it('should return null when not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.findByContentHash('test-org', 'nonexistent');
+      const result = await repository.findByContentHash(
+        'test-org',
+        'nonexistent',
+      );
 
       expect(result).toBeNull();
     });
@@ -199,9 +238,13 @@ describe('ArticleRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(repository.findByContentHash('test-org', 'hash')).rejects.toThrow(
+      await expect(
+        repository.findByContentHash('test-org', 'hash'),
+      ).rejects.toThrow(
         'Failed to fetch article by content hash: Database error',
       );
     });
@@ -212,9 +255,14 @@ describe('ArticleRepository', () => {
       const mockClient = createMockClient({
         rpc: { data: true, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.checkContentHashExists('test-org', 'abc123hash');
+      const result = await repository.checkContentHashExists(
+        'test-org',
+        'abc123hash',
+      );
 
       expect(result).toBe(true);
     });
@@ -223,9 +271,14 @@ describe('ArticleRepository', () => {
       const mockClient = createMockClient({
         rpc: { data: false, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.checkContentHashExists('test-org', 'nonexistent');
+      const result = await repository.checkContentHashExists(
+        'test-org',
+        'nonexistent',
+      );
 
       expect(result).toBe(false);
     });
@@ -234,9 +287,14 @@ describe('ArticleRepository', () => {
       const mockClient = createMockClient({
         rpc: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.checkContentHashExists('test-org', 'hash');
+      const result = await repository.checkContentHashExists(
+        'test-org',
+        'hash',
+      );
 
       expect(result).toBe(false);
     });
@@ -245,9 +303,15 @@ describe('ArticleRepository', () => {
       const mockClient = createMockClient({
         rpc: { data: false, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.checkContentHashExists('test-org', 'hash', 'source-123');
+      const result = await repository.checkContentHashExists(
+        'test-org',
+        'hash',
+        'source-123',
+      );
 
       expect(result).toBe(false);
     });
@@ -256,11 +320,13 @@ describe('ArticleRepository', () => {
       const mockClient = createMockClient({
         rpc: { data: null, error: { message: 'RPC failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.checkContentHashExists('test-org', 'hash')).rejects.toThrow(
-        'Failed to check content hash: RPC failed',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.checkContentHashExists('test-org', 'hash'),
+      ).rejects.toThrow('Failed to check content hash: RPC failed');
     });
   });
 
@@ -272,7 +338,11 @@ describe('ArticleRepository', () => {
     });
 
     it('should accept custom hoursBack and limit', async () => {
-      const result = await repository.findRecentFingerprints('test-org', 48, 50);
+      const result = await repository.findRecentFingerprints(
+        'test-org',
+        48,
+        50,
+      );
 
       expect(result).toEqual([mockFingerprint]);
     });
@@ -281,7 +351,9 @@ describe('ArticleRepository', () => {
       const mockClient = createMockClient({
         rpc: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findRecentFingerprints('test-org');
 
@@ -292,11 +364,13 @@ describe('ArticleRepository', () => {
       const mockClient = createMockClient({
         rpc: { data: null, error: { message: 'RPC failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.findRecentFingerprints('test-org')).rejects.toThrow(
-        'Failed to fetch recent fingerprints: RPC failed',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.findRecentFingerprints('test-org'),
+      ).rejects.toThrow('Failed to fetch recent fingerprints: RPC failed');
     });
   });
 
@@ -305,9 +379,14 @@ describe('ArticleRepository', () => {
       const mockClient = createMockClient({
         rpc: { data: [mockPhraseOverlap], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.findByPhraseOverlap('test-org', ['test', 'article']);
+      const result = await repository.findByPhraseOverlap('test-org', [
+        'test',
+        'article',
+      ]);
 
       expect(result).toEqual([mockPhraseOverlap]);
     });
@@ -316,9 +395,16 @@ describe('ArticleRepository', () => {
       const mockClient = createMockClient({
         rpc: { data: [mockPhraseOverlap], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.findByPhraseOverlap('test-org', ['test'], 48, 25);
+      const result = await repository.findByPhraseOverlap(
+        'test-org',
+        ['test'],
+        48,
+        25,
+      );
 
       expect(result).toEqual([mockPhraseOverlap]);
     });
@@ -327,9 +413,14 @@ describe('ArticleRepository', () => {
       const mockClient = createMockClient({
         rpc: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.findByPhraseOverlap('test-org', ['unique', 'phrases']);
+      const result = await repository.findByPhraseOverlap('test-org', [
+        'unique',
+        'phrases',
+      ]);
 
       expect(result).toEqual([]);
     });
@@ -338,9 +429,13 @@ describe('ArticleRepository', () => {
       const mockClient = createMockClient({
         rpc: { data: null, error: { message: 'RPC failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(repository.findByPhraseOverlap('test-org', ['test'])).rejects.toThrow(
+      await expect(
+        repository.findByPhraseOverlap('test-org', ['test']),
+      ).rejects.toThrow(
         'Failed to find articles by phrase overlap: RPC failed',
       );
     });
@@ -348,13 +443,20 @@ describe('ArticleRepository', () => {
 
   describe('findNewForSource', () => {
     it('should return new articles for source', async () => {
-      const result = await repository.findNewForSource('source-123', new Date('2024-01-15T00:00:00Z'));
+      const result = await repository.findNewForSource(
+        'source-123',
+        new Date('2024-01-15T00:00:00Z'),
+      );
 
       expect(result).toEqual([mockArticle]);
     });
 
     it('should accept custom limit', async () => {
-      const result = await repository.findNewForSource('source-123', new Date(), 50);
+      const result = await repository.findNewForSource(
+        'source-123',
+        new Date(),
+        50,
+      );
 
       expect(result).toEqual([mockArticle]);
     });
@@ -363,9 +465,14 @@ describe('ArticleRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.findNewForSource('source-123', new Date());
+      const result = await repository.findNewForSource(
+        'source-123',
+        new Date(),
+      );
 
       expect(result).toEqual([]);
     });
@@ -374,9 +481,13 @@ describe('ArticleRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(repository.findNewForSource('source-123', new Date())).rejects.toThrow(
+      await expect(
+        repository.findNewForSource('source-123', new Date()),
+      ).rejects.toThrow(
         'Failed to fetch new articles for source: Query failed',
       );
     });
@@ -384,7 +495,10 @@ describe('ArticleRepository', () => {
 
   describe('findNewForSources', () => {
     it('should return new articles for multiple sources', async () => {
-      const result = await repository.findNewForSources(['source-123', 'source-456'], new Date());
+      const result = await repository.findNewForSources(
+        ['source-123', 'source-456'],
+        new Date(),
+      );
 
       expect(result).toEqual([mockArticle]);
     });
@@ -396,7 +510,11 @@ describe('ArticleRepository', () => {
     });
 
     it('should accept custom limit', async () => {
-      const result = await repository.findNewForSources(['source-123'], new Date(), 50);
+      const result = await repository.findNewForSources(
+        ['source-123'],
+        new Date(),
+        50,
+      );
 
       expect(result).toEqual([mockArticle]);
     });
@@ -405,9 +523,13 @@ describe('ArticleRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(repository.findNewForSources(['source-123'], new Date())).rejects.toThrow(
+      await expect(
+        repository.findNewForSources(['source-123'], new Date()),
+      ).rejects.toThrow(
         'Failed to fetch new articles for sources: Query failed',
       );
     });
@@ -432,7 +554,9 @@ describe('ArticleRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.create({
@@ -449,7 +573,9 @@ describe('ArticleRepository', () => {
         insert: { data: null, error: { message: 'Duplicate', code: '23505' } },
         single: { data: mockArticle, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.create({
         organization_slug: 'test-org',
@@ -465,7 +591,9 @@ describe('ArticleRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: { message: 'Insert failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.create({
@@ -493,10 +621,15 @@ describe('ArticleRepository', () => {
 
     it('should create new article if not exists', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
         insert: { data: mockArticle, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.createIfNotExists({
         organization_slug: 'test-org',
@@ -513,7 +646,12 @@ describe('ArticleRepository', () => {
   describe('updateFingerprint', () => {
     it('should update fingerprint successfully', async () => {
       await expect(
-        repository.updateFingerprint('article-123', 'normalized title', ['key', 'phrases'], 'fingerprint'),
+        repository.updateFingerprint(
+          'article-123',
+          'normalized title',
+          ['key', 'phrases'],
+          'fingerprint',
+        ),
       ).resolves.toBeUndefined();
     });
 
@@ -521,10 +659,17 @@ describe('ArticleRepository', () => {
       const mockClient = createMockClient({
         update: { error: { message: 'Update failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
-        repository.updateFingerprint('article-123', 'normalized', ['key'], 'fingerprint'),
+        repository.updateFingerprint(
+          'article-123',
+          'normalized',
+          ['key'],
+          'fingerprint',
+        ),
       ).rejects.toThrow('Failed to update article fingerprint: Update failed');
     });
   });
@@ -540,7 +685,9 @@ describe('ArticleRepository', () => {
       const mockClient = createMockClient({
         count: { count: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.countForSource('source-123');
 
@@ -551,7 +698,9 @@ describe('ArticleRepository', () => {
       const mockClient = createMockClient({
         count: { count: null, error: { message: 'Count failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.countForSource('source-123')).rejects.toThrow(
         'Failed to count articles: Count failed',

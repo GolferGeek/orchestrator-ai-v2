@@ -1,7 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { TestAuditService } from '../test-audit.service';
 import { TestAuditLogRepository } from '../../repositories/test-audit-log.repository';
-import { TestAuditLogEntry, TestScenario, ScenarioRun } from '../../interfaces/test-data.interface';
+import {
+  TestAuditLogEntry,
+  TestScenario,
+  ScenarioRun,
+} from '../../interfaces/test-data.interface';
 import { LearningLineage } from '../../interfaces/learning.interface';
 
 describe('TestAuditService', () => {
@@ -141,7 +145,11 @@ describe('TestAuditService', () => {
     it('should log scenario updated event', async () => {
       const changes = { name: 'New Name', description: 'New Description' };
 
-      const result = await service.logScenarioUpdated(mockScenario, 'user-123', changes);
+      const result = await service.logScenarioUpdated(
+        mockScenario,
+        'user-123',
+        changes,
+      );
 
       expect(auditLogRepository.log).toHaveBeenCalledWith({
         organization_slug: 'test-org',
@@ -181,7 +189,10 @@ describe('TestAuditService', () => {
 
   describe('logScenarioRunStarted', () => {
     it('should log scenario run started event', async () => {
-      const result = await service.logScenarioRunStarted(mockScenarioRun, 'user-123');
+      const result = await service.logScenarioRunStarted(
+        mockScenarioRun,
+        'user-123',
+      );
 
       expect(auditLogRepository.log).toHaveBeenCalledWith({
         organization_slug: 'test-org',
@@ -200,7 +211,10 @@ describe('TestAuditService', () => {
 
   describe('logScenarioRunCompleted', () => {
     it('should log scenario run completed event', async () => {
-      const result = await service.logScenarioRunCompleted(mockScenarioRun, 'user-123');
+      const result = await service.logScenarioRunCompleted(
+        mockScenarioRun,
+        'user-123',
+      );
 
       expect(auditLogRepository.log).toHaveBeenCalledWith({
         organization_slug: 'test-org',
@@ -231,7 +245,11 @@ describe('TestAuditService', () => {
 
   describe('logScenarioRunFailed', () => {
     it('should log scenario run failed event', async () => {
-      const failedRun = { ...mockScenarioRun, status: 'failed' as const, error_message: 'Test error' };
+      const failedRun = {
+        ...mockScenarioRun,
+        status: 'failed' as const,
+        error_message: 'Test error',
+      };
 
       const result = await service.logScenarioRunFailed(failedRun, 'user-123');
 
@@ -309,10 +327,15 @@ describe('TestAuditService', () => {
 
   describe('logDataInjected', () => {
     it('should log data injection event', async () => {
-      const result = await service.logDataInjected('scenario-123', 'test-org', 'user-123', {
-        injection_points: ['signals', 'predictors'],
-        items_injected: { signals: 5, predictors: 3 },
-      });
+      const result = await service.logDataInjected(
+        'scenario-123',
+        'test-org',
+        'user-123',
+        {
+          injection_points: ['signals', 'predictors'],
+          items_injected: { signals: 5, predictors: 3 },
+        },
+      );
 
       expect(auditLogRepository.log).toHaveBeenCalledWith({
         organization_slug: 'test-org',
@@ -331,13 +354,18 @@ describe('TestAuditService', () => {
 
   describe('logDataCleaned', () => {
     it('should log data cleanup event', async () => {
-      const result = await service.logDataCleaned('scenario-123', 'test-org', 'user-123', {
-        tables_cleaned: [
-          { table_name: 'signals', rows_deleted: 10 },
-          { table_name: 'predictors', rows_deleted: 5 },
-        ],
-        total_deleted: 15,
-      });
+      const result = await service.logDataCleaned(
+        'scenario-123',
+        'test-org',
+        'user-123',
+        {
+          tables_cleaned: [
+            { table_name: 'signals', rows_deleted: 10 },
+            { table_name: 'predictors', rows_deleted: 5 },
+          ],
+          total_deleted: 15,
+        },
+      );
 
       expect(auditLogRepository.log).toHaveBeenCalledWith({
         organization_slug: 'test-org',
@@ -355,9 +383,15 @@ describe('TestAuditService', () => {
 
   describe('getAuditTrail', () => {
     it('should return audit trail for a resource', async () => {
-      const result = await service.getAuditTrail('test_scenario', 'scenario-123');
+      const result = await service.getAuditTrail(
+        'test_scenario',
+        'scenario-123',
+      );
 
-      expect(auditLogRepository.getAuditTrail).toHaveBeenCalledWith('test_scenario', 'scenario-123');
+      expect(auditLogRepository.getAuditTrail).toHaveBeenCalledWith(
+        'test_scenario',
+        'scenario-123',
+      );
       expect(result).toEqual([mockAuditLogEntry]);
     });
   });
@@ -366,11 +400,15 @@ describe('TestAuditService', () => {
     it('should return user actions', async () => {
       const result = await service.getUserActions('user-123', 'test-org');
 
-      expect(auditLogRepository.findByUser).toHaveBeenCalledWith('user-123', 'test-org', {
-        start_date: undefined,
-        end_date: undefined,
-        limit: undefined,
-      });
+      expect(auditLogRepository.findByUser).toHaveBeenCalledWith(
+        'user-123',
+        'test-org',
+        {
+          start_date: undefined,
+          end_date: undefined,
+          limit: undefined,
+        },
+      );
       expect(result).toEqual([mockAuditLogEntry]);
     });
 
@@ -380,21 +418,29 @@ describe('TestAuditService', () => {
         end_date: '2024-01-31',
       });
 
-      expect(auditLogRepository.findByUser).toHaveBeenCalledWith('user-123', 'test-org', {
-        start_date: '2024-01-01',
-        end_date: '2024-01-31',
-        limit: undefined,
-      });
+      expect(auditLogRepository.findByUser).toHaveBeenCalledWith(
+        'user-123',
+        'test-org',
+        {
+          start_date: '2024-01-01',
+          end_date: '2024-01-31',
+          limit: undefined,
+        },
+      );
     });
 
     it('should pass limit when provided', async () => {
       await service.getUserActions('user-123', 'test-org', undefined, 100);
 
-      expect(auditLogRepository.findByUser).toHaveBeenCalledWith('user-123', 'test-org', {
-        start_date: undefined,
-        end_date: undefined,
-        limit: 100,
-      });
+      expect(auditLogRepository.findByUser).toHaveBeenCalledWith(
+        'user-123',
+        'test-org',
+        {
+          start_date: undefined,
+          end_date: undefined,
+          limit: 100,
+        },
+      );
     });
   });
 
@@ -409,7 +455,10 @@ describe('TestAuditService', () => {
     it('should use custom limit when provided', async () => {
       await service.getRecentActions('test-org', 100);
 
-      expect(auditLogRepository.getRecent).toHaveBeenCalledWith('test-org', 100);
+      expect(auditLogRepository.getRecent).toHaveBeenCalledWith(
+        'test-org',
+        100,
+      );
     });
   });
 
@@ -425,21 +474,34 @@ describe('TestAuditService', () => {
     it('should find entries without filter', async () => {
       await service.findAuditEntries('test-org');
 
-      expect(auditLogRepository.find).toHaveBeenCalledWith('test-org', undefined);
+      expect(auditLogRepository.find).toHaveBeenCalledWith(
+        'test-org',
+        undefined,
+      );
     });
   });
 
   describe('getScenarioAuditTrail', () => {
     it('should return scenario and run events', async () => {
       auditLogRepository.find.mockResolvedValue([
-        { ...mockAuditLogEntry, resource_type: 'scenario_run', details: { scenario_id: 'scenario-123' } },
+        {
+          ...mockAuditLogEntry,
+          resource_type: 'scenario_run',
+          details: { scenario_id: 'scenario-123' },
+        },
       ]);
 
-      const result = await service.getScenarioAuditTrail('scenario-123', 'test-org');
+      const result = await service.getScenarioAuditTrail(
+        'scenario-123',
+        'test-org',
+      );
 
       expect(result.scenario_events).toBeDefined();
       expect(result.run_events).toBeDefined();
-      expect(auditLogRepository.findByResource).toHaveBeenCalledWith('test_scenario', 'scenario-123');
+      expect(auditLogRepository.findByResource).toHaveBeenCalledWith(
+        'test_scenario',
+        'scenario-123',
+      );
       expect(auditLogRepository.find).toHaveBeenCalledWith('test-org', {
         resource_type: 'scenario_run',
       });
@@ -447,11 +509,22 @@ describe('TestAuditService', () => {
 
     it('should filter run events by scenario_id', async () => {
       auditLogRepository.find.mockResolvedValue([
-        { ...mockAuditLogEntry, resource_type: 'scenario_run', details: { scenario_id: 'scenario-123' } },
-        { ...mockAuditLogEntry, resource_type: 'scenario_run', details: { scenario_id: 'other-scenario' } },
+        {
+          ...mockAuditLogEntry,
+          resource_type: 'scenario_run',
+          details: { scenario_id: 'scenario-123' },
+        },
+        {
+          ...mockAuditLogEntry,
+          resource_type: 'scenario_run',
+          details: { scenario_id: 'other-scenario' },
+        },
       ]);
 
-      const result = await service.getScenarioAuditTrail('scenario-123', 'test-org');
+      const result = await service.getScenarioAuditTrail(
+        'scenario-123',
+        'test-org',
+      );
 
       expect(result.run_events).toHaveLength(1);
     });
@@ -460,9 +533,24 @@ describe('TestAuditService', () => {
   describe('getAuditStatistics', () => {
     it('should return statistics about audit activity', async () => {
       auditLogRepository.find.mockResolvedValue([
-        { ...mockAuditLogEntry, action: 'scenario_created', resource_type: 'test_scenario', user_id: 'user-1' },
-        { ...mockAuditLogEntry, action: 'scenario_created', resource_type: 'test_scenario', user_id: 'user-2' },
-        { ...mockAuditLogEntry, action: 'scenario_run_started', resource_type: 'scenario_run', user_id: 'user-1' },
+        {
+          ...mockAuditLogEntry,
+          action: 'scenario_created',
+          resource_type: 'test_scenario',
+          user_id: 'user-1',
+        },
+        {
+          ...mockAuditLogEntry,
+          action: 'scenario_created',
+          resource_type: 'test_scenario',
+          user_id: 'user-2',
+        },
+        {
+          ...mockAuditLogEntry,
+          action: 'scenario_run_started',
+          resource_type: 'scenario_run',
+          user_id: 'user-1',
+        },
       ]);
 
       const result = await service.getAuditStatistics('test-org');

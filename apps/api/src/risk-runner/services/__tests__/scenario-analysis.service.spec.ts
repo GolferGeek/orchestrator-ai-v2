@@ -32,7 +32,12 @@ describe('ScenarioAnalysisService', () => {
   const mockDimensions = [
     { id: 'dim-1', slug: 'market-risk', name: 'Market Risk', weight: 0.4 },
     { id: 'dim-2', slug: 'credit-risk', name: 'Credit Risk', weight: 0.3 },
-    { id: 'dim-3', slug: 'liquidity-risk', name: 'Liquidity Risk', weight: 0.3 },
+    {
+      id: 'dim-3',
+      slug: 'liquidity-risk',
+      name: 'Liquidity Risk',
+      weight: 0.3,
+    },
   ];
 
   const mockCompositeScores = [
@@ -383,7 +388,11 @@ describe('ScenarioAnalysisService', () => {
         }),
       }));
 
-      const result = await service.runScenario('scope-1', 'Distribution Test', []);
+      const result = await service.runScenario(
+        'scope-1',
+        'Distribution Test',
+        [],
+      );
 
       expect(result.riskDistributionBefore.critical).toBe(1);
       expect(result.riskDistributionBefore.high).toBe(1);
@@ -449,7 +458,11 @@ describe('ScenarioAnalysisService', () => {
         }),
       }));
 
-      const result = await service.runScenario('scope-1', 'Normalization Test', []);
+      const result = await service.runScenario(
+        'scope-1',
+        'Normalization Test',
+        [],
+      );
 
       // Scores should be normalized to 0-1 range
       expect(result.subjectResults[0]?.baselineScore).toBe(0.6);

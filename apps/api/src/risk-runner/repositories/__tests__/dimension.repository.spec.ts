@@ -27,16 +27,31 @@ describe('DimensionRepository', () => {
   };
 
   const createMockClient = (overrides?: {
-    single?: { data: unknown | null; error: { message: string; code?: string } | null };
+    single?: {
+      data: unknown;
+      error: { message: string; code?: string } | null;
+    };
     list?: { data: unknown[] | null; error: { message: string } | null };
-    insert?: { data: unknown | null; error: { message: string } | null };
-    update?: { data: unknown | null; error: { message: string } | null };
+    insert?: { data: unknown; error: { message: string } | null };
+    update?: { data: unknown; error: { message: string } | null };
     delete?: { error: { message: string } | null };
   }) => {
-    const singleResult = overrides?.single ?? { data: mockDimension, error: null };
-    const listResult = overrides?.list ?? { data: [mockDimension], error: null };
-    const insertResult = overrides?.insert ?? { data: mockDimension, error: null };
-    const updateResult = overrides?.update ?? { data: mockDimension, error: null };
+    const singleResult = overrides?.single ?? {
+      data: mockDimension,
+      error: null,
+    };
+    const listResult = overrides?.list ?? {
+      data: [mockDimension],
+      error: null,
+    };
+    const insertResult = overrides?.insert ?? {
+      data: mockDimension,
+      error: null,
+    };
+    const updateResult = overrides?.update ?? {
+      data: mockDimension,
+      error: null,
+    };
     const deleteResult = overrides?.delete ?? { error: null };
 
     const createChain = () => {
@@ -132,7 +147,9 @@ describe('DimensionRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findByScope('scope-123');
 
@@ -143,7 +160,9 @@ describe('DimensionRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findByScope('scope-123')).rejects.toThrow(
         'Failed to fetch dimensions: Query failed',
@@ -181,9 +200,14 @@ describe('DimensionRepository', () => {
 
     it('should return null when dimension not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('nonexistent');
 
@@ -194,7 +218,9 @@ describe('DimensionRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findById('dim-123')).rejects.toThrow(
         'Failed to fetch dimension: Database error',
@@ -211,11 +237,18 @@ describe('DimensionRepository', () => {
 
     it('should throw NotFoundException when dimension not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(repository.findByIdOrThrow('nonexistent')).rejects.toThrow(NotFoundException);
+      await expect(repository.findByIdOrThrow('nonexistent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -228,9 +261,14 @@ describe('DimensionRepository', () => {
 
     it('should return null when dimension not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findBySlug('scope-123', 'nonexistent');
 
@@ -241,11 +279,13 @@ describe('DimensionRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.findBySlug('scope-123', 'market')).rejects.toThrow(
-        'Failed to fetch dimension by slug: Database error',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.findBySlug('scope-123', 'market'),
+      ).rejects.toThrow('Failed to fetch dimension by slug: Database error');
     });
   });
 
@@ -268,7 +308,9 @@ describe('DimensionRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.create({
@@ -285,7 +327,9 @@ describe('DimensionRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: { message: 'Insert failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.create({
@@ -305,9 +349,13 @@ describe('DimensionRepository', () => {
       const mockClient = createMockClient({
         update: { data: updatedDimension, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.update('dim-123', { name: 'Updated Name' });
+      const result = await repository.update('dim-123', {
+        name: 'Updated Name',
+      });
 
       expect(result).toEqual(updatedDimension);
     });
@@ -316,22 +364,26 @@ describe('DimensionRepository', () => {
       const mockClient = createMockClient({
         update: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.update('dim-123', { name: 'Updated' })).rejects.toThrow(
-        'Update succeeded but no dimension returned',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.update('dim-123', { name: 'Updated' }),
+      ).rejects.toThrow('Update succeeded but no dimension returned');
     });
 
     it('should throw error on update failure', async () => {
       const mockClient = createMockClient({
         update: { data: null, error: { message: 'Update failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.update('dim-123', { name: 'Updated' })).rejects.toThrow(
-        'Failed to update dimension: Update failed',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.update('dim-123', { name: 'Updated' }),
+      ).rejects.toThrow('Failed to update dimension: Update failed');
     });
   });
 
@@ -344,7 +396,9 @@ describe('DimensionRepository', () => {
       const mockClient = createMockClient({
         delete: { error: { message: 'Delete failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.delete('dim-123')).rejects.toThrow(
         'Failed to delete dimension: Delete failed',
@@ -353,7 +407,13 @@ describe('DimensionRepository', () => {
   });
 
   describe('dimension slugs', () => {
-    const slugs = ['market', 'fundamental', 'technical', 'macro', 'correlation'] as const;
+    const slugs = [
+      'market',
+      'fundamental',
+      'technical',
+      'macro',
+      'correlation',
+    ] as const;
 
     slugs.forEach((slug) => {
       it(`should handle ${slug} slug`, async () => {
@@ -361,7 +421,9 @@ describe('DimensionRepository', () => {
         const mockClient = createMockClient({
           single: { data: dimensionWithSlug, error: null },
         });
-        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+          mockClient,
+        );
 
         const result = await repository.findBySlug('scope-123', slug);
 
@@ -379,7 +441,9 @@ describe('DimensionRepository', () => {
         const mockClient = createMockClient({
           single: { data: dimensionWithWeight, error: null },
         });
-        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+          mockClient,
+        );
 
         const result = await repository.findById('dim-123');
 

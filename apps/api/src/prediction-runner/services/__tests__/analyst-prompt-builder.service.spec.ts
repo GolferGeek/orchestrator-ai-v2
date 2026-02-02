@@ -4,7 +4,11 @@ import {
   PromptContext,
   ComposedPromptContext,
 } from '../analyst-prompt-builder.service';
-import { ActiveAnalyst, PersonalityAnalyst, ContextProvider } from '../../interfaces/analyst.interface';
+import {
+  ActiveAnalyst,
+  PersonalityAnalyst,
+  ContextProvider,
+} from '../../interfaces/analyst.interface';
 import { Target } from '../../interfaces/target.interface';
 import { ActiveLearning } from '../../interfaces/learning.interface';
 
@@ -15,7 +19,8 @@ describe('AnalystPromptBuilderService', () => {
     analyst_id: 'analyst-123',
     slug: 'momentum-analyst',
     name: 'Momentum Analyst',
-    perspective: 'I analyze price momentum and trend patterns to identify trading opportunities.',
+    perspective:
+      'I analyze price momentum and trend patterns to identify trading opportunities.',
     effective_weight: 1.0,
     effective_tier: 'gold',
     tier_instructions: {
@@ -31,7 +36,8 @@ describe('AnalystPromptBuilderService', () => {
     analyst_id: 'pa-123',
     slug: 'technical-trader',
     name: 'Technical Trader',
-    perspective: 'I use technical analysis to make trading decisions based on chart patterns and indicators.',
+    perspective:
+      'I use technical analysis to make trading decisions based on chart patterns and indicators.',
     default_weight: 1.0,
     tier_instructions: {
       gold: 'Comprehensive technical analysis with multiple indicators and patterns.',
@@ -44,7 +50,8 @@ describe('AnalystPromptBuilderService', () => {
     slug: 'crypto-domain-expert',
     name: 'Crypto Domain Expert',
     scope_level: 'domain',
-    perspective: 'Expert knowledge in cryptocurrency markets and blockchain technology.',
+    perspective:
+      'Expert knowledge in cryptocurrency markets and blockchain technology.',
     tier_instructions: {
       gold: 'Deep dive into on-chain metrics and protocol specifics.',
       silver: 'Key market dynamics and protocol overview.',
@@ -73,7 +80,8 @@ describe('AnalystPromptBuilderService', () => {
     learning_id: 'learning-123',
     learning_type: 'pattern',
     title: 'Momentum Divergence Pattern',
-    description: 'When price makes higher highs but momentum makes lower highs, consider bearish divergence.',
+    description:
+      'When price makes higher highs but momentum makes lower highs, consider bearish divergence.',
     config: { indicators: ['RSI', 'MACD'] },
     scope_level: 'domain',
     times_applied: 5,
@@ -86,7 +94,9 @@ describe('AnalystPromptBuilderService', () => {
     }).compile();
 
     module.useLogger(false);
-    service = module.get<AnalystPromptBuilderService>(AnalystPromptBuilderService);
+    service = module.get<AnalystPromptBuilderService>(
+      AnalystPromptBuilderService,
+    );
   });
 
   afterEach(() => {
@@ -101,7 +111,8 @@ describe('AnalystPromptBuilderService', () => {
         target: mockTarget,
         learnings: [],
         input: {
-          content: 'BTC showing strong momentum after breaking $50k resistance.',
+          content:
+            'BTC showing strong momentum after breaking $50k resistance.',
         },
       };
 
@@ -197,7 +208,8 @@ describe('AnalystPromptBuilderService', () => {
         target: mockTarget,
         learnings: [],
         input: { content: 'Test signal' },
-        performanceContext: '## Recent Performance\nAccuracy: 75%\nLast 10 predictions: 7 correct',
+        performanceContext:
+          '## Recent Performance\nAccuracy: 75%\nLast 10 predictions: 7 correct',
       };
 
       const result = service.buildPrompt(context);
@@ -419,9 +431,27 @@ describe('AnalystPromptBuilderService', () => {
 
     it('should mention number of predictors in user prompt', () => {
       const predictors = [
-        { direction: 'bullish', strength: 5, confidence: 0.6, reasoning: 'A', analyst_slug: 'a' },
-        { direction: 'bearish', strength: 4, confidence: 0.5, reasoning: 'B', analyst_slug: 'b' },
-        { direction: 'neutral', strength: 3, confidence: 0.4, reasoning: 'C', analyst_slug: 'c' },
+        {
+          direction: 'bullish',
+          strength: 5,
+          confidence: 0.6,
+          reasoning: 'A',
+          analyst_slug: 'a',
+        },
+        {
+          direction: 'bearish',
+          strength: 4,
+          confidence: 0.5,
+          reasoning: 'B',
+          analyst_slug: 'b',
+        },
+        {
+          direction: 'neutral',
+          strength: 3,
+          confidence: 0.4,
+          reasoning: 'C',
+          analyst_slug: 'c',
+        },
       ];
 
       const result = service.buildPredictionPrompt({
@@ -498,7 +528,11 @@ describe('AnalystPromptBuilderService', () => {
         analyst: mockAnalyst,
         tier: 'gold',
         target: mockTarget,
-        originalPrediction: { direction: 'bullish', confidence: 0.8, reasoning: 'Test.' },
+        originalPrediction: {
+          direction: 'bullish',
+          confidence: 0.8,
+          reasoning: 'Test.',
+        },
         actualOutcome: 'Test outcome.',
         learnings: [],
       });
@@ -507,7 +541,11 @@ describe('AnalystPromptBuilderService', () => {
         analyst: mockAnalyst,
         tier: 'bronze',
         target: mockTarget,
-        originalPrediction: { direction: 'bullish', confidence: 0.8, reasoning: 'Test.' },
+        originalPrediction: {
+          direction: 'bullish',
+          confidence: 0.8,
+          reasoning: 'Test.',
+        },
         actualOutcome: 'Test outcome.',
         learnings: [],
       });

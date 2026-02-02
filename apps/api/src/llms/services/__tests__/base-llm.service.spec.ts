@@ -18,7 +18,7 @@ import {
   LLMResponse,
   PiiOptions,
 } from '../llm-interfaces';
-import { LLMError, LLMErrorType } from '../llm-error-handling';
+import { LLMError } from '../llm-error-handling';
 
 // Concrete implementation for testing the abstract BaseLLMService
 class TestLLMService extends BaseLLMService {
@@ -50,7 +50,13 @@ class TestLLMService extends BaseLLMService {
     endTime: number,
     requestId: string,
   ) {
-    return this.createMetadata(rawResponse, params, startTime, endTime, requestId);
+    return this.createMetadata(
+      rawResponse,
+      params,
+      startTime,
+      endTime,
+      requestId,
+    );
   }
 
   public testHandlePiiInput(text: string, options: PiiOptions = {}) {
@@ -378,7 +384,12 @@ describe('BaseLLMService', () => {
 
     it('should reverse pseudonyms using dictionary mappings', async () => {
       const mappings: DictionaryPseudonymMapping[] = [
-        { originalValue: 'John', pseudonym: 'PERSON_1', dataType: 'name', category: 'person' },
+        {
+          originalValue: 'John',
+          pseudonym: 'PERSON_1',
+          dataType: 'name',
+          category: 'person',
+        },
       ];
 
       dictionaryPseudonymizerService.reversePseudonyms.mockResolvedValue({
@@ -394,7 +405,9 @@ describe('BaseLLMService', () => {
       );
 
       expect(result).toBe('Hello John');
-      expect(dictionaryPseudonymizerService.reversePseudonyms).toHaveBeenCalled();
+      expect(
+        dictionaryPseudonymizerService.reversePseudonyms,
+      ).toHaveBeenCalled();
     });
 
     it('should handle errors gracefully and return original text', async () => {
@@ -554,7 +567,9 @@ describe('BaseLLMService', () => {
 
     it('should handle undefined/null text', () => {
       expect(service.testEstimateTokens(null as unknown as string)).toBe(0);
-      expect(service.testEstimateTokens(undefined as unknown as string)).toBe(0);
+      expect(service.testEstimateTokens(undefined as unknown as string)).toBe(
+        0,
+      );
     });
   });
 
@@ -695,7 +710,10 @@ describe('BaseLLMService', () => {
         },
       };
 
-      const response = await service.generateResponse(mockExecutionContext, params);
+      const response = await service.generateResponse(
+        mockExecutionContext,
+        params,
+      );
 
       expect(response.content).toBe('Response to: Hello');
       expect(response.metadata).toBeDefined();

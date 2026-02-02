@@ -1,7 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { createMockExecutionContext } from '@orchestrator-ai/transport-types';
 import { TestArticleService } from '../test-article.service';
-import { TestArticleRepository, TestArticle } from '../../repositories/test-article.repository';
+import {
+  TestArticleRepository,
+  TestArticle,
+} from '../../repositories/test-article.repository';
 import { TestAuditLogRepository } from '../../repositories/test-audit-log.repository';
 import { SignalDetectionService } from '../signal-detection.service';
 import { SignalRepository } from '../../repositories/signal.repository';
@@ -29,7 +32,8 @@ describe('TestArticleService', () => {
     organization_slug: 'test-org',
     scenario_id: 'scenario-123',
     title: 'Bull Flag Pattern Detected on T_AAPL',
-    content: 'Strong momentum indicators suggest an upward move for T_AAPL stock.',
+    content:
+      'Strong momentum indicators suggest an upward move for T_AAPL stock.',
     source_name: 'Test News Source',
     published_at: new Date().toISOString(),
     target_symbols: ['T_AAPL'],
@@ -71,7 +75,9 @@ describe('TestArticleService', () => {
         {
           provide: SignalDetectionService,
           useValue: {
-            processSignal: jest.fn().mockResolvedValue({ shouldCreatePredictor: true }),
+            processSignal: jest
+              .fn()
+              .mockResolvedValue({ shouldCreatePredictor: true }),
           },
         },
         {
@@ -83,7 +89,9 @@ describe('TestArticleService', () => {
         {
           provide: TargetRepository,
           useValue: {
-            findBySymbol: jest.fn().mockResolvedValue({ id: 'target-123', symbol: 'T_AAPL' }),
+            findBySymbol: jest
+              .fn()
+              .mockResolvedValue({ id: 'target-123', symbol: 'T_AAPL' }),
           },
         },
       ],
@@ -137,9 +145,9 @@ describe('TestArticleService', () => {
         is_synthetic: true,
       };
 
-      await expect(service.createArticle(createData, 'user-123')).rejects.toThrow(
-        'must start with T_ prefix',
-      );
+      await expect(
+        service.createArticle(createData, 'user-123'),
+      ).rejects.toThrow('must start with T_ prefix');
     });
 
     it('should set default synthetic marker', async () => {
@@ -226,21 +234,28 @@ describe('TestArticleService', () => {
         },
       ];
 
-      await expect(service.bulkCreateArticles(articles, 'user-123')).rejects.toThrow(
-        'must start with T_ prefix',
-      );
+      await expect(
+        service.bulkCreateArticles(articles, 'user-123'),
+      ).rejects.toThrow('must start with T_ prefix');
     });
   });
 
   describe('processArticle', () => {
     it('should process article and create signals', async () => {
-      const result = await service.processArticle('article-123', mockExecutionContext);
+      const result = await service.processArticle(
+        'article-123',
+        mockExecutionContext,
+      );
 
-      expect(testArticleRepository.findById).toHaveBeenCalledWith('article-123');
+      expect(testArticleRepository.findById).toHaveBeenCalledWith(
+        'article-123',
+      );
       expect(targetRepository.findBySymbol).toHaveBeenCalled();
       expect(signalRepository.create).toHaveBeenCalled();
       expect(signalDetectionService.processSignal).toHaveBeenCalled();
-      expect(testArticleRepository.markProcessed).toHaveBeenCalledWith('article-123');
+      expect(testArticleRepository.markProcessed).toHaveBeenCalledWith(
+        'article-123',
+      );
       expect(result.success).toBe(true);
       expect(result.signalsCreated).toBe(1);
     });
@@ -248,9 +263,9 @@ describe('TestArticleService', () => {
     it('should throw error for non-existent article', async () => {
       testArticleRepository.findById.mockResolvedValue(null);
 
-      await expect(service.processArticle('nonexistent', mockExecutionContext)).rejects.toThrow(
-        'Test article not found',
-      );
+      await expect(
+        service.processArticle('nonexistent', mockExecutionContext),
+      ).rejects.toThrow('Test article not found');
     });
 
     it('should skip already processed articles', async () => {
@@ -259,7 +274,10 @@ describe('TestArticleService', () => {
         processed: true,
       });
 
-      const result = await service.processArticle('article-123', mockExecutionContext);
+      const result = await service.processArticle(
+        'article-123',
+        mockExecutionContext,
+      );
 
       expect(result.success).toBe(true);
       expect(result.signalsCreated).toBe(0);
@@ -270,7 +288,10 @@ describe('TestArticleService', () => {
     it('should handle target not found error', async () => {
       targetRepository.findBySymbol.mockResolvedValue(null);
 
-      const result = await service.processArticle('article-123', mockExecutionContext);
+      const result = await service.processArticle(
+        'article-123',
+        mockExecutionContext,
+      );
 
       expect(result.success).toBe(false);
       expect(result.errors).toContain('Target not found for symbol: T_AAPL');
@@ -307,8 +328,12 @@ describe('TestArticleService', () => {
       const result = service.validateArticle(invalidArticle);
 
       expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Target symbol "AAPL" must start with T_ prefix (INV-08)');
-      expect(result.errors).toContain('Target symbol "MSFT" must start with T_ prefix (INV-08)');
+      expect(result.errors).toContain(
+        'Target symbol "AAPL" must start with T_ prefix (INV-08)',
+      );
+      expect(result.errors).toContain(
+        'Target symbol "MSFT" must start with T_ prefix (INV-08)',
+      );
     });
 
     it('should reject article without is_synthetic flag', () => {
@@ -320,7 +345,9 @@ describe('TestArticleService', () => {
       const result = service.validateArticle(invalidArticle);
 
       expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Test articles must have is_synthetic=true');
+      expect(result.errors).toContain(
+        'Test articles must have is_synthetic=true',
+      );
     });
 
     it('should reject article without title', () => {
@@ -356,7 +383,9 @@ describe('TestArticleService', () => {
       const result = service.validateArticle(invalidArticle);
 
       expect(result.isValid).toBe(false);
-      expect(result.errors.some((e) => e.includes('Invalid sentiment_expected'))).toBe(true);
+      expect(
+        result.errors.some((e) => e.includes('Invalid sentiment_expected')),
+      ).toBe(true);
     });
 
     it('should reject article with strength out of range', () => {
@@ -368,7 +397,9 @@ describe('TestArticleService', () => {
       const result = service.validateArticle(invalidArticle);
 
       expect(result.isValid).toBe(false);
-      expect(result.errors.some((e) => e.includes('Invalid strength_expected'))).toBe(true);
+      expect(
+        result.errors.some((e) => e.includes('Invalid strength_expected')),
+      ).toBe(true);
     });
 
     it('should warn when no target symbols specified', () => {
@@ -407,7 +438,9 @@ describe('TestArticleService', () => {
     it('should return articles for scenario', async () => {
       const result = await service.getArticlesByScenario('scenario-123');
 
-      expect(testArticleRepository.findByScenario).toHaveBeenCalledWith('scenario-123');
+      expect(testArticleRepository.findByScenario).toHaveBeenCalledWith(
+        'scenario-123',
+      );
       expect(result).toEqual([mockTestArticle]);
     });
   });
@@ -416,7 +449,9 @@ describe('TestArticleService', () => {
     it('should return articles for target symbol', async () => {
       const result = await service.getArticlesByTargetSymbol('T_AAPL');
 
-      expect(testArticleRepository.findByTargetSymbol).toHaveBeenCalledWith('T_AAPL');
+      expect(testArticleRepository.findByTargetSymbol).toHaveBeenCalledWith(
+        'T_AAPL',
+      );
       expect(result).toEqual([mockTestArticle]);
     });
   });
@@ -425,9 +460,16 @@ describe('TestArticleService', () => {
     it('should update article', async () => {
       const updateData = { title: 'Updated Title' };
 
-      const result = await service.updateArticle('article-123', updateData, 'user-123');
+      const result = await service.updateArticle(
+        'article-123',
+        updateData,
+        'user-123',
+      );
 
-      expect(testArticleRepository.update).toHaveBeenCalledWith('article-123', updateData);
+      expect(testArticleRepository.update).toHaveBeenCalledWith(
+        'article-123',
+        updateData,
+      );
       expect(testAuditLogRepository.log).toHaveBeenCalledWith(
         expect.objectContaining({
           action: 'article_updated',

@@ -17,13 +17,31 @@ describe('LlmTierResolverService', () => {
   });
 
   const mockTierMappings = [
-    { prediction_tier: 'gold', provider: 'anthropic', model: 'claude-opus-4', model_tier: 'flagship' },
-    { prediction_tier: 'silver', provider: 'anthropic', model: 'claude-sonnet-4', model_tier: 'standard' },
-    { prediction_tier: 'bronze', provider: 'google', model: 'gemini-2.5-flash-lite', model_tier: 'economy' },
+    {
+      prediction_tier: 'gold',
+      provider: 'anthropic',
+      model: 'claude-opus-4',
+      model_tier: 'flagship',
+    },
+    {
+      prediction_tier: 'silver',
+      provider: 'anthropic',
+      model: 'claude-sonnet-4',
+      model_tier: 'standard',
+    },
+    {
+      prediction_tier: 'bronze',
+      provider: 'google',
+      model: 'gemini-2.5-flash-lite',
+      model_tier: 'economy',
+    },
   ];
 
   const createMockClient = (overrides?: Record<string, unknown>) => {
-    const selectResult = overrides?.select ?? { data: mockTierMappings, error: null };
+    const selectResult = overrides?.select ?? {
+      data: mockTierMappings,
+      error: null,
+    };
 
     const createChain = () => {
       const chainableResult: Record<string, unknown> = {
@@ -156,7 +174,9 @@ describe('LlmTierResolverService', () => {
       const errorMockClient = createMockClient({
         select: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(errorMockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        errorMockClient,
+      );
       service.clearCache();
 
       const result = await service.resolveTier('gold');
@@ -259,11 +279,20 @@ describe('LlmTierResolverService', () => {
       // Verify service client is called again on next resolve
       const newMockClient = createMockClient({
         select: {
-          data: [{ prediction_tier: 'gold', provider: 'new-provider', model: 'new-model', model_tier: 'flagship' }],
+          data: [
+            {
+              prediction_tier: 'gold',
+              provider: 'new-provider',
+              model: 'new-model',
+              model_tier: 'flagship',
+            },
+          ],
           error: null,
         },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(newMockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        newMockClient,
+      );
 
       const result = await service.resolveTier('gold');
 
@@ -297,7 +326,9 @@ describe('LlmTierResolverService', () => {
       const emptyMockClient = createMockClient({
         select: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(emptyMockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        emptyMockClient,
+      );
       service.clearCache();
 
       // Even with empty data, defaults should be used

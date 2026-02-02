@@ -245,7 +245,9 @@ describe('WebhooksController', () => {
       await controller.handleStatusUpdate(update);
 
       expect(supabaseService.getServiceClient).toHaveBeenCalled();
-      expect(mockSupabaseClient.from).toHaveBeenCalledWith('observability_events');
+      expect(mockSupabaseClient.from).toHaveBeenCalledWith(
+        'observability_events',
+      );
     });
 
     it('should push event to observability events service with full context', async () => {
@@ -388,7 +390,9 @@ describe('WebhooksController', () => {
     });
 
     it('should handle task message emission errors gracefully', async () => {
-      tasksService.emitTaskMessage.mockRejectedValue(new Error('Database error'));
+      tasksService.emitTaskMessage.mockRejectedValue(
+        new Error('Database error'),
+      );
 
       const update = {
         taskId: 'task-123',
@@ -399,7 +403,9 @@ describe('WebhooksController', () => {
       };
 
       // Should not throw
-      await expect(controller.handleStatusUpdate(update)).resolves.toBeUndefined();
+      await expect(
+        controller.handleStatusUpdate(update),
+      ).resolves.toBeUndefined();
 
       // Should still emit other events
       expect(streamingService.emitProgress).toHaveBeenCalled();

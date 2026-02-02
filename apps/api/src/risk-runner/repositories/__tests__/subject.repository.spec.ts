@@ -27,16 +27,28 @@ describe('SubjectRepository', () => {
   };
 
   const createMockClient = (overrides?: {
-    single?: { data: unknown | null; error: { message: string; code?: string } | null };
+    single?: {
+      data: unknown;
+      error: { message: string; code?: string } | null;
+    };
     list?: { data: unknown[] | null; error: { message: string } | null };
-    insert?: { data: unknown | null; error: { message: string } | null };
-    update?: { data: unknown | null; error: { message: string } | null };
+    insert?: { data: unknown; error: { message: string } | null };
+    update?: { data: unknown; error: { message: string } | null };
     delete?: { error: { message: string } | null };
   }) => {
-    const singleResult = overrides?.single ?? { data: mockSubject, error: null };
+    const singleResult = overrides?.single ?? {
+      data: mockSubject,
+      error: null,
+    };
     const listResult = overrides?.list ?? { data: [mockSubject], error: null };
-    const insertResult = overrides?.insert ?? { data: mockSubject, error: null };
-    const updateResult = overrides?.update ?? { data: mockSubject, error: null };
+    const insertResult = overrides?.insert ?? {
+      data: mockSubject,
+      error: null,
+    };
+    const updateResult = overrides?.update ?? {
+      data: mockSubject,
+      error: null,
+    };
     const deleteResult = overrides?.delete ?? { error: null };
 
     const createChain = () => {
@@ -132,7 +144,9 @@ describe('SubjectRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findByScope('scope-123');
 
@@ -143,7 +157,9 @@ describe('SubjectRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findByScope('scope-123')).rejects.toThrow(
         'Failed to fetch subjects: Query failed',
@@ -174,9 +190,14 @@ describe('SubjectRepository', () => {
 
     it('should return null when subject not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('nonexistent');
 
@@ -187,7 +208,9 @@ describe('SubjectRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findById('subject-123')).rejects.toThrow(
         'Failed to fetch subject: Database error',
@@ -204,11 +227,18 @@ describe('SubjectRepository', () => {
 
     it('should throw NotFoundException when subject not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(repository.findByIdOrThrow('nonexistent')).rejects.toThrow(NotFoundException);
+      await expect(repository.findByIdOrThrow('nonexistent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -221,9 +251,14 @@ describe('SubjectRepository', () => {
 
     it('should return null when subject not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findByIdentifier('scope-123', 'UNKNOWN');
 
@@ -234,9 +269,13 @@ describe('SubjectRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(repository.findByIdentifier('scope-123', 'AAPL')).rejects.toThrow(
+      await expect(
+        repository.findByIdentifier('scope-123', 'AAPL'),
+      ).rejects.toThrow(
         'Failed to fetch subject by identifier: Database error',
       );
     });
@@ -260,7 +299,9 @@ describe('SubjectRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.create({
@@ -276,7 +317,9 @@ describe('SubjectRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: { message: 'Insert failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.create({
@@ -295,9 +338,13 @@ describe('SubjectRepository', () => {
       const mockClient = createMockClient({
         update: { data: updatedSubject, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.update('subject-123', { name: 'Updated Name' });
+      const result = await repository.update('subject-123', {
+        name: 'Updated Name',
+      });
 
       expect(result).toEqual(updatedSubject);
     });
@@ -306,22 +353,26 @@ describe('SubjectRepository', () => {
       const mockClient = createMockClient({
         update: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.update('subject-123', { name: 'Updated' })).rejects.toThrow(
-        'Update succeeded but no subject returned',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.update('subject-123', { name: 'Updated' }),
+      ).rejects.toThrow('Update succeeded but no subject returned');
     });
 
     it('should throw error on update failure', async () => {
       const mockClient = createMockClient({
         update: { data: null, error: { message: 'Update failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.update('subject-123', { name: 'Updated' })).rejects.toThrow(
-        'Failed to update subject: Update failed',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.update('subject-123', { name: 'Updated' }),
+      ).rejects.toThrow('Failed to update subject: Update failed');
     });
   });
 
@@ -334,7 +385,9 @@ describe('SubjectRepository', () => {
       const mockClient = createMockClient({
         delete: { error: { message: 'Delete failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.delete('subject-123')).rejects.toThrow(
         'Failed to delete subject: Delete failed',
@@ -353,7 +406,9 @@ describe('SubjectRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findAllActive();
 
@@ -364,7 +419,9 @@ describe('SubjectRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findAllActive()).rejects.toThrow(
         'Failed to fetch all active subjects: Query failed',
@@ -390,7 +447,9 @@ describe('SubjectRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findByType('scope-123', 'crypto');
 
@@ -401,7 +460,9 @@ describe('SubjectRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findByType('scope-123', 'stock')).rejects.toThrow(
         'Failed to fetch subjects by type: Query failed',
@@ -425,7 +486,9 @@ describe('SubjectRepository', () => {
         const mockClient = createMockClient({
           single: { data: subjectWithType, error: null },
         });
-        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+          mockClient,
+        );
 
         const result = await repository.findById('subject-123');
 
@@ -438,12 +501,18 @@ describe('SubjectRepository', () => {
     it('should handle stock metadata', async () => {
       const stockSubject = {
         ...mockSubject,
-        metadata: { exchange: 'NYSE', sector: 'Finance', market_cap: 100000000 },
+        metadata: {
+          exchange: 'NYSE',
+          sector: 'Finance',
+          market_cap: 100000000,
+        },
       };
       const mockClient = createMockClient({
         single: { data: stockSubject, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('subject-123');
 
@@ -460,7 +529,9 @@ describe('SubjectRepository', () => {
       const mockClient = createMockClient({
         single: { data: cryptoSubject, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('subject-123');
 
@@ -472,7 +543,9 @@ describe('SubjectRepository', () => {
       const mockClient = createMockClient({
         single: { data: subjectWithEmptyMetadata, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('subject-123');
 

@@ -247,9 +247,13 @@ export class ProvidersService {
       .eq('provider_id', providerId)
       .order('display_name');
 
+    // Default to showing only active models unless explicitly requesting inactive/deprecated
     if (status) {
       const isActive = status === 'active';
       query = query.eq('is_active', isActive);
+    } else {
+      // No status filter provided - default to active models only
+      query = query.eq('is_active', true);
     }
 
     const { data, error } = await query;

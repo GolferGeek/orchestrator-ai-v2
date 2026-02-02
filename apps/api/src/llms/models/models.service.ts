@@ -145,9 +145,13 @@ export class ModelsService {
       query = query.eq('provider_name', filters.providerName);
     }
 
+    // Default to showing only active models unless explicitly requesting inactive/deprecated
     if (filters.status) {
       const isActive = filters.status === 'active';
       query = query.eq('is_active', isActive);
+    } else {
+      // No status filter provided - default to active models only
+      query = query.eq('is_active', true);
     }
 
     if (filters.supportsThinking !== undefined) {

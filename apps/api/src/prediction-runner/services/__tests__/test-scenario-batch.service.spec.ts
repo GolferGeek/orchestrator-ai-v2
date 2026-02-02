@@ -4,7 +4,7 @@ import {
   TestScenarioBatchService,
   BatchExecuteParams,
   BatchScenarioResult,
-  BatchExecutionSummary,
+  BatchExecutionSummary as _BatchExecutionSummary,
 } from '../test-scenario-batch.service';
 import { ScenarioRunService } from '../scenario-run.service';
 import { TestScenarioRepository } from '../../repositories/test-scenario.repository';
@@ -18,7 +18,7 @@ describe('TestScenarioBatchService', () => {
   let scenarioRunService: jest.Mocked<ScenarioRunService>;
   let testScenarioRepository: jest.Mocked<TestScenarioRepository>;
   let testAuditLogRepository: jest.Mocked<TestAuditLogRepository>;
-  let supabaseService: jest.Mocked<SupabaseService>;
+  let _supabaseService: jest.Mocked<SupabaseService>;
   let observabilityEventsService: jest.Mocked<ObservabilityEventsService>;
 
   const mockExecutionContext = createMockExecutionContext({
@@ -128,9 +128,9 @@ describe('TestScenarioBatchService', () => {
         scenarioIds: [],
       };
 
-      await expect(service.executeBatch(mockExecutionContext, params)).rejects.toThrow(
-        'At least one scenario ID is required',
-      );
+      await expect(
+        service.executeBatch(mockExecutionContext, params),
+      ).rejects.toThrow('At least one scenario ID is required');
     });
 
     it('should throw NotFoundException for non-existent scenario', async () => {
@@ -140,9 +140,9 @@ describe('TestScenarioBatchService', () => {
         scenarioIds: ['nonexistent'],
       };
 
-      await expect(service.executeBatch(mockExecutionContext, params)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.executeBatch(mockExecutionContext, params),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('should throw error for scenario from different organization', async () => {
@@ -155,9 +155,9 @@ describe('TestScenarioBatchService', () => {
         scenarioIds: ['scenario-123'],
       };
 
-      await expect(service.executeBatch(mockExecutionContext, params)).rejects.toThrow(
-        'does not belong to organization',
-      );
+      await expect(
+        service.executeBatch(mockExecutionContext, params),
+      ).rejects.toThrow('does not belong to organization');
     });
 
     it('should execute multiple scenarios in batch', async () => {
@@ -184,15 +184,19 @@ describe('TestScenarioBatchService', () => {
     });
 
     it('should respect concurrency limit', async () => {
-      const scenarios = Array(5).fill(null).map((_, i) => ({
-        ...mockScenario,
-        id: `scenario-${i}`,
-        name: `Scenario ${i}`,
-      }));
-      (testScenarioRepository.findById as jest.Mock).mockImplementation((id: string) => {
-        const scenario = scenarios.find((s) => s.id === id);
-        return Promise.resolve(scenario);
-      });
+      const scenarios = Array(5)
+        .fill(null)
+        .map((_, i) => ({
+          ...mockScenario,
+          id: `scenario-${i}`,
+          name: `Scenario ${i}`,
+        }));
+      (testScenarioRepository.findById as jest.Mock).mockImplementation(
+        (id: string) => {
+          const scenario = scenarios.find((s) => s.id === id);
+          return Promise.resolve(scenario);
+        },
+      );
 
       const params: BatchExecuteParams = {
         scenarioIds: scenarios.map((s) => s.id),
@@ -355,9 +359,15 @@ describe('TestScenarioBatchService', () => {
         scenarioIds: ['scenario-123'],
         batchName: 'Status Test',
       };
-      const batchResult = await service.executeBatch(mockExecutionContext, params);
+      const batchResult = await service.executeBatch(
+        mockExecutionContext,
+        params,
+      );
 
-      const status = service.getBatchStatus(mockExecutionContext, batchResult.batchId);
+      const status = service.getBatchStatus(
+        mockExecutionContext,
+        batchResult.batchId,
+      );
 
       expect(status).toBeDefined();
       expect(status.batchId).toBe(batchResult.batchId);
@@ -365,9 +375,9 @@ describe('TestScenarioBatchService', () => {
     });
 
     it('should throw NotFoundException for non-existent batch', () => {
-      expect(() => service.getBatchStatus(mockExecutionContext, 'nonexistent')).toThrow(
-        NotFoundException,
-      );
+      expect(() =>
+        service.getBatchStatus(mockExecutionContext, 'nonexistent'),
+      ).toThrow(NotFoundException);
     });
 
     it('should throw error for batch from different organization', async () => {
@@ -375,7 +385,10 @@ describe('TestScenarioBatchService', () => {
       const params: BatchExecuteParams = {
         scenarioIds: ['scenario-123'],
       };
-      const batchResult = await service.executeBatch(mockExecutionContext, params);
+      const batchResult = await service.executeBatch(
+        mockExecutionContext,
+        params,
+      );
 
       // Try to access with different org
       const otherContext = createMockExecutionContext({
@@ -383,18 +396,24 @@ describe('TestScenarioBatchService', () => {
         orgSlug: 'other-org',
       });
 
-      expect(() => service.getBatchStatus(otherContext, batchResult.batchId)).toThrow(
-        'does not belong to organization',
-      );
+      expect(() =>
+        service.getBatchStatus(otherContext, batchResult.batchId),
+      ).toThrow('does not belong to organization');
     });
 
     it('should include results in status', async () => {
       const params: BatchExecuteParams = {
         scenarioIds: ['scenario-123'],
       };
-      const batchResult = await service.executeBatch(mockExecutionContext, params);
+      const batchResult = await service.executeBatch(
+        mockExecutionContext,
+        params,
+      );
 
-      const status = service.getBatchStatus(mockExecutionContext, batchResult.batchId);
+      const status = service.getBatchStatus(
+        mockExecutionContext,
+        batchResult.batchId,
+      );
 
       expect(status.results.length).toBe(1);
       expect(status.results[0]?.scenarioId).toBe('scenario-123');
@@ -404,9 +423,15 @@ describe('TestScenarioBatchService', () => {
       const params: BatchExecuteParams = {
         scenarioIds: ['scenario-123'],
       };
-      const batchResult = await service.executeBatch(mockExecutionContext, params);
+      const batchResult = await service.executeBatch(
+        mockExecutionContext,
+        params,
+      );
 
-      const status = service.getBatchStatus(mockExecutionContext, batchResult.batchId);
+      const status = service.getBatchStatus(
+        mockExecutionContext,
+        batchResult.batchId,
+      );
 
       expect(status.duration_ms).toBeDefined();
       expect(status.duration_ms).toBeGreaterThanOrEqual(0);
@@ -592,9 +617,9 @@ describe('TestScenarioBatchService', () => {
         scenarioIds: ['scenario-123'],
       };
 
-      await expect(service.executeBatch(mockExecutionContext, params)).rejects.toThrow(
-        'Repository error',
-      );
+      await expect(
+        service.executeBatch(mockExecutionContext, params),
+      ).rejects.toThrow('Repository error');
     });
 
     it('should send start observability event before error', async () => {
@@ -606,7 +631,9 @@ describe('TestScenarioBatchService', () => {
         scenarioIds: ['scenario-123'],
       };
 
-      await expect(service.executeBatch(mockExecutionContext, params)).rejects.toThrow();
+      await expect(
+        service.executeBatch(mockExecutionContext, params),
+      ).rejects.toThrow();
 
       // Batch.started event is sent before the error occurs during validation
       expect(observabilityEventsService.push).toHaveBeenCalledWith(

@@ -17,9 +17,9 @@ import {
 describe('HistoricalReplayService', () => {
   let service: HistoricalReplayService;
   let replayTestRepository: jest.Mocked<ReplayTestRepository>;
-  let predictionRepository: jest.Mocked<PredictionRepository>;
+  let _predictionRepository: jest.Mocked<PredictionRepository>;
   let analystRepository: jest.Mocked<AnalystRepository>;
-  let universeRepository: jest.Mocked<UniverseRepository>;
+  let _universeRepository: jest.Mocked<UniverseRepository>;
   let signalRepository: jest.Mocked<SignalRepository>;
   let predictorRepository: jest.Mocked<PredictorRepository>;
   let learningRepository: jest.Mocked<LearningRepository>;
@@ -111,7 +111,9 @@ describe('HistoricalReplayService', () => {
             getSummaries: jest.fn().mockResolvedValue([mockReplayTestSummary]),
             getSummaryById: jest.fn().mockResolvedValue(mockReplayTestSummary),
             getResults: jest.fn().mockResolvedValue([mockReplayResult]),
-            getAffectedRecords: jest.fn().mockResolvedValue(mockAffectedRecords),
+            getAffectedRecords: jest
+              .fn()
+              .mockResolvedValue(mockAffectedRecords),
             delete: jest.fn().mockResolvedValue(undefined),
             markSnapshotCreated: jest.fn().mockResolvedValue(undefined),
             markRunning: jest.fn().mockResolvedValue(undefined),
@@ -148,9 +150,9 @@ describe('HistoricalReplayService', () => {
         {
           provide: AnalystRepository,
           useValue: {
-            getActive: jest.fn().mockResolvedValue([
-              { id: 'analyst-123', slug: 'test-analyst' },
-            ]),
+            getActive: jest
+              .fn()
+              .mockResolvedValue([{ id: 'analyst-123', slug: 'test-analyst' }]),
             getCurrentContextVersion: jest.fn().mockResolvedValue({
               perspective: 'test perspective',
               tier_instructions: {},
@@ -162,7 +164,9 @@ describe('HistoricalReplayService', () => {
         {
           provide: UniverseRepository,
           useValue: {
-            findById: jest.fn().mockResolvedValue({ id: 'universe-123', name: 'Test Universe' }),
+            findById: jest
+              .fn()
+              .mockResolvedValue({ id: 'universe-123', name: 'Test Universe' }),
           },
         },
         {
@@ -182,9 +186,11 @@ describe('HistoricalReplayService', () => {
         {
           provide: LearningRepository,
           useValue: {
-            getAllActiveLearnings: jest.fn().mockResolvedValue([
-              { id: 'learning-123', title: 'Test Learning' },
-            ]),
+            getAllActiveLearnings: jest
+              .fn()
+              .mockResolvedValue([
+                { id: 'learning-123', title: 'Test Learning' },
+              ]),
             createTestCopy: jest.fn().mockResolvedValue(undefined),
             deleteTestLearnings: jest.fn().mockResolvedValue(1),
           },
@@ -247,7 +253,9 @@ describe('HistoricalReplayService', () => {
     it('should get all replay tests for organization', async () => {
       const result = await service.getReplayTests('test-org');
 
-      expect(replayTestRepository.getSummaries).toHaveBeenCalledWith('test-org');
+      expect(replayTestRepository.getSummaries).toHaveBeenCalledWith(
+        'test-org',
+      );
       expect(result).toEqual([mockReplayTestSummary]);
     });
   });
@@ -256,7 +264,9 @@ describe('HistoricalReplayService', () => {
     it('should get replay test by ID', async () => {
       const result = await service.getReplayTestById('replay-123');
 
-      expect(replayTestRepository.getSummaryById).toHaveBeenCalledWith('replay-123');
+      expect(replayTestRepository.getSummaryById).toHaveBeenCalledWith(
+        'replay-123',
+      );
       expect(result).toEqual(mockReplayTestSummary);
     });
 
@@ -273,7 +283,9 @@ describe('HistoricalReplayService', () => {
     it('should get results for replay test', async () => {
       const result = await service.getReplayTestResults('replay-123');
 
-      expect(replayTestRepository.getResults).toHaveBeenCalledWith('replay-123');
+      expect(replayTestRepository.getResults).toHaveBeenCalledWith(
+        'replay-123',
+      );
       expect(result).toEqual([mockReplayResult]);
     });
   });
@@ -309,7 +321,9 @@ describe('HistoricalReplayService', () => {
     it('should cleanup test data before deletion', async () => {
       await service.deleteReplayTest('replay-123');
 
-      expect(learningRepository.deleteTestLearnings).toHaveBeenCalledWith('replay-123');
+      expect(learningRepository.deleteTestLearnings).toHaveBeenCalledWith(
+        'replay-123',
+      );
       expect(replayTestRepository.cleanup).toHaveBeenCalledWith('replay-123');
     });
   });
@@ -402,9 +416,13 @@ describe('HistoricalReplayService', () => {
     });
 
     it('should mark test as failed on error', async () => {
-      replayTestRepository.markRunning.mockRejectedValue(new Error('Test error'));
+      replayTestRepository.markRunning.mockRejectedValue(
+        new Error('Test error'),
+      );
 
-      await expect(service.runReplayTest('replay-123')).rejects.toThrow('Test error');
+      await expect(service.runReplayTest('replay-123')).rejects.toThrow(
+        'Test error',
+      );
 
       expect(replayTestRepository.markFailed).toHaveBeenCalledWith(
         'replay-123',
@@ -432,7 +450,9 @@ describe('HistoricalReplayService', () => {
     it('should cleanup test data', async () => {
       await service.cleanupReplayTestData('replay-123');
 
-      expect(learningRepository.deleteTestLearnings).toHaveBeenCalledWith('replay-123');
+      expect(learningRepository.deleteTestLearnings).toHaveBeenCalledWith(
+        'replay-123',
+      );
       expect(replayTestRepository.cleanup).toHaveBeenCalledWith('replay-123');
     });
   });
@@ -492,7 +512,10 @@ describe('HistoricalReplayService', () => {
 
       await service.runReplayTest('replay-123');
 
-      expect(signalRepository.findByIds).toHaveBeenCalledWith(['sig-1', 'sig-2']);
+      expect(signalRepository.findByIds).toHaveBeenCalledWith([
+        'sig-1',
+        'sig-2',
+      ]);
       expect(signalRepository.createTestCopy).toHaveBeenCalledTimes(2);
     });
   });
@@ -504,8 +527,16 @@ describe('HistoricalReplayService', () => {
         rollback_depth: 'predictors',
       });
       replayTestRepository.getAffectedRecords.mockResolvedValue([
-        { table_name: 'predictors', row_count: 2, record_ids: ['pred-1', 'pred-2'] },
-        { table_name: 'predictions', row_count: 5, record_ids: ['prediction-1'] },
+        {
+          table_name: 'predictors',
+          row_count: 2,
+          record_ids: ['pred-1', 'pred-2'],
+        },
+        {
+          table_name: 'predictions',
+          row_count: 5,
+          record_ids: ['prediction-1'],
+        },
       ]);
       predictorRepository.findByIds.mockResolvedValue([
         {
@@ -517,7 +548,13 @@ describe('HistoricalReplayService', () => {
           confidence: 0.8,
           reasoning: 'Test reasoning 1',
           analyst_slug: 'test-analyst',
-          analyst_assessment: { direction: 'bullish', confidence: 0.8, reasoning: 'Test', key_factors: [], risks: [] },
+          analyst_assessment: {
+            direction: 'bullish',
+            confidence: 0.8,
+            reasoning: 'Test',
+            key_factors: [],
+            risks: [],
+          },
           llm_usage_id: null,
           status: 'active',
           consumed_at: null,
@@ -535,7 +572,13 @@ describe('HistoricalReplayService', () => {
           confidence: 0.7,
           reasoning: 'Test reasoning 2',
           analyst_slug: 'test-analyst',
-          analyst_assessment: { direction: 'bearish', confidence: 0.7, reasoning: 'Test', key_factors: [], risks: [] },
+          analyst_assessment: {
+            direction: 'bearish',
+            confidence: 0.7,
+            reasoning: 'Test',
+            key_factors: [],
+            risks: [],
+          },
           llm_usage_id: null,
           status: 'active',
           consumed_at: null,
@@ -548,7 +591,10 @@ describe('HistoricalReplayService', () => {
 
       await service.runReplayTest('replay-123');
 
-      expect(predictorRepository.findByIds).toHaveBeenCalledWith(['pred-1', 'pred-2']);
+      expect(predictorRepository.findByIds).toHaveBeenCalledWith([
+        'pred-1',
+        'pred-2',
+      ]);
       expect(predictorRepository.createTestCopy).toHaveBeenCalledTimes(2);
     });
 
@@ -560,7 +606,11 @@ describe('HistoricalReplayService', () => {
       replayTestRepository.getAffectedRecords.mockResolvedValue([
         { table_name: 'signals', row_count: 1, record_ids: ['sig-1'] },
         { table_name: 'predictors', row_count: 1, record_ids: ['pred-1'] },
-        { table_name: 'predictions', row_count: 5, record_ids: ['prediction-1'] },
+        {
+          table_name: 'predictions',
+          row_count: 5,
+          record_ids: ['prediction-1'],
+        },
       ]);
       signalRepository.findByIds.mockResolvedValue([
         {
@@ -594,7 +644,13 @@ describe('HistoricalReplayService', () => {
           confidence: 0.8,
           reasoning: 'Test reasoning',
           analyst_slug: 'test-analyst',
-          analyst_assessment: { direction: 'bullish', confidence: 0.8, reasoning: 'Test', key_factors: [], risks: [] },
+          analyst_assessment: {
+            direction: 'bullish',
+            confidence: 0.8,
+            reasoning: 'Test',
+            key_factors: [],
+            risks: [],
+          },
           llm_usage_id: null,
           status: 'active',
           consumed_at: null,
@@ -616,7 +672,9 @@ describe('HistoricalReplayService', () => {
     it('should compare test predictions with original predictions', async () => {
       await service.runReplayTest('replay-123');
 
-      expect(replayTestRepository.getSnapshots).toHaveBeenCalledWith('replay-123');
+      expect(replayTestRepository.getSnapshots).toHaveBeenCalledWith(
+        'replay-123',
+      );
       expect(replayTestRepository.createResults).toHaveBeenCalled();
     });
 
@@ -686,7 +744,9 @@ describe('HistoricalReplayService', () => {
           is_test: false,
         },
       ]);
-      signalRepository.createTestCopy.mockRejectedValue(new Error('Copy failed'));
+      signalRepository.createTestCopy.mockRejectedValue(
+        new Error('Copy failed'),
+      );
 
       // Should not throw, just log warning
       await service.runReplayTest('replay-123');

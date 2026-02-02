@@ -8,7 +8,7 @@ global.fetch = mockFetch;
 
 describe('EmbeddingService', () => {
   let service: EmbeddingService;
-  let configService: jest.Mocked<ConfigService>;
+  let _configService: jest.Mocked<ConfigService>;
 
   const mockEmbedding = Array(768).fill(0.1);
 
@@ -41,7 +41,7 @@ describe('EmbeddingService', () => {
     module.useLogger(false);
 
     service = module.get<EmbeddingService>(EmbeddingService);
-    configService = module.get(ConfigService);
+    _configService = module.get(ConfigService);
   });
 
   afterEach(() => {
@@ -155,15 +155,24 @@ describe('EmbeddingService', () => {
       mockFetch
         .mockResolvedValueOnce({
           ok: true,
-          json: async () => ({ embedding: mockEmbedding, prompt_eval_count: 2 }),
+          json: async () => ({
+            embedding: mockEmbedding,
+            prompt_eval_count: 2,
+          }),
         })
         .mockResolvedValueOnce({
           ok: true,
-          json: async () => ({ embedding: mockEmbedding, prompt_eval_count: 2 }),
+          json: async () => ({
+            embedding: mockEmbedding,
+            prompt_eval_count: 2,
+          }),
         })
         .mockResolvedValueOnce({
           ok: true,
-          json: async () => ({ embedding: mockEmbedding, prompt_eval_count: 2 }),
+          json: async () => ({
+            embedding: mockEmbedding,
+            prompt_eval_count: 2,
+          }),
         });
 
       const results = await service.embedBatch(texts);
@@ -211,7 +220,9 @@ describe('EmbeddingService', () => {
           text: async () => 'Error',
         });
 
-      await expect(service.embedBatch(texts)).rejects.toThrow('Ollama API error');
+      await expect(service.embedBatch(texts)).rejects.toThrow(
+        'Ollama API error',
+      );
     });
   });
 

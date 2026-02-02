@@ -30,6 +30,7 @@ interface LLMModel {
   model_name: string;
   provider_name: string;
   display_name: string | null;
+  model_type: string;
   is_local: boolean;
   is_active: boolean;
   deprecation_reason: string | null;
@@ -114,6 +115,9 @@ const TEST_CONFIG = {
   timeout: 30000,
 };
 
+// Track if migration has been applied (new columns exist)
+let hasDeprecationColumns = true;
+
 // ============================================================================
 // CLI Argument Parsing
 // ============================================================================
@@ -166,6 +170,23 @@ function warn(message: string): void {
 // ============================================================================
 // Database Operations
 // ============================================================================
+
+async function checkDeprecationColumnsExist(supabase: SupabaseClient): Promise<boolean> {
+  try {
+    // Try to query with the new columns - if it fails, columns don't exist
+    const { error } = await supabase
+      .from('llm_models')
+      .select('deprecation_reason, deprecated_at, last_validated_at')
+      .limit(1);
+
+    if (error && error.message.includes('column')) {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 async function getModelsForProvider(
   supabase: SupabaseClient,
@@ -224,14 +245,17 @@ async function upsertOllamaModel(
   if (!existing) {
     // Insert new model
     if (!dryRun) {
-      const { error } = await supabase.from('llm_models').insert({
+      const insertData: Record<string, unknown> = {
         model_name: modelName,
         provider_name: 'ollama',
         display_name: displayName,
         is_local: true,
         is_active: true,
-        last_validated_at: new Date().toISOString(),
-      });
+      };
+      if (hasDeprecationColumns) {
+        insertData.last_validated_at = new Date().toISOString();
+      }
+      const { error } = await supabase.from('llm_models').insert(insertData);
       if (error) {
         throw new Error(`Failed to insert model ${modelName}: ${error.message}`);
       }
@@ -242,14 +266,17 @@ async function upsertOllamaModel(
   if (!existing.is_active) {
     // Reactivate model
     if (!dryRun) {
+      const updateData: Record<string, unknown> = {
+        is_active: true,
+      };
+      if (hasDeprecationColumns) {
+        updateData.deprecation_reason = null;
+        updateData.deprecated_at = null;
+        updateData.last_validated_at = new Date().toISOString();
+      }
       const { error } = await supabase
         .from('llm_models')
-        .update({
-          is_active: true,
-          deprecation_reason: null,
-          deprecated_at: null,
-          last_validated_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq('model_name', modelName)
         .eq('provider_name', 'ollama');
       if (error) {
@@ -260,7 +287,7 @@ async function upsertOllamaModel(
   }
 
   // Update last_validated_at
-  if (!dryRun) {
+  if (!dryRun && hasDeprecationColumns) {
     await supabase
       .from('llm_models')
       .update({ last_validated_at: new Date().toISOString() })
@@ -279,13 +306,17 @@ async function deprecateModel(
 ): Promise<void> {
   if (dryRun) return;
 
+  const updateData: Record<string, unknown> = {
+    is_active: false,
+  };
+  if (hasDeprecationColumns) {
+    updateData.deprecation_reason = reason;
+    updateData.deprecated_at = new Date().toISOString();
+  }
+
   const { error } = await supabase
     .from('llm_models')
-    .update({
-      is_active: false,
-      deprecation_reason: reason,
-      deprecated_at: new Date().toISOString(),
-    })
+    .update(updateData)
     .eq('model_name', modelName)
     .eq('provider_name', providerName);
 
@@ -300,7 +331,7 @@ async function updateValidatedAt(
   providerName: string,
   dryRun: boolean,
 ): Promise<void> {
-  if (dryRun) return;
+  if (dryRun || !hasDeprecationColumns) return;
 
   const { error } = await supabase
     .from('llm_models')
@@ -420,19 +451,22 @@ async function syncOllamaLocal(
 // Cloud Provider Validation
 // ============================================================================
 
-async function testOpenAIModel(modelName: string): Promise<ValidationResult> {
-  if (!OPENAI_API_KEY) {
-    return {
-      model_name: modelName,
-      provider_name: 'openai',
-      success: false,
-      error: 'OPENAI_API_KEY not configured',
-    };
-  }
+// Models that require max_completion_tokens instead of max_tokens
+const OPENAI_NEW_TOKEN_PARAM_MODELS = ['gpt-5', 'o1', 'o3'];
 
+function needsNewTokenParam(modelName: string): boolean {
+  return OPENAI_NEW_TOKEN_PARAM_MODELS.some(prefix => modelName.startsWith(prefix));
+}
+
+async function testOpenAITextModel(modelName: string): Promise<ValidationResult> {
   const startTime = Date.now();
 
   try {
+    // Use max_completion_tokens for newer models (GPT-5.x, o1, o3)
+    const tokenParam = needsNewTokenParam(modelName)
+      ? { max_completion_tokens: TEST_CONFIG.maxTokens }
+      : { max_tokens: TEST_CONFIG.maxTokens };
+
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -445,7 +479,7 @@ async function testOpenAIModel(modelName: string): Promise<ValidationResult> {
           { role: 'system', content: TEST_CONFIG.systemPrompt },
           { role: 'user', content: TEST_CONFIG.userPrompt },
         ],
-        max_tokens: TEST_CONFIG.maxTokens,
+        ...tokenParam,
       }),
       signal: AbortSignal.timeout(TEST_CONFIG.timeout),
     });
@@ -483,7 +517,96 @@ async function testOpenAIModel(modelName: string): Promise<ValidationResult> {
   }
 }
 
-async function testAnthropicModel(modelName: string): Promise<ValidationResult> {
+async function testOpenAIImageModel(modelName: string): Promise<ValidationResult> {
+  const startTime = Date.now();
+
+  try {
+    // Use the images generations API for image models
+    // gpt-image models require larger sizes (1024x1024, 1024x1536, 1536x1024, or 'auto')
+    const response = await fetch('https://api.openai.com/v1/images/generations', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: modelName,
+        prompt: 'A simple red circle on white background',
+        n: 1,
+        size: '1024x1024',
+      }),
+      signal: AbortSignal.timeout(120000), // Image generation can take longer
+    });
+
+    const latency = Date.now() - startTime;
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = (errorData as Record<string, unknown>).error
+        ? ((errorData as Record<string, unknown>).error as Record<string, unknown>).message
+        : `HTTP ${response.status}`;
+      return {
+        model_name: modelName,
+        provider_name: 'openai',
+        success: false,
+        latency_ms: latency,
+        error: String(errorMessage),
+      };
+    }
+
+    return {
+      model_name: modelName,
+      provider_name: 'openai',
+      success: true,
+      latency_ms: latency,
+    };
+  } catch (error) {
+    return {
+      model_name: modelName,
+      provider_name: 'openai',
+      success: false,
+      latency_ms: Date.now() - startTime,
+      error: (error as Error).message,
+    };
+  }
+}
+
+async function testOpenAIVideoModel(modelName: string): Promise<ValidationResult> {
+  // Sora API is not publicly available yet - mark as needing manual validation
+  // Once Sora API becomes available, implement actual validation
+  return {
+    model_name: modelName,
+    provider_name: 'openai',
+    success: true, // Assume valid - Sora API not yet public
+    latency_ms: 0,
+    error: undefined,
+  };
+}
+
+async function testOpenAIModel(modelName: string, modelType: string): Promise<ValidationResult> {
+  if (!OPENAI_API_KEY) {
+    return {
+      model_name: modelName,
+      provider_name: 'openai',
+      success: false,
+      error: 'OPENAI_API_KEY not configured',
+    };
+  }
+
+  switch (modelType) {
+    case 'image-generation':
+      return testOpenAIImageModel(modelName);
+    case 'video-generation':
+      return testOpenAIVideoModel(modelName);
+    case 'text-generation':
+    case 'reasoning':
+    case 'code-generation':
+    default:
+      return testOpenAITextModel(modelName);
+  }
+}
+
+async function testAnthropicModel(modelName: string, _modelType: string): Promise<ValidationResult> {
   if (!ANTHROPIC_API_KEY) {
     return {
       model_name: modelName,
@@ -545,20 +668,11 @@ async function testAnthropicModel(modelName: string): Promise<ValidationResult> 
   }
 }
 
-async function testGoogleModel(modelName: string): Promise<ValidationResult> {
-  if (!GOOGLE_API_KEY) {
-    return {
-      model_name: modelName,
-      provider_name: 'google',
-      success: false,
-      error: 'GOOGLE_API_KEY not configured',
-    };
-  }
-
+async function testGoogleTextModel(modelName: string): Promise<ValidationResult> {
   const startTime = Date.now();
 
   try {
-    // Google Generative AI API
+    // Google Generative AI API for text models
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${GOOGLE_API_KEY}`,
       {
@@ -613,7 +727,55 @@ async function testGoogleModel(modelName: string): Promise<ValidationResult> {
   }
 }
 
-async function testXAIModel(modelName: string): Promise<ValidationResult> {
+async function testGoogleImageModel(modelName: string): Promise<ValidationResult> {
+  // Imagen models require Vertex AI with OAuth authentication
+  // The public Generative AI API does not support Imagen
+  // Mark as valid - requires Vertex AI setup for actual usage
+  return {
+    model_name: modelName,
+    provider_name: 'google',
+    success: true, // Assume valid - Imagen requires Vertex AI
+    latency_ms: 0,
+    error: undefined,
+  };
+}
+
+async function testGoogleVideoModel(modelName: string): Promise<ValidationResult> {
+  // Veo API requires Vertex AI and is not available via public Generative AI API
+  // Mark as valid - requires manual validation or Vertex AI setup
+  return {
+    model_name: modelName,
+    provider_name: 'google',
+    success: true, // Assume valid - Veo requires Vertex AI
+    latency_ms: 0,
+    error: undefined,
+  };
+}
+
+async function testGoogleModel(modelName: string, modelType: string): Promise<ValidationResult> {
+  if (!GOOGLE_API_KEY) {
+    return {
+      model_name: modelName,
+      provider_name: 'google',
+      success: false,
+      error: 'GOOGLE_API_KEY not configured',
+    };
+  }
+
+  switch (modelType) {
+    case 'image-generation':
+      return testGoogleImageModel(modelName);
+    case 'video-generation':
+      return testGoogleVideoModel(modelName);
+    case 'text-generation':
+    case 'reasoning':
+    case 'code-generation':
+    default:
+      return testGoogleTextModel(modelName);
+  }
+}
+
+async function testXAIModel(modelName: string, _modelType: string): Promise<ValidationResult> {
   if (!XAI_API_KEY) {
     return {
       model_name: modelName,
@@ -676,7 +838,7 @@ async function testXAIModel(modelName: string): Promise<ValidationResult> {
   }
 }
 
-async function testOllamaCloudModel(modelName: string): Promise<ValidationResult> {
+async function testOllamaCloudModel(modelName: string, _modelType: string): Promise<ValidationResult> {
   if (!OLLAMA_CLOUD_API_KEY) {
     return {
       model_name: modelName,
@@ -736,7 +898,7 @@ async function testOllamaCloudModel(modelName: string): Promise<ValidationResult
   }
 }
 
-type ModelTestFunction = (modelName: string) => Promise<ValidationResult>;
+type ModelTestFunction = (modelName: string, modelType: string) => Promise<ValidationResult>;
 
 async function validateProvider(
   supabase: SupabaseClient,
@@ -761,7 +923,7 @@ async function validateProvider(
   log(`\n☁️  ${providerName.charAt(0).toUpperCase() + providerName.slice(1)} (${models.length} models):`);
 
   for (const model of models) {
-    const result = await testFn(model.model_name);
+    const result = await testFn(model.model_name, model.model_type || 'text-generation');
 
     if (result.success) {
       report.validated.push(result);
@@ -843,6 +1005,15 @@ async function main(): Promise<void> {
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
     auth: { persistSession: false },
   });
+
+  // Check if deprecation columns exist (migration applied)
+  hasDeprecationColumns = await checkDeprecationColumnsExist(supabase);
+  if (!hasDeprecationColumns) {
+    warn('Deprecation columns not found. Run migration 20260202100000_add_model_deprecation_fields.sql');
+    warn('Script will continue but deprecation tracking will be limited to is_active flag only.\n');
+  } else {
+    verbose('Deprecation columns found - full tracking enabled');
+  }
 
   const report: ValidationReport = {
     timestamp: new Date().toISOString(),

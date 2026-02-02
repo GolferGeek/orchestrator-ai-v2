@@ -168,7 +168,10 @@ describe('GoogleLLMService', () => {
         },
       };
 
-      const response = await service.generateResponse(mockExecutionContext, params);
+      const response = await service.generateResponse(
+        mockExecutionContext,
+        params,
+      );
 
       expect(response.content).toBe('Hello! I am Gemini, how can I help you?');
       expect(response.metadata.provider).toBe('google');
@@ -185,7 +188,10 @@ describe('GoogleLLMService', () => {
         },
       };
 
-      const response = await service.generateResponse(mockExecutionContext, params);
+      const response = await service.generateResponse(
+        mockExecutionContext,
+        params,
+      );
 
       expect(response.metadata.usage.inputTokens).toBe(50);
       expect(response.metadata.usage.outputTokens).toBe(25);
@@ -202,7 +208,10 @@ describe('GoogleLLMService', () => {
         },
       };
 
-      const response = await service.generateResponse(mockExecutionContext, params);
+      const response = await service.generateResponse(
+        mockExecutionContext,
+        params,
+      );
 
       expect(response.metadata.providerSpecific).toMatchObject({
         finish_reason: 'STOP',
@@ -236,7 +245,10 @@ describe('GoogleLLMService', () => {
         },
       };
 
-      const response = await service.generateResponse(mockExecutionContext, params);
+      const response = await service.generateResponse(
+        mockExecutionContext,
+        params,
+      );
 
       expect(llmPricingService.calculateCostSync).toHaveBeenCalledWith(
         'google',
@@ -257,10 +269,15 @@ describe('GoogleLLMService', () => {
         },
       };
 
-      const response = await service.generateResponse(mockExecutionContext, params);
+      const response = await service.generateResponse(
+        mockExecutionContext,
+        params,
+      );
 
       expect(response.metadata.providerSpecific?.safety_ratings).toBeDefined();
-      expect(response.metadata.providerSpecific?.safety_ratings).toHaveLength(1);
+      expect(response.metadata.providerSpecific?.safety_ratings).toHaveLength(
+        1,
+      );
     });
   });
 
@@ -330,7 +347,11 @@ describe('GoogleLLMService', () => {
       mockGenerateContent.mockResolvedValue({
         response: {
           text: () => '', // Empty content
-          usageMetadata: { promptTokenCount: 50, candidatesTokenCount: 0, totalTokenCount: 50 },
+          usageMetadata: {
+            promptTokenCount: 50,
+            candidatesTokenCount: 0,
+            totalTokenCount: 50,
+          },
           candidates: [{ finishReason: 'STOP' }],
         },
       });
@@ -376,7 +397,11 @@ describe('GoogleLLMService', () => {
       mockGenerateContent.mockResolvedValue({
         response: {
           text: () => 'Response text',
-          usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 5, totalTokenCount: 15 },
+          usageMetadata: {
+            promptTokenCount: 10,
+            candidatesTokenCount: 5,
+            totalTokenCount: 15,
+          },
           candidates: [{ finishReason: 'STOP' }],
         },
       });
@@ -388,7 +413,10 @@ describe('GoogleLLMService', () => {
         options: { executionContext: mockExecutionContext },
       };
 
-      const response = await service.generateResponse(mockExecutionContext, params);
+      const response = await service.generateResponse(
+        mockExecutionContext,
+        params,
+      );
       expect(response.metadata.providerSpecific?.finish_reason).toBe('STOP');
     });
 
@@ -396,7 +424,11 @@ describe('GoogleLLMService', () => {
       mockGenerateContent.mockResolvedValue({
         response: {
           text: () => 'Truncated response',
-          usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 100, totalTokenCount: 110 },
+          usageMetadata: {
+            promptTokenCount: 10,
+            candidatesTokenCount: 100,
+            totalTokenCount: 110,
+          },
           candidates: [{ finishReason: 'MAX_TOKENS' }],
         },
       });
@@ -408,15 +440,24 @@ describe('GoogleLLMService', () => {
         options: { executionContext: mockExecutionContext },
       };
 
-      const response = await service.generateResponse(mockExecutionContext, params);
-      expect(response.metadata.providerSpecific?.finish_reason).toBe('MAX_TOKENS');
+      const response = await service.generateResponse(
+        mockExecutionContext,
+        params,
+      );
+      expect(response.metadata.providerSpecific?.finish_reason).toBe(
+        'MAX_TOKENS',
+      );
     });
 
     it('should map SAFETY finish reason correctly', async () => {
       mockGenerateContent.mockResolvedValue({
         response: {
           text: () => 'Safe content',
-          usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 5, totalTokenCount: 15 },
+          usageMetadata: {
+            promptTokenCount: 10,
+            candidatesTokenCount: 5,
+            totalTokenCount: 15,
+          },
           candidates: [{ finishReason: 'SAFETY' }],
         },
       });
@@ -428,7 +469,10 @@ describe('GoogleLLMService', () => {
         options: { executionContext: mockExecutionContext },
       };
 
-      const response = await service.generateResponse(mockExecutionContext, params);
+      const response = await service.generateResponse(
+        mockExecutionContext,
+        params,
+      );
       expect(response.metadata.providerSpecific?.finish_reason).toBe('SAFETY');
     });
   });
@@ -470,9 +514,14 @@ describe('GoogleLLMService', () => {
         },
       };
 
-      const response = await service.generateResponse(mockExecutionContext, params);
+      const response = await service.generateResponse(
+        mockExecutionContext,
+        params,
+      );
 
-      expect(response.metadata.langsmithRunId).toMatch(/^google-\d+-[a-z0-9]+$/);
+      expect(response.metadata.langsmithRunId).toMatch(
+        /^google-\d+-[a-z0-9]+$/,
+      );
 
       delete process.env.LANGSMITH_API_KEY;
       delete process.env.LANGSMITH_TRACING;
@@ -491,7 +540,10 @@ describe('GoogleLLMService', () => {
         },
       };
 
-      const response = await service.generateResponse(mockExecutionContext, params);
+      const response = await service.generateResponse(
+        mockExecutionContext,
+        params,
+      );
 
       expect(response.metadata.langsmithRunId).toBeUndefined();
     });
@@ -512,9 +564,14 @@ describe('GoogleLLMService', () => {
         },
       };
 
-      const response = await service.generateResponse(mockExecutionContext, params);
+      const response = await service.generateResponse(
+        mockExecutionContext,
+        params,
+      );
 
-      expect(response.metadata.providerSpecific?.generation_config).toMatchObject({
+      expect(
+        response.metadata.providerSpecific?.generation_config,
+      ).toMatchObject({
         temperature: 0.9,
         max_output_tokens: 2000,
         top_p: 0.95,
@@ -536,9 +593,13 @@ describe('GoogleLLMService', () => {
         },
       };
 
-      const response = await service.generateResponse(mockExecutionContext, params);
+      const response = await service.generateResponse(
+        mockExecutionContext,
+        params,
+      );
 
-      const generationConfig = response.metadata.providerSpecific?.generation_config as { temperature?: number } | undefined;
+      const generationConfig = response.metadata.providerSpecific
+        ?.generation_config as { temperature?: number } | undefined;
       expect(generationConfig?.temperature).toBe(0.9);
     });
   });

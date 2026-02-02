@@ -20,7 +20,7 @@ describe('ScoreAggregationService', () => {
       description: 'Price volatility and market conditions',
       icon: 'chart-line',
       color: '#EF4444',
-      weight: 0.30, // 30%
+      weight: 0.3, // 30%
       display_order: 1,
       is_active: true,
       is_test: false,

@@ -1,5 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { TestTargetMirrorRepository, TestTargetMirror } from '../test-target-mirror.repository';
+import {
+  TestTargetMirrorRepository,
+  TestTargetMirror,
+} from '../test-target-mirror.repository';
 import { SupabaseService } from '@/supabase/supabase.service';
 
 describe('TestTargetMirrorRepository', () => {
@@ -21,9 +24,12 @@ describe('TestTargetMirrorRepository', () => {
   };
 
   const createMockClient = (overrides?: {
-    single?: { data: unknown | null; error: { message: string; code?: string } | null };
+    single?: {
+      data: unknown;
+      error: { message: string; code?: string } | null;
+    };
     list?: { data: unknown[] | null; error: { message: string } | null };
-    insert?: { data: unknown | null; error: { message: string } | null };
+    insert?: { data: unknown; error: { message: string } | null };
     delete?: { error: { message: string } | null };
   }) => {
     const singleResult = overrides?.single ?? { data: mockMirror, error: null };
@@ -92,7 +98,9 @@ describe('TestTargetMirrorRepository', () => {
     }).compile();
 
     module.useLogger(false);
-    repository = module.get<TestTargetMirrorRepository>(TestTargetMirrorRepository);
+    repository = module.get<TestTargetMirrorRepository>(
+      TestTargetMirrorRepository,
+    );
     supabaseService = module.get(SupabaseService);
   });
 
@@ -109,9 +117,14 @@ describe('TestTargetMirrorRepository', () => {
 
     it('should return null when mirror not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('nonexistent');
 
@@ -122,7 +135,9 @@ describe('TestTargetMirrorRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findById('mirror-123')).rejects.toThrow(
         'Failed to fetch test target mirror: Database error',
@@ -135,7 +150,9 @@ describe('TestTargetMirrorRepository', () => {
       const mockClient = createMockClient({
         list: { data: [mockMirror, mockOtherMirror], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findAll();
 
@@ -146,7 +163,9 @@ describe('TestTargetMirrorRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findAll();
 
@@ -157,7 +176,9 @@ describe('TestTargetMirrorRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findAll()).rejects.toThrow(
         'Failed to fetch test target mirrors: Query failed',
@@ -174,9 +195,14 @@ describe('TestTargetMirrorRepository', () => {
 
     it('should return null when mirror not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findByRealTarget('nonexistent');
 
@@ -187,9 +213,13 @@ describe('TestTargetMirrorRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(repository.findByRealTarget('target-real-123')).rejects.toThrow(
+      await expect(
+        repository.findByRealTarget('target-real-123'),
+      ).rejects.toThrow(
         'Failed to fetch test target mirror by real target: Database error',
       );
     });
@@ -204,9 +234,14 @@ describe('TestTargetMirrorRepository', () => {
 
     it('should return null when mirror not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findByTestTarget('nonexistent');
 
@@ -217,9 +252,13 @@ describe('TestTargetMirrorRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(repository.findByTestTarget('target-test-123')).rejects.toThrow(
+      await expect(
+        repository.findByTestTarget('target-test-123'),
+      ).rejects.toThrow(
         'Failed to fetch test target mirror by test target: Database error',
       );
     });
@@ -253,7 +292,9 @@ describe('TestTargetMirrorRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.create({
@@ -267,7 +308,9 @@ describe('TestTargetMirrorRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: { message: 'Insert failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.create({
@@ -287,7 +330,9 @@ describe('TestTargetMirrorRepository', () => {
       const mockClient = createMockClient({
         delete: { error: { message: 'Delete failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.delete('mirror-123')).rejects.toThrow(
         'Failed to delete test target mirror: Delete failed',
@@ -304,9 +349,14 @@ describe('TestTargetMirrorRepository', () => {
 
     it('should return null when mirror not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.getTestTargetId('nonexistent');
 
@@ -323,9 +373,14 @@ describe('TestTargetMirrorRepository', () => {
 
     it('should return null when mirror not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.getRealTargetId('nonexistent');
 

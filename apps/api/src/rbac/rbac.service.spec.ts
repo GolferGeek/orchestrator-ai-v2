@@ -67,13 +67,16 @@ describe('RbacService', () => {
       );
 
       expect(result).toBe(true);
-      expect(mockSupabaseClient.rpc).toHaveBeenCalledWith('rbac_has_permission', {
-        p_user_id: 'user-123',
-        p_organization_slug: 'test-org',
-        p_permission: 'read:agents',
-        p_resource_type: null,
-        p_resource_id: null,
-      });
+      expect(mockSupabaseClient.rpc).toHaveBeenCalledWith(
+        'rbac_has_permission',
+        {
+          p_user_id: 'user-123',
+          p_organization_slug: 'test-org',
+          p_permission: 'read:agents',
+          p_resource_type: null,
+          p_resource_id: null,
+        },
+      );
     });
 
     it('should return false when user lacks permission', async () => {
@@ -114,13 +117,16 @@ describe('RbacService', () => {
         'agent-456',
       );
 
-      expect(mockSupabaseClient.rpc).toHaveBeenCalledWith('rbac_has_permission', {
-        p_user_id: 'user-123',
-        p_organization_slug: 'test-org',
-        p_permission: 'read:agents',
-        p_resource_type: 'agent',
-        p_resource_id: 'agent-456',
-      });
+      expect(mockSupabaseClient.rpc).toHaveBeenCalledWith(
+        'rbac_has_permission',
+        {
+          p_user_id: 'user-123',
+          p_organization_slug: 'test-org',
+          p_permission: 'read:agents',
+          p_resource_type: 'agent',
+          p_resource_id: 'agent-456',
+        },
+      );
     });
   });
 
@@ -145,9 +151,15 @@ describe('RbacService', () => {
       mockSupabaseClient.rpc.mockResolvedValue({ data: false, error: null });
 
       try {
-        await service.requirePermission('user-123', 'test-org', 'delete:agents');
+        await service.requirePermission(
+          'user-123',
+          'test-org',
+          'delete:agents',
+        );
       } catch (error) {
-        expect((error as ForbiddenException).message).toContain('delete:agents');
+        expect((error as ForbiddenException).message).toContain(
+          'delete:agents',
+        );
       }
     });
 
@@ -171,8 +183,16 @@ describe('RbacService', () => {
     it('should return user permissions', async () => {
       mockSupabaseClient.rpc.mockResolvedValue({
         data: [
-          { permission_name: 'read:agents', resource_type: null, resource_id: null },
-          { permission_name: 'write:agents', resource_type: 'agent', resource_id: 'agent-1' },
+          {
+            permission_name: 'read:agents',
+            resource_type: null,
+            resource_id: null,
+          },
+          {
+            permission_name: 'write:agents',
+            resource_type: 'agent',
+            resource_id: 'agent-1',
+          },
         ],
         error: null,
       });
@@ -630,7 +650,8 @@ describe('RbacService', () => {
     it('should return true when user is admin for specific org', async () => {
       // First call for isSuperAdmin (returns no super-admin role)
       // Second call for org-specific admin check
-      const mockFrom = jest.fn()
+      const mockFrom = jest
+        .fn()
         .mockReturnValueOnce({
           select: jest.fn().mockReturnValue({
             eq: jest.fn().mockReturnValue({

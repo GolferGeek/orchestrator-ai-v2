@@ -98,7 +98,9 @@ describe('ChunkingService', () => {
       expect(result[0]!.charOffset).toBe(0);
       // Subsequent chunks should have increasing offsets
       for (let i = 1; i < result.length; i++) {
-        expect(result[i]!.charOffset).toBeGreaterThan(result[i - 1]!.charOffset);
+        expect(result[i]!.charOffset).toBeGreaterThan(
+          result[i - 1]!.charOffset,
+        );
       }
     });
 

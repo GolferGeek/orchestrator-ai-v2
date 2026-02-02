@@ -15,7 +15,10 @@ import {
   DashboardRequestPayload,
 } from '@orchestrator-ai/transport-types';
 
-import type { Strategy, StrategyParameters } from '../../../interfaces/strategy.interface';
+import type {
+  Strategy,
+  StrategyParameters,
+} from '../../../interfaces/strategy.interface';
 
 describe('StrategyHandler', () => {
   let handler: StrategyHandler;
@@ -253,7 +256,9 @@ describe('StrategyHandler', () => {
 
       const payload: DashboardRequestPayload = {
         action: 'list',
-        params: { filters: { isSystem: true, riskLevel: 'high', isActive: true } },
+        params: {
+          filters: { isSystem: true, riskLevel: 'high', isActive: true },
+        },
       };
       const result = await handler.execute('list', payload, mockContext);
 

@@ -44,7 +44,10 @@ describe('PredictionExportService', () => {
   ];
 
   const createMockClient = (overrides?: Record<string, unknown>) => {
-    const selectResult = overrides?.select ?? { data: mockPredictions, error: null };
+    const selectResult = overrides?.select ?? {
+      data: mockPredictions,
+      error: null,
+    };
 
     const createChain = () => {
       // Create an object that can be returned by any method and has a then that resolves with the select result
@@ -190,7 +193,9 @@ describe('PredictionExportService', () => {
       const emptyMockClient = createMockClient({
         select: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(emptyMockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        emptyMockClient,
+      );
 
       const result = await service.exportPredictions(mockExecutionContext, {
         format: 'csv',
@@ -204,7 +209,9 @@ describe('PredictionExportService', () => {
       const errorMockClient = createMockClient({
         select: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(errorMockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        errorMockClient,
+      );
 
       await expect(
         service.exportPredictions(mockExecutionContext, { format: 'json' }),
@@ -228,7 +235,9 @@ describe('PredictionExportService', () => {
       const signalMockClient = createMockClient({
         select: { data: mockSignals, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(signalMockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        signalMockClient,
+      );
 
       const result = await service.exportSignals(mockExecutionContext, {
         format: 'json',
@@ -243,7 +252,9 @@ describe('PredictionExportService', () => {
       const signalMockClient = createMockClient({
         select: { data: mockSignals, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(signalMockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        signalMockClient,
+      );
 
       const result = await service.exportSignals(mockExecutionContext, {
         format: 'csv',
@@ -257,7 +268,9 @@ describe('PredictionExportService', () => {
       const signalMockClient = createMockClient({
         select: { data: mockSignals, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(signalMockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        signalMockClient,
+      );
 
       await service.exportSignals(mockExecutionContext, {
         format: 'json',
@@ -271,7 +284,9 @@ describe('PredictionExportService', () => {
       const signalMockClient = createMockClient({
         select: { data: mockSignals, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(signalMockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        signalMockClient,
+      );
 
       await service.exportSignals(mockExecutionContext, {
         format: 'json',
@@ -285,7 +300,9 @@ describe('PredictionExportService', () => {
       const errorMockClient = createMockClient({
         select: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(errorMockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        errorMockClient,
+      );
 
       await expect(
         service.exportSignals(mockExecutionContext, { format: 'json' }),
@@ -299,13 +316,19 @@ describe('PredictionExportService', () => {
         {
           ...mockPredictions[0],
           metadata: { note: 'value,with,commas' },
-          targets: { symbol: 'AAPL', name: 'Apple, Inc.', universes: { name: 'Tech' } },
+          targets: {
+            symbol: 'AAPL',
+            name: 'Apple, Inc.',
+            universes: { name: 'Tech' },
+          },
         },
       ];
       const mockClient = createMockClient({
         select: { data: dataWithComma, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await service.exportPredictions(mockExecutionContext, {
         format: 'csv',
@@ -318,13 +341,19 @@ describe('PredictionExportService', () => {
       const dataWithQuote = [
         {
           ...mockPredictions[0],
-          targets: { symbol: 'AAPL', name: 'Apple "Tech" Inc.', universes: { name: 'Tech' } },
+          targets: {
+            symbol: 'AAPL',
+            name: 'Apple "Tech" Inc.',
+            universes: { name: 'Tech' },
+          },
         },
       ];
       const mockClient = createMockClient({
         select: { data: dataWithQuote, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await service.exportPredictions(mockExecutionContext, {
         format: 'csv',

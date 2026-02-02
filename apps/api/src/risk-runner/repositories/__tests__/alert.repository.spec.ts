@@ -2,7 +2,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { AlertRepository, AlertFilter } from '../alert.repository';
 import { SupabaseService } from '@/supabase/supabase.service';
-import { RiskAlert, UnacknowledgedAlertView } from '../../interfaces/alert.interface';
+import {
+  RiskAlert,
+  UnacknowledgedAlertView,
+} from '../../interfaces/alert.interface';
 
 describe('AlertRepository', () => {
   let repository: AlertRepository;
@@ -35,10 +38,13 @@ describe('AlertRepository', () => {
   };
 
   const createMockClient = (overrides?: {
-    single?: { data: unknown | null; error: { message: string; code?: string } | null };
+    single?: {
+      data: unknown;
+      error: { message: string; code?: string } | null;
+    };
     list?: { data: unknown[] | null; error: { message: string } | null };
-    insert?: { data: unknown | null; error: { message: string } | null };
-    update?: { data: unknown | null; error: { message: string } | null };
+    insert?: { data: unknown; error: { message: string } | null };
+    update?: { data: unknown; error: { message: string } | null };
     delete?: { error: { message: string } | null };
   }) => {
     const singleResult = overrides?.single ?? { data: mockAlert, error: null };
@@ -142,7 +148,9 @@ describe('AlertRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findBySubject('subject-123');
 
@@ -153,7 +161,9 @@ describe('AlertRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findBySubject('subject-123')).rejects.toThrow(
         'Failed to fetch alerts: Query failed',
@@ -186,7 +196,9 @@ describe('AlertRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findByScope('scope-123');
 
@@ -197,7 +209,9 @@ describe('AlertRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findByScope('scope-123')).rejects.toThrow(
         'Failed to fetch alerts by scope: Query failed',
@@ -217,7 +231,9 @@ describe('AlertRepository', () => {
       const mockClient = createMockClient({
         list: { data: [mockUnacknowledgedAlert], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findUnacknowledged();
 
@@ -228,7 +244,9 @@ describe('AlertRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findUnacknowledged();
 
@@ -239,7 +257,9 @@ describe('AlertRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findUnacknowledged()).rejects.toThrow(
         'Failed to fetch unacknowledged alerts: Query failed',
@@ -249,7 +269,8 @@ describe('AlertRepository', () => {
 
   describe('findUnacknowledgedBySubject', () => {
     it('should return unacknowledged alerts for subject', async () => {
-      const result = await repository.findUnacknowledgedBySubject('subject-123');
+      const result =
+        await repository.findUnacknowledgedBySubject('subject-123');
 
       expect(result).toEqual([mockAlert]);
     });
@@ -258,9 +279,12 @@ describe('AlertRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.findUnacknowledgedBySubject('subject-123');
+      const result =
+        await repository.findUnacknowledgedBySubject('subject-123');
 
       expect(result).toEqual([]);
     });
@@ -269,16 +293,21 @@ describe('AlertRepository', () => {
       const mockClient = createMockClient({
         list: { data: null, error: { message: 'Query failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
-
-      await expect(repository.findUnacknowledgedBySubject('subject-123')).rejects.toThrow(
-        'Failed to fetch unacknowledged alerts: Query failed',
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
       );
+
+      await expect(
+        repository.findUnacknowledgedBySubject('subject-123'),
+      ).rejects.toThrow('Failed to fetch unacknowledged alerts: Query failed');
     });
 
     it('should apply filter', async () => {
       const filter: AlertFilter = { testScenarioId: 'scenario-123' };
-      const result = await repository.findUnacknowledgedBySubject('subject-123', filter);
+      const result = await repository.findUnacknowledgedBySubject(
+        'subject-123',
+        filter,
+      );
 
       expect(result).toEqual([mockAlert]);
     });
@@ -293,9 +322,14 @@ describe('AlertRepository', () => {
 
     it('should return null when alert not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('nonexistent');
 
@@ -306,7 +340,9 @@ describe('AlertRepository', () => {
       const mockClient = createMockClient({
         single: { data: null, error: { message: 'Database error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.findById('alert-123')).rejects.toThrow(
         'Failed to fetch alert: Database error',
@@ -323,11 +359,18 @@ describe('AlertRepository', () => {
 
     it('should throw NotFoundException when alert not found', async () => {
       const mockClient = createMockClient({
-        single: { data: null, error: { message: 'Not found', code: 'PGRST116' } },
+        single: {
+          data: null,
+          error: { message: 'Not found', code: 'PGRST116' },
+        },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      await expect(repository.findByIdOrThrow('nonexistent')).rejects.toThrow(NotFoundException);
+      await expect(repository.findByIdOrThrow('nonexistent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -350,7 +393,9 @@ describe('AlertRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.create({
@@ -366,7 +411,9 @@ describe('AlertRepository', () => {
       const mockClient = createMockClient({
         insert: { data: null, error: { message: 'Insert failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.create({
@@ -381,11 +428,16 @@ describe('AlertRepository', () => {
 
   describe('update', () => {
     it('should update alert successfully', async () => {
-      const acknowledgedAlert = { ...mockAlert, acknowledged_at: '2024-01-02T00:00:00Z' };
+      const acknowledgedAlert = {
+        ...mockAlert,
+        acknowledged_at: '2024-01-02T00:00:00Z',
+      };
       const mockClient = createMockClient({
         update: { data: acknowledgedAlert, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.update('alert-123', {
         acknowledged_at: '2024-01-02T00:00:00Z',
@@ -398,10 +450,14 @@ describe('AlertRepository', () => {
       const mockClient = createMockClient({
         update: { data: null, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
-        repository.update('alert-123', { acknowledged_at: '2024-01-02T00:00:00Z' }),
+        repository.update('alert-123', {
+          acknowledged_at: '2024-01-02T00:00:00Z',
+        }),
       ).rejects.toThrow('Update succeeded but no alert returned');
     });
 
@@ -409,10 +465,14 @@ describe('AlertRepository', () => {
       const mockClient = createMockClient({
         update: { data: null, error: { message: 'Update failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
-        repository.update('alert-123', { acknowledged_at: '2024-01-02T00:00:00Z' }),
+        repository.update('alert-123', {
+          acknowledged_at: '2024-01-02T00:00:00Z',
+        }),
       ).rejects.toThrow('Failed to update alert: Update failed');
     });
   });
@@ -427,7 +487,9 @@ describe('AlertRepository', () => {
       const mockClient = createMockClient({
         update: { data: acknowledgedAlert, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.acknowledge('alert-123', 'user-123');
 
@@ -445,7 +507,9 @@ describe('AlertRepository', () => {
       const mockClient = createMockClient({
         delete: { error: { message: 'Delete failed' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(repository.delete('alert-123')).rejects.toThrow(
         'Failed to delete alert: Delete failed',
@@ -464,7 +528,9 @@ describe('AlertRepository', () => {
       const mockClient = createMockClient({
         list: { data: alerts, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.countUnacknowledgedBySeverity();
 
@@ -477,7 +543,9 @@ describe('AlertRepository', () => {
       const mockClient = createMockClient({
         list: { data: [], error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.countUnacknowledgedBySeverity();
 
@@ -488,7 +556,12 @@ describe('AlertRepository', () => {
   });
 
   describe('alert types', () => {
-    const alertTypes = ['threshold_breach', 'rapid_change', 'dimension_spike', 'stale_assessment'] as const;
+    const alertTypes = [
+      'threshold_breach',
+      'rapid_change',
+      'dimension_spike',
+      'stale_assessment',
+    ] as const;
 
     alertTypes.forEach((alertType) => {
       it(`should handle ${alertType} alert type`, async () => {
@@ -496,7 +569,9 @@ describe('AlertRepository', () => {
         const mockClient = createMockClient({
           single: { data: alertWithType, error: null },
         });
-        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+          mockClient,
+        );
 
         const result = await repository.findById('alert-123');
 
@@ -514,7 +589,9 @@ describe('AlertRepository', () => {
         const mockClient = createMockClient({
           single: { data: alertWithSeverity, error: null },
         });
-        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+        (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+          mockClient,
+        );
 
         const result = await repository.findById('alert-123');
 
@@ -533,7 +610,9 @@ describe('AlertRepository', () => {
       const mockClient = createMockClient({
         single: { data: thresholdAlert, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('alert-123');
 
@@ -555,7 +634,9 @@ describe('AlertRepository', () => {
       const mockClient = createMockClient({
         single: { data: rapidChangeAlert, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('alert-123');
 
@@ -576,7 +657,9 @@ describe('AlertRepository', () => {
       const mockClient = createMockClient({
         single: { data: dimensionSpikeAlert, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('alert-123');
 
@@ -593,7 +676,9 @@ describe('AlertRepository', () => {
       const mockClient = createMockClient({
         single: { data: staleAssessmentAlert, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('alert-123');
 
@@ -605,7 +690,9 @@ describe('AlertRepository', () => {
       const mockClient = createMockClient({
         single: { data: alertWithEmptyDetails, error: null },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('alert-123');
 

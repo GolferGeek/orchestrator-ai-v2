@@ -44,7 +44,10 @@ describe('LearningHandler', () => {
     learning_type: 'rule' as const,
     title: 'Momentum threshold',
     description: 'Increase momentum threshold for better accuracy',
-    config: { threshold: 0.7 },
+    config: {
+      trigger_condition: 'momentum > 0.7',
+      action: 'increase_confidence',
+    },
     source_type: 'human' as const,
     source_evaluation_id: null,
     source_missed_opportunity_id: null,
@@ -56,6 +59,20 @@ describe('LearningHandler', () => {
     is_test: false,
     created_at: '2024-01-15T00:00:00Z',
     updated_at: '2024-01-15T00:00:00Z',
+  };
+
+  const mockActiveLearning = {
+    learning_id: 'learning-1',
+    learning_type: 'rule' as const,
+    title: 'Momentum threshold',
+    description: 'Increase momentum threshold for better accuracy',
+    config: {
+      trigger_condition: 'momentum > 0.7',
+      action: 'increase_confidence',
+    },
+    scope_level: 'runner' as const,
+    times_applied: 10,
+    times_helpful: 8,
   };
 
   beforeEach(async () => {
@@ -115,12 +132,14 @@ describe('LearningHandler', () => {
       const result = await handler.execute('list', payload, mockContext);
 
       expect(result.success).toBe(true);
-      const data = result.data as typeof mockLearning[];
+      const data = result.data as (typeof mockLearning)[];
       expect(data).toHaveLength(0);
     });
 
     it('should list learnings by targetId using scope resolution', async () => {
-      learningService.getActiveLearnings.mockResolvedValue([mockLearning]);
+      learningService.getActiveLearnings.mockResolvedValue([
+        mockActiveLearning,
+      ]);
 
       const payload: DashboardRequestPayload = {
         action: 'list',
@@ -137,7 +156,9 @@ describe('LearningHandler', () => {
     });
 
     it('should list learnings by targetId and analystId', async () => {
-      learningService.getActiveLearnings.mockResolvedValue([mockLearning]);
+      learningService.getActiveLearnings.mockResolvedValue([
+        mockActiveLearning,
+      ]);
 
       const payload: DashboardRequestPayload = {
         action: 'list',
@@ -180,8 +201,12 @@ describe('LearningHandler', () => {
 
     it('should filter by learningType', async () => {
       const learnings = [
-        { ...mockLearning, learning_type: 'rule' },
-        { ...mockLearning, id: 'learning-2', learning_type: 'pattern' },
+        { ...mockLearning, learning_type: 'rule' as const },
+        {
+          ...mockLearning,
+          id: 'learning-2',
+          learning_type: 'pattern' as const,
+        },
       ];
       learningService.findByScope.mockResolvedValue(learnings);
 
@@ -199,8 +224,12 @@ describe('LearningHandler', () => {
 
     it('should filter by sourceType', async () => {
       const learnings = [
-        { ...mockLearning, source_type: 'human' },
-        { ...mockLearning, id: 'learning-2', source_type: 'ai_suggested' },
+        { ...mockLearning, source_type: 'human' as const },
+        {
+          ...mockLearning,
+          id: 'learning-2',
+          source_type: 'ai_suggested' as const,
+        },
       ];
       learningService.findByScope.mockResolvedValue(learnings);
 
@@ -509,7 +538,10 @@ describe('LearningHandler', () => {
           description: 'Better threshold based on testing',
         }),
       );
-      const data = result.data as { superseded: string; newLearning: typeof newLearning };
+      const data = result.data as {
+        superseded: string;
+        newLearning: typeof newLearning;
+      };
       expect(data.superseded).toBe('learning-1');
       expect(data.newLearning.version).toBe(2);
     });

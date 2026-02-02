@@ -5,7 +5,10 @@ import { ScenarioRunRepository } from '../../repositories/scenario-run.repositor
 import { TestAuditLogRepository } from '../../repositories/test-audit-log.repository';
 import { TestScenarioRepository } from '../../repositories/test-scenario.repository';
 import { SupabaseService } from '@/supabase/supabase.service';
-import { ScenarioRun, TestScenario } from '../../interfaces/test-data.interface';
+import {
+  ScenarioRun,
+  TestScenario,
+} from '../../interfaces/test-data.interface';
 
 describe('ScenarioRunService', () => {
   let service: ScenarioRunService;
@@ -68,9 +71,13 @@ describe('ScenarioRunService', () => {
 
       const chain: Record<string, jest.Mock> = {};
       chain.select = jest.fn().mockReturnValue(chainableResult);
-      chain.insert = jest.fn().mockResolvedValue(overrides?.insert ?? { data: null, error: null });
+      chain.insert = jest
+        .fn()
+        .mockResolvedValue(overrides?.insert ?? { data: null, error: null });
       chain.update = jest.fn().mockReturnValue({
-        eq: jest.fn().mockResolvedValue(overrides?.update ?? { data: null, error: null }),
+        eq: jest
+          .fn()
+          .mockResolvedValue(overrides?.update ?? { data: null, error: null }),
       });
       chain.eq = jest.fn().mockReturnValue(chainableResult);
       return chain;
@@ -97,9 +104,15 @@ describe('ScenarioRunService', () => {
             create: jest.fn().mockResolvedValue(mockRun),
             findById: jest.fn().mockResolvedValue(mockRun),
             findByScenario: jest.fn().mockResolvedValue([mockRun]),
-            markRunning: jest.fn().mockResolvedValue({ ...mockRun, status: 'running' }),
-            markCompleted: jest.fn().mockResolvedValue({ ...mockRun, status: 'completed' }),
-            markFailed: jest.fn().mockResolvedValue({ ...mockRun, status: 'failed' }),
+            markRunning: jest
+              .fn()
+              .mockResolvedValue({ ...mockRun, status: 'running' }),
+            markCompleted: jest
+              .fn()
+              .mockResolvedValue({ ...mockRun, status: 'completed' }),
+            markFailed: jest
+              .fn()
+              .mockResolvedValue({ ...mockRun, status: 'failed' }),
             getStatistics: jest.fn().mockResolvedValue({
               total_runs: 10,
               completed_runs: 8,
@@ -153,9 +166,13 @@ describe('ScenarioRunService', () => {
 
   describe('startRun', () => {
     it('should create a new scenario run', async () => {
-      const result = await service.startRun('scenario-123', 'user-123', { code_version: '1.0.0' });
+      const result = await service.startRun('scenario-123', 'user-123', {
+        code_version: '1.0.0',
+      });
 
-      expect(testScenarioRepository.findById).toHaveBeenCalledWith('scenario-123');
+      expect(testScenarioRepository.findById).toHaveBeenCalledWith(
+        'scenario-123',
+      );
       expect(scenarioRunRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({
           scenario_id: 'scenario-123',
@@ -175,7 +192,9 @@ describe('ScenarioRunService', () => {
     it('should throw NotFoundException when scenario not found', async () => {
       testScenarioRepository.findById.mockResolvedValue(null);
 
-      await expect(service.startRun('nonexistent', 'user-123')).rejects.toThrow(NotFoundException);
+      await expect(service.startRun('nonexistent', 'user-123')).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should use default empty version info', async () => {
@@ -224,7 +243,9 @@ describe('ScenarioRunService', () => {
       const mockClient = createMockClient({
         select: { data: null, error: { message: 'DB Error' } },
       });
-      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (supabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await service.executeRun('run-123');
 
@@ -248,7 +269,11 @@ describe('ScenarioRunService', () => {
 
       await service.completeRun('run-123', actualOutcome, true);
 
-      expect(scenarioRunRepository.markCompleted).toHaveBeenCalledWith('run-123', actualOutcome, true);
+      expect(scenarioRunRepository.markCompleted).toHaveBeenCalledWith(
+        'run-123',
+        actualOutcome,
+        true,
+      );
     });
   });
 
@@ -256,7 +281,10 @@ describe('ScenarioRunService', () => {
     it('should mark run as failed', async () => {
       await service.failRun('run-123', 'Test error');
 
-      expect(scenarioRunRepository.markFailed).toHaveBeenCalledWith('run-123', 'Test error');
+      expect(scenarioRunRepository.markFailed).toHaveBeenCalledWith(
+        'run-123',
+        'Test error',
+      );
       expect(testAuditLogRepository.log).toHaveBeenCalledWith(
         expect.objectContaining({
           action: 'scenario_run_failed',
@@ -286,13 +314,17 @@ describe('ScenarioRunService', () => {
     it('should throw NotFoundException when run not found', async () => {
       scenarioRunRepository.findById.mockResolvedValue(null);
 
-      await expect(service.getRunResults('nonexistent')).rejects.toThrow(NotFoundException);
+      await expect(service.getRunResults('nonexistent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should throw NotFoundException when scenario not found', async () => {
       testScenarioRepository.findById.mockResolvedValue(null);
 
-      await expect(service.getRunResults('run-123')).rejects.toThrow(NotFoundException);
+      await expect(service.getRunResults('run-123')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -300,7 +332,9 @@ describe('ScenarioRunService', () => {
     it('should return all runs for scenario', async () => {
       const result = await service.getScenarioRuns('scenario-123');
 
-      expect(scenarioRunRepository.findByScenario).toHaveBeenCalledWith('scenario-123');
+      expect(scenarioRunRepository.findByScenario).toHaveBeenCalledWith(
+        'scenario-123',
+      );
       expect(result).toEqual([mockRun]);
     });
   });
@@ -309,7 +343,9 @@ describe('ScenarioRunService', () => {
     it('should return statistics for scenario', async () => {
       const result = await service.getScenarioRunStatistics('scenario-123');
 
-      expect(scenarioRunRepository.getStatistics).toHaveBeenCalledWith('scenario-123');
+      expect(scenarioRunRepository.getStatistics).toHaveBeenCalledWith(
+        'scenario-123',
+      );
       expect(result).toHaveProperty('total_runs', 10);
       expect(result).toHaveProperty('completed_runs', 8);
       expect(result).toHaveProperty('success_rate', 0.8);
@@ -344,7 +380,9 @@ describe('ScenarioRunService', () => {
       const result = service.compareOutcomes(expected, actual);
 
       expect(result.match).toBe(false);
-      expect(result.differences.some((d) => d.includes('Predictors'))).toBe(true);
+      expect(result.differences.some((d) => d.includes('Predictors'))).toBe(
+        true,
+      );
     });
 
     it('should return differences when predictions mismatch', () => {
@@ -354,7 +392,9 @@ describe('ScenarioRunService', () => {
       const result = service.compareOutcomes(expected, actual);
 
       expect(result.match).toBe(false);
-      expect(result.differences.some((d) => d.includes('Predictions'))).toBe(true);
+      expect(result.differences.some((d) => d.includes('Predictions'))).toBe(
+        true,
+      );
     });
 
     it('should ignore missing fields', () => {

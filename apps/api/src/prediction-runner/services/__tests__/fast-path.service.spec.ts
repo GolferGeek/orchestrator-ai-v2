@@ -7,7 +7,7 @@ import { Signal, SignalUrgency } from '../../interfaces/signal.interface';
 
 describe('FastPathService', () => {
   let service: FastPathService;
-  let snapshotService: jest.Mocked<SnapshotService>;
+  let _snapshotService: jest.Mocked<SnapshotService>;
 
   const mockExecutionContext = createMockExecutionContext({
     orgSlug: 'test-org',
@@ -77,7 +77,7 @@ describe('FastPathService', () => {
 
   describe('shouldUseFastPath', () => {
     it('should return true for confidence >= 0.90', () => {
-      expect(service.shouldUseFastPath(mockSignal, 0.90)).toBe(true);
+      expect(service.shouldUseFastPath(mockSignal, 0.9)).toBe(true);
       expect(service.shouldUseFastPath(mockSignal, 0.95)).toBe(true);
       expect(service.shouldUseFastPath(mockSignal, 1.0)).toBe(true);
     });
@@ -89,7 +89,7 @@ describe('FastPathService', () => {
     });
 
     it('should work with boundary confidence of 0.90', () => {
-      expect(service.shouldUseFastPath(mockSignal, 0.90)).toBe(true);
+      expect(service.shouldUseFastPath(mockSignal, 0.9)).toBe(true);
     });
 
     it('should work with very high confidence', () => {
@@ -104,7 +104,10 @@ describe('FastPathService', () => {
   describe('processFastPath', () => {
     it('should return null when predictor creation fails', async () => {
       // processFastPath returns null because createPredictorFromSignal is not implemented
-      const result = await service.processFastPath(mockExecutionContext, mockSignal);
+      const result = await service.processFastPath(
+        mockExecutionContext,
+        mockSignal,
+      );
       expect(result).toBeNull();
     });
 
@@ -116,19 +119,28 @@ describe('FastPathService', () => {
 
     it('should accept execution context', async () => {
       // Should not throw with valid context
-      const result = await service.processFastPath(mockExecutionContext, mockSignal);
+      const result = await service.processFastPath(
+        mockExecutionContext,
+        mockSignal,
+      );
       expect(result).toBeNull();
     });
 
     it('should accept signal parameter', async () => {
       // Should not throw with valid signal
-      const result = await service.processFastPath(mockExecutionContext, mockSignal);
+      const result = await service.processFastPath(
+        mockExecutionContext,
+        mockSignal,
+      );
       expect(result).toBeNull();
     });
 
     it('should handle missing observability service gracefully', async () => {
       // Service was created with null observability - should not throw
-      const result = await service.processFastPath(mockExecutionContext, mockSignal);
+      const result = await service.processFastPath(
+        mockExecutionContext,
+        mockSignal,
+      );
       expect(result).toBeNull();
     });
 
@@ -151,7 +163,10 @@ describe('FastPathService', () => {
       const serviceWithoutSnap = module.get<FastPathService>(FastPathService);
 
       // Should not throw
-      const result = await serviceWithoutSnap.processFastPath(mockExecutionContext, mockSignal);
+      const result = await serviceWithoutSnap.processFastPath(
+        mockExecutionContext,
+        mockSignal,
+      );
       expect(result).toBeNull();
     });
   });
@@ -161,7 +176,7 @@ describe('FastPathService', () => {
       // Just below threshold
       expect(service.shouldUseFastPath(mockSignal, 0.8999)).toBe(false);
       // At threshold
-      expect(service.shouldUseFastPath(mockSignal, 0.90)).toBe(true);
+      expect(service.shouldUseFastPath(mockSignal, 0.9)).toBe(true);
       // Just above threshold
       expect(service.shouldUseFastPath(mockSignal, 0.9001)).toBe(true);
     });
@@ -176,7 +191,10 @@ describe('FastPathService', () => {
       ];
 
       for (const signal of signals) {
-        const result = await service.processFastPath(mockExecutionContext, signal);
+        const result = await service.processFastPath(
+          mockExecutionContext,
+          signal,
+        );
         expect(result).toBeNull(); // All return null since createPredictorFromSignal not implemented
       }
     });

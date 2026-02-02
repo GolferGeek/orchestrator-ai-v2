@@ -56,7 +56,7 @@ describe('DocumentProcessorService', () => {
     { embedding: Array(768).fill(0.3), tokenCount: 11 },
   ];
 
-  const mockExtractionResult: ExtractionResult = {
+  const _mockExtractionResult: ExtractionResult = {
     text: 'Extracted text',
     metadata: {},
   };
@@ -281,7 +281,10 @@ describe('DocumentProcessorService', () => {
     it('should return error when no chunks generated', async () => {
       const buffer = Buffer.from('content');
 
-      textExtractor.extract.mockResolvedValue({ text: 'Some text', metadata: {} });
+      textExtractor.extract.mockResolvedValue({
+        text: 'Some text',
+        metadata: {},
+      });
       collectionsService.getCollection.mockResolvedValue(mockCollection);
       chunkingService.splitText.mockReturnValue([]);
 
@@ -332,7 +335,10 @@ describe('DocumentProcessorService', () => {
         chunkOverlap: 100,
       };
 
-      textExtractor.extract.mockResolvedValue({ text: 'Some text', metadata: {} });
+      textExtractor.extract.mockResolvedValue({
+        text: 'Some text',
+        metadata: {},
+      });
       collectionsService.getCollection.mockResolvedValue(customCollection);
       chunkingService.splitText.mockReturnValue(mockChunks);
       embeddingService.embedBatch.mockResolvedValue(mockEmbeddings);
