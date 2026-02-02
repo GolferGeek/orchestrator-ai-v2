@@ -198,6 +198,14 @@
         </div>
       </div>
 
+      <!-- Analytics Tab -->
+      <div v-if="activeTab === 'analytics'" class="analytics-tab">
+        <div class="tab-placeholder">
+          <h3>Analytics</h3>
+          <p>Advanced analytics and trend analysis coming soon.</p>
+        </div>
+      </div>
+
       <!-- Alerts Tab -->
       <div v-if="activeTab === 'alerts'" class="alerts-tab">
         <AlertsComponent
@@ -213,6 +221,14 @@
           :scope-id="currentScope?.id"
           @dimension-updated="handleDimensionUpdated"
         />
+      </div>
+
+      <!-- Debates Tab -->
+      <div v-if="activeTab === 'debates'" class="debates-tab">
+        <div class="tab-placeholder">
+          <h3>Debates</h3>
+          <p>Configure Red Team vs Blue Team adversarial debate contexts for risk assessment validation.</p>
+        </div>
       </div>
 
       <!-- Learnings Tab -->
@@ -365,8 +381,10 @@ const error = computed(() => store.error);
 // Tabs with dynamic badges
 const tabs = computed(() => [
   { id: 'overview', label: 'Overview' },
+  { id: 'analytics', label: 'Analytics' },
   { id: 'alerts', label: 'Alerts', badge: alerts.value.length > 0 ? alerts.value.length : undefined },
   { id: 'dimensions', label: 'Dimensions' },
+  { id: 'debates', label: 'Debates' },
   { id: 'learnings', label: 'Learnings', badge: pendingLearnings.value.length > 0 ? pendingLearnings.value.length : undefined },
   { id: 'settings', label: 'Settings' },
 ]);
@@ -1459,6 +1477,27 @@ watch(
 .generate-summary-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.tab-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  text-align: center;
+  color: var(--ion-color-medium, #666);
+}
+
+.tab-placeholder h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.25rem;
+  color: var(--ion-text-color, #333);
+}
+
+.tab-placeholder p {
+  margin: 0;
+  font-size: 0.875rem;
 }
 
 /* Dark mode support */

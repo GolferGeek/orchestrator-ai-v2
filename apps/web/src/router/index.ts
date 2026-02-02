@@ -558,17 +558,6 @@ const routes: Array<RouteRecordRaw> = [
           title: 'Test Analytics',
           description: 'Test vs production analytics for the learning loop'
         }
-      },
-      // Risk Dashboard Routes
-      {
-        path: 'risk/dashboard',
-        name: 'RiskDashboard',
-        component: () => import('../views/risk/RiskDashboard.vue'),
-        meta: {
-          requiresAuth: true,
-          title: 'Risk Dashboard',
-          description: 'Investment risk analysis dashboard'
-        }
       }
     ]
   },
