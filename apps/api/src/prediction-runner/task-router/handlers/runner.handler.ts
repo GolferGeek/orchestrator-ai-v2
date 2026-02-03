@@ -138,7 +138,8 @@ export class RunnerHandler implements IDashboardHandler {
         error?: string;
       }> = [];
 
-      for (const target of targets) {
+      for (let i = 0; i < targets.length; i++) {
+        const target = targets[i]!;
         try {
           const snapshot =
             await this.targetSnapshotService.fetchAndCaptureValue(target.id);
@@ -156,6 +157,11 @@ export class RunnerHandler implements IDashboardHandler {
               price: null,
               error: 'No data returned',
             });
+          }
+
+          // Rate limiting: wait 15 seconds between API calls to avoid Polygon 429 errors
+          if (i < targets.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 15000));
           }
         } catch (error) {
           errors++;

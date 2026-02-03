@@ -223,10 +223,16 @@ export class OutcomeTrackingRunner {
         `Capturing snapshots for ${targetIds.length} active targets`,
       );
 
-      for (const targetId of targetIds) {
+      for (let i = 0; i < targetIds.length; i++) {
+        const targetId = targetIds[i]!;
         try {
           await this.targetSnapshotService.fetchAndCaptureValue(targetId);
           captured++;
+
+          // Rate limiting: wait 15 seconds between API calls to avoid Polygon 429 errors
+          if (i < targetIds.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 15000));
+          }
         } catch (error) {
           errors++;
           this.logger.error(
