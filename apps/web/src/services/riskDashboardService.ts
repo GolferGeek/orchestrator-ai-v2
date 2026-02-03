@@ -10,6 +10,7 @@
 
 import { useAuthStore } from '@/stores/rbacStore';
 import { useExecutionContextStore } from '@/stores/executionContextStore';
+import { useLLMPreferencesStore } from '@/stores/llmPreferencesStore';
 import type { ExecutionContext } from '@orchestrator-ai/transport-types';
 import type {
   RiskScope,
@@ -187,6 +188,7 @@ class RiskDashboardService {
 
   private getContext(taskIdOverride?: string): ExecutionContext {
     const contextStore = useExecutionContextStore();
+    const llmStore = useLLMPreferencesStore();
     const authStore = this.getAuthStore();
 
     // For dashboard mode, we don't require a conversation context
@@ -199,8 +201,19 @@ class RiskDashboardService {
     const orgSlug = this.getOrgSlug();
     const userId = authStore.user?.id || '';
 
-    // Note: provider/model here are defaults - the backend should use the scope's llm_config
-    // for actual LLM calls during risk analysis
+    // Get provider/model from multiple sources in priority order:
+    // 1. Execution context store (if initialized)
+    // 2. LLM preferences store (set via LLM selector modal)
+    // 3. Hardcoded defaults
+    const provider =
+      contextStore.contextOrNull?.provider ||
+      llmStore.selectedProvider?.name ||
+      'ollama';
+    const model =
+      contextStore.contextOrNull?.model ||
+      llmStore.selectedModel?.modelName ||
+      'qwen3:8b';
+
     // Use the dashboard conversation ID to avoid creating multiple conversations per session
     return {
       orgSlug,
@@ -211,8 +224,8 @@ class RiskDashboardService {
       deliverableId: '00000000-0000-0000-0000-000000000000',
       agentSlug: this.getAgentSlug(),
       agentType: 'risk',
-      provider: 'ollama',
-      model: 'qwen3:8b',
+      provider,
+      model,
     };
   }
 

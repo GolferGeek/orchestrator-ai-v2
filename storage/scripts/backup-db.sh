@@ -56,6 +56,9 @@ APP_SCHEMAS=(
   "engineering"
   "marketing"
   "n8n_data"
+  "crawler"
+  "law"
+  "leads"
 )
 
 # Conditionally add auth and storage schemas
@@ -213,7 +216,7 @@ docker exec "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" --quiet -c "
 DO \$perm\$
 DECLARE
     schema_name TEXT;
-    schemas TEXT[] := ARRAY['public', 'code_ops', 'orch_flow', 'rag_data', 'risk', 'prediction', 'orchestrator_ai', 'company_data', 'engineering', 'marketing', 'n8n_data'];
+    schemas TEXT[] := ARRAY['public', 'code_ops', 'orch_flow', 'rag_data', 'risk', 'prediction', 'orchestrator_ai', 'company_data', 'engineering', 'marketing', 'n8n_data', 'crawler', 'law', 'leads'];
 BEGIN
     FOREACH schema_name IN ARRAY schemas
     LOOP

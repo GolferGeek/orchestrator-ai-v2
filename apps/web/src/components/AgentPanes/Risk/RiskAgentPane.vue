@@ -1174,6 +1174,8 @@ function handleLLMSelectorDismiss() {
   if (provider && model) {
     const pref: RiskLLMPreference = { provider, model };
     localStorage.setItem(RISK_LLM_STORAGE_KEY, JSON.stringify(pref));
+    // Update execution context so the selection is used in API calls
+    executionContextStore.setLLM(provider, model);
   }
 }
 
