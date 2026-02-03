@@ -690,22 +690,50 @@ function formatStepDescription(step: string, message?: string): string {
 }
 
 /**
+ * Get timeout based on model - slower models get more time
+ */
+function getModelAwareTimeout(): { timeout: number; progressWarningThreshold: number } {
+  const model = executionContextStore.contextOrNull?.model?.toLowerCase() || '';
+  const provider = executionContextStore.contextOrNull?.provider?.toLowerCase() || '';
+
+  // Slow models: Opus, o1, large reasoning models - 5 minutes
+  if (model.includes('opus') || model.includes('o1-') || model.includes('o3-')) {
+    return { timeout: 300000, progressWarningThreshold: 120000 };
+  }
+
+  // Local models (Ollama): variable performance - 4 minutes
+  if (provider.includes('ollama')) {
+    return { timeout: 240000, progressWarningThreshold: 90000 };
+  }
+
+  // Medium models: GPT-4o, Claude 3.5/4 Sonnet - 3 minutes
+  if (model.includes('gpt-4o') || model.includes('sonnet') || model.includes('gemini-1.5-pro')) {
+    return { timeout: 180000, progressWarningThreshold: 60000 };
+  }
+
+  // Fast models: Flash, Haiku, mini - 2 minutes (default)
+  return { timeout: 120000, progressWarningThreshold: 60000 };
+}
+
+/**
  * Wait for analysis completion via SSE or timeout
  */
 async function waitForAnalysisCompletion(): Promise<void> {
-  // Wait for SSE events to indicate completion, with timeout
-  const timeout = 120000; // 2 minutes max
+  // Get model-aware timeout settings
+  const { timeout, progressWarningThreshold } = getModelAwareTimeout();
   const checkInterval = 1000;
   let elapsed = 0;
+
+  console.log(`[LegalDepartment] Using model-aware timeout: ${timeout / 1000}s for model: ${executionContextStore.contextOrNull?.model}`);
 
   while (elapsed < timeout && analysisPhase.value !== 'completed' && !analysisResults.value) {
     await new Promise(resolve => setTimeout(resolve, checkInterval));
     elapsed += checkInterval;
 
-    // If we've been waiting too long without progress, show error
-    if (elapsed > 60000 && analysisProgress.value.percentage < 20) {
+    // If we've been waiting too long without progress, show warning (but don't break)
+    if (elapsed > progressWarningThreshold && analysisProgress.value.percentage < 20) {
       error.value = 'Analysis is taking longer than expected. The backend may still be processing.';
-      break;
+      // Don't break - let it continue until full timeout
     }
   }
 

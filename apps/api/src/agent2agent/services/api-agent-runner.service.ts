@@ -1665,13 +1665,19 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
         if (!this.httpService) {
           throw new Error('HttpService not available');
         }
+        // Use agent's configured timeout, falling back to execution.timeoutSeconds (from metadata), then default
+        const timeoutMs =
+          this.ensureNumber(apiConfig.timeout) ??
+          (definition.execution.timeoutSeconds
+            ? definition.execution.timeoutSeconds * 1000
+            : 60000);
         const observable = this.httpService.request({
           url,
           method: method,
           headers,
           data: body,
           params: queryParams,
-          timeout: this.ensureNumber(apiConfig.timeout) ?? 60000,
+          timeout: timeoutMs,
           validateStatus: () => true, // Don't throw on non-2xx status
         });
 
@@ -2506,12 +2512,18 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
         if (!this.httpService) {
           throw new Error('HttpService not available');
         }
+        // Use agent's configured timeout, falling back to execution.timeoutSeconds (from metadata), then default
+        const timeoutMs =
+          this.ensureNumber(apiConfig.timeout) ??
+          (definition.execution.timeoutSeconds
+            ? definition.execution.timeoutSeconds * 1000
+            : 120000);
         const observable = this.httpService.request({
           url,
           method: method,
           headers,
           data: body,
-          timeout: this.ensureNumber(apiConfig.timeout) ?? 120000,
+          timeout: timeoutMs,
           validateStatus: () => true,
         });
 
@@ -3439,13 +3451,19 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
       if (!this.httpService) {
         throw new Error('HttpService not available');
       }
+      // Use agent's configured timeout, falling back to execution.timeoutSeconds (from metadata), then default
+      const timeoutMs =
+        this.ensureNumber(apiConfig.timeout) ??
+        (definition.execution.timeoutSeconds
+          ? definition.execution.timeoutSeconds * 1000
+          : 60000);
       const observable = this.httpService.request({
         url,
         method: method,
         headers,
         data: body,
         params: queryParams,
-        timeout: this.ensureNumber(apiConfig.timeout) ?? 60000,
+        timeout: timeoutMs,
         validateStatus: () => true,
       });
 
