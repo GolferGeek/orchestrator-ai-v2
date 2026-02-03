@@ -36,7 +36,7 @@
           <div class="org-header">
             <ion-icon :icon="getOrgIcon(orgGroup.orgSlug)" class="org-icon" />
             <span class="org-name">{{ orgGroup.orgName }}</span>
-            <ion-badge color="medium" class="org-conversation-count">
+            <ion-badge v-if="!shouldHideOrgConversationCount(orgGroup)" color="medium" class="org-conversation-count">
               {{ orgGroup.totalConversations }}
             </ion-badge>
           </div>
@@ -51,7 +51,7 @@
                   <ion-label>
                     <h3>{{ formatAgentDisplayName(group.agents[0], true) }}</h3>
                   </ion-label>
-                  <ion-badge :color="group.totalConversations > 0 ? 'primary' : 'medium'" class="ceo-conversation-count">
+                  <ion-badge v-if="!shouldHideGroupConversationCount(group)" :color="group.totalConversations > 0 ? 'primary' : 'medium'" class="ceo-conversation-count">
                     {{ group.totalConversations }}
                   </ion-badge>
                   <!-- Action buttons in header -->
@@ -162,7 +162,7 @@
                         <!-- Badge and Arrow outside the item box -->
                         <div class="agent-meta">
                           <ion-badge
-                            v-if="agentShowsConversation(agent)"
+                            v-if="agentShowsConversation(agent) && !shouldHideConversationCount(agent)"
                             :color="(agent.totalConversations || 0) > 0 ? 'secondary' : 'light'"
                             class="agent-badge"
                           >
@@ -229,7 +229,7 @@
                   <ion-label>
                     <h3>{{ formatAgentDisplayName(group.agents[0], true) }}</h3>
                   </ion-label>
-                  <ion-badge :color="group.totalConversations > 0 ? 'tertiary' : 'medium'" class="manager-conversation-count">
+                  <ion-badge v-if="!shouldHideGroupConversationCount(group)" :color="group.totalConversations > 0 ? 'tertiary' : 'medium'" class="manager-conversation-count">
                     {{ group.totalConversations }}
                   </ion-badge>
                   <!-- Action buttons in header -->
@@ -340,7 +340,7 @@
                         <!-- Badge and Arrow outside the item box -->
                         <div class="agent-meta">
                           <ion-badge
-                            v-if="agentShowsConversation(agent)"
+                            v-if="agentShowsConversation(agent) && !shouldHideConversationCount(agent)"
                             :color="(agent.totalConversations || 0) > 0 ? 'secondary' : 'light'"
                             class="agent-badge"
                           >
@@ -440,7 +440,7 @@
                 <!-- Badge and Arrow outside the item box -->
                 <div class="agent-meta">
                   <ion-badge
-                    v-if="agentShowsConversation(agent)"
+                    v-if="agentShowsConversation(agent) && !shouldHideConversationCount(agent)"
                     :color="(agent.totalConversations || 0) > 0 ? 'primary' : 'medium'"
                     class="agent-badge"
                   >
@@ -508,7 +508,7 @@
               <ion-label>
                 <h3>{{ formatAgentDisplayName(group.agents[0], true) }}</h3>
               </ion-label>
-              <ion-badge :color="group.totalConversations > 0 ? 'primary' : 'medium'" class="ceo-conversation-count">
+              <ion-badge v-if="!shouldHideGroupConversationCount(group)" :color="group.totalConversations > 0 ? 'primary' : 'medium'" class="ceo-conversation-count">
                 {{ group.totalConversations }}
               </ion-badge>
               <!-- Action buttons in header -->
@@ -619,7 +619,7 @@
                     <!-- Badge and Arrow outside the item box -->
                     <div class="agent-meta">
                       <ion-badge
-                        v-if="agentShowsConversation(agent)"
+                        v-if="agentShowsConversation(agent) && !shouldHideConversationCount(agent)"
                         :color="(agent.totalConversations || 0) > 0 ? 'secondary' : 'light'"
                         class="agent-badge"
                       >
@@ -686,7 +686,7 @@
               <ion-label>
                 <h3>{{ formatAgentDisplayName(group.agents[0], true) }}</h3>
               </ion-label>
-              <ion-badge :color="group.totalConversations > 0 ? 'tertiary' : 'medium'" class="manager-conversation-count">
+              <ion-badge v-if="!shouldHideGroupConversationCount(group)" :color="group.totalConversations > 0 ? 'tertiary' : 'medium'" class="manager-conversation-count">
                 {{ group.totalConversations }}
               </ion-badge>
               <!-- Action buttons in header -->
@@ -798,7 +798,7 @@
                     <!-- Badge and Arrow outside the item box -->
                     <div class="agent-meta">
                       <ion-badge
-                        v-if="agentShowsConversation(agent)"
+                        v-if="agentShowsConversation(agent) && !shouldHideConversationCount(agent)"
                         :color="(agent.totalConversations || 0) > 0 ? 'secondary' : 'light'"
                         class="agent-badge"
                       >
@@ -898,7 +898,7 @@
             <!-- Badge and Arrow outside the item box -->
             <div class="agent-meta">
               <ion-badge
-                v-if="agentShowsConversation(agent)"
+                v-if="agentShowsConversation(agent) && !shouldHideConversationCount(agent)"
                 :color="(agent.totalConversations || 0) > 0 ? 'primary' : 'medium'"
                 class="agent-badge"
               >
@@ -1014,6 +1014,7 @@ import {
   shouldShowConversationIcon,
   isPredictionAgent as _isPredictionAgent,
   getDashboardComponent,
+  isDashboardOnlyAgent,
   type InteractionModeConfig,
   type Agent as InteractionAgent,
 } from '@/utils/agent-interaction-mode';
@@ -1810,6 +1811,33 @@ const agentShowsDashboard = (agent: unknown): boolean => {
  */
 const agentShowsConversation = (agent: unknown): boolean => {
   return shouldShowConversationIcon(agent as InteractionAgent);
+};
+
+/**
+ * Check if agent should hide conversation count.
+ * Dashboard-only agents (prediction, risk) use a single shared conversation per session,
+ * so displaying individual conversation counts is misleading.
+ */
+const shouldHideConversationCount = (agent: unknown): boolean => {
+  return isDashboardOnlyAgent(agent as InteractionAgent);
+};
+
+/**
+ * Check if all agents in a group are dashboard-only agents.
+ * If so, the group-level conversation count badge should be hidden.
+ */
+const shouldHideGroupConversationCount = (group: HierarchyGroup): boolean => {
+  if (!group.agents || group.agents.length === 0) return true;
+  return group.agents.every(agent => isDashboardOnlyAgent(agent as InteractionAgent));
+};
+
+/**
+ * Check if all agents in an org are dashboard-only agents.
+ * If so, the org-level conversation count badge should be hidden.
+ */
+const shouldHideOrgConversationCount = (orgGroup: OrgGroupedHierarchy): boolean => {
+  if (!orgGroup.groups || orgGroup.groups.length === 0) return true;
+  return orgGroup.groups.every(group => shouldHideGroupConversationCount(group));
 };
 
 /**

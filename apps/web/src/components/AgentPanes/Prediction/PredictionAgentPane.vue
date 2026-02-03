@@ -219,6 +219,12 @@ onMounted(async () => {
     predictionDashboardService.setAgentSlug(agentSlug.value);
   }
 
+  // Generate a dashboard conversation ID for this session
+  // This prevents creating multiple conversations for parallel API calls
+  const dashboardConvId = crypto.randomUUID();
+  predictionDashboardService.setDashboardConversationId(dashboardConvId);
+  console.log('[PredictionAgentPane] Set dashboard conversation ID:', dashboardConvId);
+
   // Load initial data
   await loadData();
 
@@ -249,6 +255,10 @@ watch(
     }
     if (newAgentSlug) {
       predictionDashboardService.setAgentSlug(newAgentSlug);
+      // Reset conversation ID when switching agents so each gets its own session
+      const newConvId = crypto.randomUUID();
+      predictionDashboardService.setDashboardConversationId(newConvId);
+      console.log('[PredictionAgentPane] Reset dashboard conversation ID for new agent:', newConvId);
     }
     if (newAgentSlug || effectiveOrg) {
       loadData();

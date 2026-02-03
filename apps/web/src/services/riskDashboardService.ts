@@ -97,6 +97,8 @@ class RiskDashboardService {
   private currentAgentSlug: string = DEFAULT_AGENT_SLUG;
   private currentOrgSlug: string | null = null;
   private authStore: ReturnType<typeof useAuthStore> | null = null;
+  // Dashboard conversation ID - set once per session to avoid creating multiple conversations
+  private dashboardConversationId: string | null = null;
 
   /**
    * Set the agent slug for dashboard requests
@@ -112,6 +114,33 @@ class RiskDashboardService {
    */
   setOrgSlug(orgSlug: string | null): void {
     this.currentOrgSlug = orgSlug;
+  }
+
+  /**
+   * Set the dashboard conversation ID for this session
+   * This prevents creating multiple conversations for parallel dashboard calls
+   * Call this once when the dashboard mounts
+   */
+  setDashboardConversationId(conversationId: string): void {
+    this.dashboardConversationId = conversationId;
+  }
+
+  /**
+   * Get or generate a dashboard conversation ID
+   * Returns existing ID if set, otherwise generates a new one
+   */
+  getDashboardConversationId(): string {
+    if (!this.dashboardConversationId) {
+      this.dashboardConversationId = crypto.randomUUID();
+    }
+    return this.dashboardConversationId;
+  }
+
+  /**
+   * Reset the dashboard conversation ID (e.g., when switching agents)
+   */
+  resetDashboardConversationId(): void {
+    this.dashboardConversationId = null;
   }
 
   /**
@@ -172,10 +201,11 @@ class RiskDashboardService {
 
     // Note: provider/model here are defaults - the backend should use the scope's llm_config
     // for actual LLM calls during risk analysis
+    // Use the dashboard conversation ID to avoid creating multiple conversations per session
     return {
       orgSlug,
       userId,
-      conversationId: '00000000-0000-0000-0000-000000000000', // NIL UUID for dashboard mode
+      conversationId: this.getDashboardConversationId(),
       taskId: taskIdOverride || crypto.randomUUID(),
       planId: '00000000-0000-0000-0000-000000000000',
       deliverableId: '00000000-0000-0000-0000-000000000000',

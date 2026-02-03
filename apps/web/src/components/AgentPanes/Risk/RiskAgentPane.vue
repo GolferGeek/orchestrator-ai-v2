@@ -990,6 +990,13 @@ onMounted(() => {
   if (props.agent?.slug) {
     riskDashboardService.setAgentSlug(props.agent.slug);
   }
+
+  // Generate a dashboard conversation ID for this session
+  // This prevents creating multiple conversations for parallel API calls
+  const dashboardConvId = crypto.randomUUID();
+  riskDashboardService.setDashboardConversationId(dashboardConvId);
+  console.log('[RiskAgentPane] Set dashboard conversation ID:', dashboardConvId);
+
   handleRefresh();
 });
 
@@ -1007,6 +1014,10 @@ watch(
     }
     if (agentSlug) {
       riskDashboardService.setAgentSlug(agentSlug);
+      // Reset conversation ID when switching agents so each gets its own session
+      const newConvId = crypto.randomUUID();
+      riskDashboardService.setDashboardConversationId(newConvId);
+      console.log('[RiskAgentPane] Reset dashboard conversation ID for new agent:', newConvId);
     }
     if (agentSlug || effectiveOrg) {
       handleRefresh();

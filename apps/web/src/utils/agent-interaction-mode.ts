@@ -249,3 +249,15 @@ export function getDashboardComponent(agent: Agent): string | null {
 
   return null;
 }
+
+/**
+ * Check if an agent is a pure dashboard agent (no conversation counts should be shown).
+ * Dashboard agents use a single shared conversation per session, so showing individual
+ * conversation counts is misleading.
+ */
+export function isDashboardOnlyAgent(agent: Agent): boolean {
+  const config = getInteractionMode(agent);
+  // Dashboard agents that can't start real conversations are dashboard-only
+  // Prediction/Risk agents fall into this category
+  return config.mode === 'dashboard' && !config.canStartConversation;
+}
