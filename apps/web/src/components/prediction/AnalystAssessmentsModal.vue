@@ -225,7 +225,10 @@ async function loadAssessments() {
     const data = response?.content || response;
 
     if (data?.lineage?.analystAssessments) {
-      analysts.value = data.lineage.analystAssessments;
+      // Group assessments by analyst slug (in case they come as separate entries per fork)
+      const rawAssessments = data.lineage.analystAssessments as AnalystAssessment[];
+      analysts.value = groupAnalystAssessments(rawAssessments);
+      console.log('[AnalystAssessmentsModal] Grouped analysts:', analysts.value);
     } else {
       console.warn('[AnalystAssessmentsModal] No analyst assessments found in response');
     }
@@ -235,6 +238,43 @@ async function loadAssessments() {
   } finally {
     isLoading.value = false;
   }
+}
+
+/**
+ * Group analyst assessments by analyst slug
+ * Handles case where each fork comes as a separate entry
+ */
+function groupAnalystAssessments(assessments: AnalystAssessment[]): AnalystAssessment[] {
+  const groupedMap = new Map<string, AnalystAssessment>();
+
+  for (const assessment of assessments) {
+    const slug = assessment.analystSlug;
+    const existing = groupedMap.get(slug);
+
+    if (!existing) {
+      // First entry for this analyst - use it as base
+      groupedMap.set(slug, { ...assessment });
+    } else {
+      // Merge forks into existing entry
+      if (assessment.userFork && !existing.userFork) {
+        existing.userFork = assessment.userFork;
+      }
+      if (assessment.aiFork && !existing.aiFork) {
+        existing.aiFork = assessment.aiFork;
+      }
+      if (assessment.arbitratorFork && !existing.arbitratorFork) {
+        existing.arbitratorFork = assessment.arbitratorFork;
+      }
+      // Also merge base direction/confidence if not set
+      if (!existing.direction && assessment.direction) {
+        existing.direction = assessment.direction;
+        existing.confidence = assessment.confidence;
+        existing.reasoning = assessment.reasoning;
+      }
+    }
+  }
+
+  return Array.from(groupedMap.values());
 }
 
 function onDismiss() {
