@@ -34,6 +34,9 @@
                 <span>Privacy Analysis</span>
               </div>
             </div>
+            <div class="model-selector">
+              <CompactLLMControl />
+            </div>
           </div>
         </div>
 
@@ -172,6 +175,7 @@ marked.setOptions({ breaks: true, gfm: true });
 import { useExecutionContextStore } from '@/stores/executionContextStore';
 import { useRbacStore } from '@/stores/rbacStore';
 import { useChatUiStore } from '@/stores/ui/chatUiStore';
+import { useUserPreferencesStore } from '@/stores/userPreferencesStore';
 import { legalDepartmentService, type ProgressEvent } from './legalDepartmentService';
 import agent2AgentConversationsService from '@/services/agent2AgentConversationsService';
 import { apiService } from '@/services/apiService';
@@ -181,6 +185,7 @@ import RoutingVisualization from './components/RoutingVisualization.vue';
 import SpecialistTabs from './components/SpecialistTabs.vue';
 import SynthesisPanel from './components/SynthesisPanel.vue';
 import HITLControls from './components/HITLControls.vue';
+import CompactLLMControl from '@/components/CompactLLMControl.vue';
 import type {
   AnalysisPhase,
   AnalysisResults,
@@ -205,6 +210,7 @@ const route = useRoute();
 const executionContextStore = useExecutionContextStore();
 const rbacStore = useRbacStore();
 const chatUiStore = useChatUiStore();
+const userPreferencesStore = useUserPreferencesStore();
 
 // Refs
 const responseAreaRef = ref<HTMLElement | null>(null);
@@ -295,6 +301,17 @@ watch(
   }
 );
 
+// Watch for model preference changes to update execution context
+watch(
+  () => [userPreferencesStore.preferredProvider, userPreferencesStore.preferredModel],
+  ([newProvider, newModel]) => {
+    if (newProvider && newModel && executionContextStore.isInitialized) {
+      executionContextStore.setLLM(newProvider, newModel);
+      console.log('[LegalDepartment] Model preference changed:', { provider: newProvider, model: newModel });
+    }
+  }
+);
+
 // Methods
 function resetState() {
   // Reset all state for a fresh conversation
@@ -367,8 +384,9 @@ async function loadExistingAnalysis(conversationId: string): Promise<boolean> {
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
 
     if (!analysisDeliverable) {
-      console.log('[LegalDepartment] No analysis deliverable found for conversation');
-      error.value = 'No previous analysis found for this conversation.';
+      // No previous analysis - this is expected for new conversations
+      // Just return false to show the welcome state (no error needed)
+      console.log('[LegalDepartment] No analysis deliverable found - showing welcome state');
       return false;
     }
 
@@ -455,8 +473,8 @@ async function initializeConversation() {
       conversationId: conversationIdToUse,
       agentSlug: 'legal-department',
       agentType: 'api',
-      provider: 'anthropic',
-      model: 'claude-sonnet-4-20250514',
+      provider: userPreferencesStore.preferredProvider || 'anthropic',
+      model: userPreferencesStore.preferredModel || 'claude-sonnet-4-20250514',
     });
 
     console.log('[LegalDepartment] Initialized:', executionContextStore.current);
@@ -1527,6 +1545,11 @@ watch(analysisResults, (newResults) => {
 .capability ion-icon {
   font-size: 20px;
   color: var(--ion-color-primary);
+}
+
+.model-selector {
+  margin-top: 24px;
+  max-width: 400px;
 }
 
 /* Request Display */
