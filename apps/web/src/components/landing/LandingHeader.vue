@@ -1,10 +1,10 @@
 <template>
-  <header class="landing-header">
+  <header class="landing-header" :class="{ 'white-bg': isWhiteHeaderPage }">
     <div class="header-content">
-      <div class="logo">
+      <router-link to="/" class="logo">
         <h1>Orchestrator AI</h1>
         <span class="tagline">AI for Small Business</span>
-      </div>
+      </router-link>
 
 
 
@@ -14,6 +14,7 @@
         <!-- View Toggle - only show in demo organization -->
         <ViewToggle v-if="isDemoOrg" />
         <ion-button
+          v-if="!authStore.isAuthenticated"
           fill="clear"
           size="small"
           class="agent-ideas-button"
@@ -80,6 +81,11 @@ const isVideosPage = computed(() => {
   return route.path === '/videos';
 });
 
+// Check if we show white header (videos or technical page)
+const isWhiteHeaderPage = computed(() => {
+  return ['/videos', '/technical'].includes(route.path);
+});
+
 function navigateToVideos() {
   router.push('/videos');
 }
@@ -105,9 +111,13 @@ function openAgentIdeasModal() {
   background: rgba(253, 248, 246, 0.95);
   backdrop-filter: blur(20px);
   border-bottom: 1px solid rgba(139, 90, 60, 0.1);
-  z-index: var(--z-fixed);
+  z-index: 1000;
   padding: var(--space-3) 0;
   box-shadow: var(--shadow-brown);
+}
+
+.white-bg {
+  background: white !important;
 }
 .header-content {
   max-width: var(--container-max-width);
@@ -125,6 +135,16 @@ function openAgentIdeasModal() {
   margin: 0;
   line-height: 1;
   letter-spacing: -0.025em;
+}
+
+.logo {
+  cursor: pointer;
+  transition: var(--transition-smooth);
+  text-decoration: none;
+  display: block;
+}
+.logo:hover {
+  opacity: 0.8;
 }
 .logo .tagline {
   font-size: var(--text-xs);

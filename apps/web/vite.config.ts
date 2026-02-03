@@ -44,14 +44,14 @@ function getHttpsConfig(env: Record<string, string>) {
 export default defineConfig(({ mode }) => {
   // Load env file from project root (two levels up from apps/web)
   const env = loadEnv(mode, '../../', 'VITE_')
-  
+
   // Debug: Log environment variables during build
   console.log('🔧 Vite Environment Variables:')
   console.log('VITE_API_BASE_URL:', env.VITE_API_BASE_URL)
   console.log('VITE_API_NESTJS_BASE_URL:', env.VITE_API_NESTJS_BASE_URL)
-  
 
-  
+
+
   // Set HMR environment variables based on mode
   if (mode === 'production') {
     process.env.VITE_HMR_HOST = 'app.orchestratorai.io'
@@ -62,7 +62,7 @@ export default defineConfig(({ mode }) => {
     process.env.VITE_HMR_PORT = '7101'
     process.env.VITE_HMR_PROTOCOL = 'ws'
   }
-  
+
   return {
     plugins: [
       vue(),
@@ -99,7 +99,6 @@ export default defineConfig(({ mode }) => {
     },
     optimizeDeps: {
       include: [
-        '@orchestrator-ai/transport-types',
         'three'
       ]
     },
@@ -184,7 +183,7 @@ export default defineConfig(({ mode }) => {
               // Other vendor dependencies
               return 'vendor';
             }
-            
+
             // Application chunks based on feature areas
             if (id.includes('stores/auth') || id.includes('services/auth')) {
               return 'auth-module';

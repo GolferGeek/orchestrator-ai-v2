@@ -13,21 +13,7 @@
       </div>
 
       <div class="container">
-        <!-- Stats -->
-        <div class="stats-bar">
-          <div class="stat-item">
-            <span class="stat-number">{{ videoStats.totalVideos }}</span>
-            <span class="stat-label">Videos</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-number">{{ videoStats.totalCategories }}</span>
-            <span class="stat-label">Categories</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-number">{{ videoStats.totalDurationFormatted }}</span>
-            <span class="stat-label">Total Duration</span>
-          </div>
-        </div>
+
 
         <!-- Search Bar -->
         <div class="search-section">
@@ -139,7 +125,6 @@ const searchResults = ref<Array<{ video: Video; category: VideoCategory; categor
 
 // Get video data from service
 const videoCategories = computed(() => videoService.getCategoriesInOrder());
-const videoStats = computed(() => videoService.getStats());
 
 function openVideoModal(video: Video) {
   currentVideo.value = video;
@@ -172,9 +157,8 @@ function handleSearch() {
 
 .page-header {
   background: linear-gradient(135deg, var(--landing-primary-50) 0%, var(--landing-accent-50) 100%);
-  padding: 3rem 0;
-  border-bottom: 1px solid rgba(139, 90, 60, 0.1);
-  margin-bottom: 2rem;
+  padding: 2rem 0 0 0;
+  margin-bottom: 1rem;
 }
 
 .page-title {
@@ -193,39 +177,10 @@ function handleSearch() {
   max-width: 600px;
 }
 
-/* Stats Bar */
-.stats-bar {
-  display: flex;
-  justify-content: center;
-  gap: 1.5rem;
-  margin-top: 1rem;
-  padding: 1rem;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
-
-.stat-item {
-  text-align: center;
-}
-
-.stat-number {
-  display: block;
-  font-size: 1.8rem;
-  font-weight: 700;
-  color: var(--landing-primary);
-}
-
-.stat-label {
-  font-size: 0.9rem;
-  color: var(--ion-color-medium);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
 
 /* Search Section */
 .search-section {
-  margin: 2rem 0;
+  margin: 1rem 0;
 }
 
 .custom-searchbar {
@@ -462,18 +417,5 @@ function handleSearch() {
     margin-bottom: 0.4rem;
   }
   
-  .stats-bar {
-    flex-direction: column;
-    gap: 0.75rem;
-    padding: 1rem;
-  }
-  
-  .stat-item {
-    text-align: center;
-  }
-  
-  .stat-number {
-    font-size: 1.4rem;
-  }
 }
 </style>

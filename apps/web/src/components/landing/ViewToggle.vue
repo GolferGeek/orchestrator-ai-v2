@@ -11,6 +11,8 @@
       <span class="toggle-label">Landing</span>
     </button>
     
+    <div class="separator"></div>
+    
     <button
       class="toggle-button"
       :class="{ 'active': isTechnicalView }"
@@ -163,5 +165,13 @@ function navigateToTechnical() {
   .toggle-button.active {
     border-color: var(--landing-dark);
   }
+}
+
+.separator {
+  width: 1px;
+  height: 24px;
+  background-color: rgba(139, 90, 60, 0.2);
+  align-self: center;
+  margin: 0 2px;
 }
 </style>

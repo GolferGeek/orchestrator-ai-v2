@@ -3,61 +3,9 @@
     <!-- Landing Header -->
     <LandingHeader />
       
-      <ion-content :fullscreen="true" class="landing-content">
+    <ion-content :fullscreen="true" class="landing-content">
       <!-- Hero Section -->
-        <section class="hero-section">
-          <div class="hero-content landing-section">
-            <!-- Video Player Section -->
-            <div class="video-section">
-              <h2>AI for Small Business</h2>
-              
-              <!-- Video Player -->
-              <VideoPlayer :current-video="currentVideo" />
-              
-              <!-- Video Buttons -->
-              <div class="video-buttons-grid">
-                <button 
-                  v-for="video in featuredVideos" 
-                  :key="video.id"
-                  class="video-button"
-                  :class="{ active: currentVideo?.id === video.id }"
-                  @click="selectVideo(video)"
-                >
-                  <ion-icon :icon="playCircleOutline"></ion-icon>
-                  <span>{{ video.title }}</span>
-                </button>
-              </div>
-              
-              <!-- Demo Highlight Card -->
-              <ion-card class="demo-highlight-box">
-                <ion-card-header>
-                  <ion-card-title class="demo-highlight-title">
-                    🚀 Try the Full App Now
-                  </ion-card-title>
-                </ion-card-header>
-                <ion-card-content>
-                  <p class="demo-highlight-text">
-                    <strong>Jump right in:</strong> The demo environment is a <span class="highlight">fully functional system</span>—everything you see here (and in the videos) is live and ready for you to explore.
-                  </p>
-                  <ul class="demo-highlight-list">
-                    <li>Log in instantly with the provided demo credentials.</li>
-                    <li>All agents are active and ready—ask what they do, then try them out!</li>
-                    <li>Switch between LLM models to see real-time differences in performance.</li>
-                    <li>This is the exact system we deploy for you, inside your own infrastructure.</li>
-                  </ul>
-                  <p class="demo-highlight-text">
-                    <em>Experience OrchestratorAI hands-on—no waiting, no limitations.</em>
-                  </p>
-                  <div class="demo-actions">
-                    <ion-button size="large" @click="goToDemo">
-                      Launch Full App
-                    </ion-button>
-                  </div>
-                </ion-card-content>
-              </ion-card>
-            </div>
-          </div>
-        </section>
+      <HeroSection />
 
       <!-- Small Company Advantage Section -->
         <section id="small-company-advantage" class="small-company-section landing-section animate-on-scroll">
@@ -356,6 +304,7 @@ import {
 import LandingHeader from '@/components/landing/LandingHeader.vue';
 import VideoModal from '@/components/landing/VideoModal.vue';
 import VideoPlayer from '@/components/landing/VideoPlayer.vue';
+import HeroSection from '@/components/landing/HeroSection.vue';
 // Landing page store
 import { useLandingStore } from '@/stores/landingStore';
 // Video service
@@ -378,38 +327,6 @@ const _authStore = useAuthStore();
 // Video modal state
 const isVideoModalOpen = ref(false);
 const currentVideo = ref<VideoPlayerVideo | null>(null);
-
-// Get featured videos for the hero section
-const featuredVideos = computed(() => {
-  const videos: VideoPlayerVideo[] = [];
-  
-  // Get all categories in order
-  const categoriesInOrder = videoService.getCategoriesInOrder();
-  
-  categoriesInOrder.forEach(({ key: _key, category }) => {
-    // Get all featured videos from this category
-    const featuredVideosInCategory = category.videos.filter(video => video.featured);
-    
-    featuredVideosInCategory.forEach(video => {
-      videos.push({
-        id: video.id,
-        title: video.title,
-        description: video.description,
-        videoUrl: video.url
-      });
-    });
-  });
-  
-  return videos;
-});
-
-// Refs for animation
-const featuresGrid = ref<HTMLElement>();
-
-// Hero section functions
-function selectVideo(video: VideoPlayerVideo) {
-  currentVideo.value = video;
-}
 
 function goToDemo() {
   router.push('/login');
@@ -499,14 +416,6 @@ onMounted(() => {
   // Track page view
   landingStore.trackPageView('demo-landing');
   
-  // Track hero section view
-  landingStore.trackSectionView('hero');
-  
-  // Set the first video as the default when the page loads
-  if (featuredVideos.value.length > 0) {
-    currentVideo.value = featuredVideos.value[0];
-  }
-  
   // Set up intersection observer for scroll animations
   observer = new IntersectionObserver(
     (entries) => {
@@ -530,12 +439,7 @@ onMounted(() => {
     }
   });
   
-  // Add stagger animation to features grid after a slight delay
-  setTimeout(() => {
-    if (featuresGrid.value) {
-      featuresGrid.value.classList.add('animate');
-    }
-  }, 300);
+
   
   // Check URL hash for direct navigation
   if (window.location.hash) {
@@ -583,153 +487,6 @@ onUnmounted(() => {
 }
 
 /* Fallback styles in case CSS variables fail to load */
-.hero-section {
-  background: var(--landing-gradient, linear-gradient(135deg, #8b5a3c 0%, #a16c4a 70%, #15803d 100%));
-  color: var(--landing-white, #fffbf7);
-  padding: var(--space-16, 4rem) 0;
-  min-height: 60vh;
-  display: flex;
-  align-items: center;
-  position: relative;
-  overflow: hidden;
-}
-
-.hero-content {
-  max-width: var(--container-max-width, 1200px);
-  margin: 0 auto;
-  padding: 0 var(--space-8, 2rem);
-  text-align: center;
-  position: relative;
-  z-index: 1;
-}
-
-.video-section h2 {
-  font-size: var(--text-4xl, 2.25rem);
-  margin-bottom: var(--space-8, 2rem);
-  font-weight: var(--font-weight-bold, 700);
-  color: var(--landing-white, #fffbf7);
-}
-
-.video-buttons-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: var(--space-4, 1rem);
-  max-width: 800px;
-  margin: 0 auto var(--space-8, 2rem);
-}
-
-.video-button {
-  background: rgba(255, 255, 255, 0.1);
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  color: var(--landing-white);
-  padding: var(--space-4) var(--space-6);
-  border-radius: var(--radius-xl);
-  font-weight: var(--font-weight-semibold);
-  cursor: pointer;
-  transition: var(--transition-smooth);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  font-size: var(--text-sm);
-  backdrop-filter: blur(10px);
-}
-
-.video-button:hover {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.5);
-}
-
-.video-button.active {
-  background: var(--landing-accent);
-  border-color: var(--landing-accent);
-  color: var(--landing-white);
-}
-
-/* ===================================================
-   UNIFIED CARD SYSTEM
-   - All cards use consistent shadow: 0 4px 16px rgba(0,0,0,0.08)
-   - Soft physical appearance without hover transforms
-   - Consistent border: 1px solid rgba(0,0,0,0.06)
-   - No gradient backgrounds bleeding to edges
-   =================================================== */
-
-/* Demo Highlight Card */
-.demo-highlight-box {
-  margin: var(--space-8) auto;
-  max-width: 800px;
-  --background: rgba(255, 255, 255, 0.97);
-  --color: var(--landing-dark);
-  border-radius: var(--radius-2xl);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-  border: 1px solid rgba(0, 0, 0, 0.06);
-}
-
-.demo-highlight-box ion-card-header {
-  padding-bottom: var(--space-2);
-}
-
-.demo-highlight-box ion-card-content {
-  padding-top: var(--space-2);
-}
-
-.demo-highlight-title {
-  font-size: var(--text-2xl);
-  font-weight: var(--font-weight-bold);
-  color: var(--landing-primary);
-  margin: 0;
-  text-align: center;
-}
-
-.demo-highlight-text {
-  font-size: 1rem;
-  line-height: 1.5;
-  color: var(--landing-dark);
-  margin: var(--space-4) 0;
-  font-weight: var(--font-weight-normal);
-}
-
-.demo-highlight-text .highlight {
-  background: var(--landing-gradient-accent);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  font-weight: var(--font-weight-semibold);
-}
-
-.demo-highlight-list {
-  list-style: none;
-  padding: 0;
-  margin: var(--space-3) 0;
-  text-align: left;
-}
-
-.demo-highlight-list li {
-  padding: var(--space-2) 0;
-  position: relative;
-  padding-left: var(--space-6);
-  color: var(--landing-dark);
-  font-size: 1rem;
-  line-height: 1.4;
-}
-
-.demo-highlight-list li::before {
-  content: "✓";
-  position: absolute;
-  left: 0;
-  top: var(--space-2);
-  color: var(--landing-secondary);
-  font-weight: var(--font-weight-bold);
-}
-
-.demo-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-4);
-  justify-content: center;
-  margin-top: var(--space-6);
-}
-
 .demo-actions ion-button {
   --background: var(--landing-accent);
   --color: var(--landing-white);
