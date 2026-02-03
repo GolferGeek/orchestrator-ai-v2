@@ -734,6 +734,12 @@ async function handleAnalyzeSubject(subjectId: string) {
 }
 
 function handleAnalysisProgressClose() {
+  // Don't close modal or reset state if we're in batch mode
+  // The batch process will handle closing when all subjects are complete
+  if (isBatchMode.value) {
+    return;
+  }
+
   showAnalysisProgress.value = false;
   analysisSubjectIdentifier.value = '';
   analysisTaskId.value = undefined;
@@ -894,12 +900,23 @@ async function handleAnalyzeAll() {
     // Refresh all data
     await loadScopeData(currentScope.value.id);
 
+    // Close modal and reset batch state after completion
+    showAnalysisProgress.value = false;
+    isBatchMode.value = false;
+    batchProgress.value = null;
+    analysisSubjectIdentifier.value = '';
+    analysisTaskId.value = undefined;
+    analysisMode.value = 'analysis';
+
   } catch (err) {
     console.error('[RiskAgentPane] Batch analysis error:', err);
     store.setError(err instanceof Error ? err.message : 'Batch analysis failed');
     if (analysisProgressRef.value) {
       analysisProgressRef.value.setError(err instanceof Error ? err.message : 'Batch analysis failed');
     }
+    // Reset batch state on error too
+    isBatchMode.value = false;
+    batchProgress.value = null;
   } finally {
     store.setAnalyzing(false);
   }
