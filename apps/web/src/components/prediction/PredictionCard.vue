@@ -525,8 +525,8 @@ function truncateReasoning(reasoning: string, maxLength = 120): string {
 
 .card-footer {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 0.5rem;
   margin-top: 0.75rem;
   padding-top: 0.75rem;
   border-top: 1px solid var(--border-color, #e5e7eb);
@@ -534,8 +534,8 @@ function truncateReasoning(reasoning: string, maxLength = 120): string {
 
 .footer-left {
   display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
+  gap: 1rem;
+  flex-wrap: wrap;
 }
 
 .footer-actions {
@@ -607,6 +607,7 @@ function truncateReasoning(reasoning: string, maxLength = 120): string {
   display: flex;
   gap: 0.25rem;
   font-size: 0.75rem;
+  white-space: nowrap;
 }
 
 .timestamp .label {
@@ -615,6 +616,7 @@ function truncateReasoning(reasoning: string, maxLength = 120): string {
 
 .timestamp .value {
   color: var(--text-primary, #111827);
+  white-space: nowrap;
 }
 
 .target-header {
