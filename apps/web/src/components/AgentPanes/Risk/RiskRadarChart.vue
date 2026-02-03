@@ -302,10 +302,10 @@ function formatPercent(value: number): string {
 
 function getScoreColor(score: number): string {
   const normalized = normalizeScore(score);
-  if (normalized >= 0.8) return 'var(--ion-color-danger, #eb445a)';
-  if (normalized >= 0.6) return 'var(--ion-color-warning, #ffc409)';
-  if (normalized >= 0.4) return '#ffd966';
-  return 'var(--ion-color-success, #2dd36f)';
+  if (normalized >= 0.8) return 'var(--ion-color-danger-muted, #8b4444)';
+  if (normalized >= 0.6) return 'var(--ion-color-warning-muted, #8b6644)';
+  if (normalized >= 0.4) return 'var(--ion-color-medium-muted, #7a7344)';
+  return 'var(--ion-color-success-muted, #447744)';
 }
 </script>
 
@@ -432,19 +432,19 @@ function getScoreColor(score: number): string {
 }
 
 .detail-value.critical {
-  color: var(--ion-color-danger, #eb445a);
+  color: var(--ion-color-danger-muted-contrast, #8b4444);
 }
 
 .detail-value.high {
-  color: var(--ion-color-warning, #ffc409);
+  color: var(--ion-color-warning-muted-contrast, #8b6644);
 }
 
 .detail-value.medium {
-  color: #ffd966;
+  color: var(--ion-color-medium-muted-contrast, #7a7344);
 }
 
 .detail-value.low {
-  color: var(--ion-color-success, #2dd36f);
+  color: var(--ion-color-success-muted-contrast, #447744);
 }
 
 .detail-section {
@@ -477,11 +477,11 @@ function getScoreColor(score: number): string {
 }
 
 .signals-list li.signal-positive {
-  color: var(--ion-color-success, #2dd36f);
+  color: var(--ion-color-success-muted-contrast, #447744);
 }
 
 .signals-list li.signal-negative {
-  color: var(--ion-color-danger, #eb445a);
+  color: var(--ion-color-danger-muted-contrast, #8b4444);
 }
 
 .signals-list li.signal-neutral {

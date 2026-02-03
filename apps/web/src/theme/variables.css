@@ -76,6 +76,35 @@
   --ion-color-light-shade: #f7ede7;
   --ion-color-light-tint: #fffbf7;
 
+  /* ============================================================================
+     Muted Color Palette for Risk Dashboard
+     Softer, professional variants of status colors
+     ============================================================================ */
+
+  /* Muted Danger/Critical (soft dusty rose) */
+  --ion-color-danger-muted: #8b4444;
+  --ion-color-danger-muted-rgb: 139, 68, 68;
+  --ion-color-danger-muted-bg: #f5d5d5;
+  --ion-color-danger-muted-contrast: #8b4444;
+
+  /* Muted Warning/High (soft tan) */
+  --ion-color-warning-muted: #8b6644;
+  --ion-color-warning-muted-rgb: 139, 102, 68;
+  --ion-color-warning-muted-bg: #f5e6d5;
+  --ion-color-warning-muted-contrast: #8b6644;
+
+  /* Muted Medium (soft olive) */
+  --ion-color-medium-muted: #7a7344;
+  --ion-color-medium-muted-rgb: 122, 115, 68;
+  --ion-color-medium-muted-bg: #f5f0d5;
+  --ion-color-medium-muted-contrast: #7a7344;
+
+  /* Muted Success/Low (soft sage) */
+  --ion-color-success-muted: #447744;
+  --ion-color-success-muted-rgb: 68, 119, 68;
+  --ion-color-success-muted-bg: #d5e8d5;
+  --ion-color-success-muted-contrast: #447744;
+
   /* App layout variables */
   --app-sidebar-width: 348px;          /* Left menu width */
   --app-convo-width-desktop: 576px;    /* Conversation pane width (desktop) */

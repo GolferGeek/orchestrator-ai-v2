@@ -86,7 +86,7 @@
     </div>
 
     <div class="debate-meta">
-      <span>Debate conducted: {{ formatDate(debate.createdAt) }}</span>
+      <span>Debate conducted: {{ formatDate(debateDate) }}</span>
     </div>
   </div>
 </template>
@@ -113,6 +113,12 @@ const scoreAdjustment = computed(() => {
   return numAdj > 1 ? numAdj / 100 : numAdj;
 });
 
+// Date - handles both camelCase and snake_case
+const debateDate = computed(() => {
+  const d = debateRecord.value;
+  return (d.createdAt ?? d.created_at ?? d.completedAt ?? d.completed_at) as string | undefined;
+});
+
 const adjustmentType = computed(() => {
   if (scoreAdjustment.value > 0.02) return 'increase';
   if (scoreAdjustment.value < -0.02) return 'decrease';
@@ -136,7 +142,8 @@ const blueSummary = computed(() => blueAssessment.value.summary as string || '')
 
 const blueKeyPoints = computed(() => {
   const blue = blueAssessment.value;
-  const points = blue.keyPoints || blue.arguments || [];
+  // Backend uses key_findings, old format used keyPoints or arguments
+  const points = blue.key_findings || blue.keyPoints || blue.arguments || [];
   return Array.isArray(points) ? points : [];
 });
 
@@ -243,13 +250,21 @@ const arbiterSynthesis = computed(() => {
 });
 
 const hasArbiter = computed(() => !!arbiterSynthesis.value);
-const arbiterSummary = computed(() => arbiterSynthesis.value?.summary as string || '');
+const arbiterSummary = computed(() => {
+  const arb = arbiterSynthesis.value;
+  // Backend uses final_assessment, old format used summary
+  return (arb?.final_assessment || arb?.finalAssessment || arb?.summary || '') as string;
+});
 const arbiterTakeaways = computed(() => {
   const arb = arbiterSynthesis.value;
-  const takeaways = arb?.keyTakeaways || arb?.key_takeaways || [];
+  const takeaways = arb?.key_takeaways || arb?.keyTakeaways || [];
   return Array.isArray(takeaways) ? takeaways : [];
 });
-const arbiterRecommendation = computed(() => arbiterSynthesis.value?.recommendation as string || '');
+const arbiterRecommendation = computed(() => {
+  const arb = arbiterSynthesis.value;
+  // Backend uses adjustment_reasoning, old format used recommendation
+  return (arb?.adjustment_reasoning || arb?.adjustmentReasoning || arb?.recommendation || '') as string;
+});
 
 function formatPercent(value: number | null): string {
   if (value === null) return '-';
@@ -293,13 +308,13 @@ function formatDate(dateStr: string | undefined): string {
 }
 
 .adjustment-banner.increase {
-  background: var(--ion-color-danger-tint, #ffcccc);
-  color: var(--ion-color-danger, #eb445a);
+  background: var(--ion-color-danger-muted-bg, #f5d5d5);
+  color: var(--ion-color-danger-muted-contrast, #8b4444);
 }
 
 .adjustment-banner.decrease {
-  background: var(--ion-color-success-tint, #c8f7c5);
-  color: var(--ion-color-success-shade, #1e9e50);
+  background: var(--ion-color-success-muted-bg, #d5e8d5);
+  color: var(--ion-color-success-muted-contrast, #447744);
 }
 
 .adjustment-banner.neutral {
@@ -425,18 +440,18 @@ function formatDate(dateStr: string | undefined): string {
 }
 
 .severity-badge.high {
-  background: var(--ion-color-danger-tint, #ffcccc);
-  color: var(--ion-color-danger, #eb445a);
+  background: var(--ion-color-danger-muted-bg, #f5d5d5);
+  color: var(--ion-color-danger-muted-contrast, #8b4444);
 }
 
 .severity-badge.medium {
-  background: var(--ion-color-warning-tint, #fff3cd);
-  color: var(--ion-color-warning-shade, #856404);
+  background: var(--ion-color-warning-muted-bg, #f5e6d5);
+  color: var(--ion-color-warning-muted-contrast, #8b6644);
 }
 
 .severity-badge.low {
-  background: var(--ion-color-success-tint, #c8f7c5);
-  color: var(--ion-color-success-shade, #1e9e50);
+  background: var(--ion-color-success-muted-bg, #d5e8d5);
+  color: var(--ion-color-success-muted-contrast, #447744);
 }
 
 .status-badge {
@@ -448,14 +463,14 @@ function formatDate(dateStr: string | undefined): string {
 }
 
 .status-badge.completed {
-  background: var(--ion-color-success-tint, #c8f7c5);
-  color: var(--ion-color-success-shade, #1e9e50);
+  background: var(--ion-color-success-muted-bg, #d5e8d5);
+  color: var(--ion-color-success-muted-contrast, #447744);
 }
 
 .status-badge.pending,
 .status-badge.in_progress {
-  background: var(--ion-color-warning-tint, #fff3cd);
-  color: var(--ion-color-warning-shade, #856404);
+  background: var(--ion-color-warning-muted-bg, #f5e6d5);
+  color: var(--ion-color-warning-muted-contrast, #8b6644);
 }
 
 @media (max-width: 768px) {

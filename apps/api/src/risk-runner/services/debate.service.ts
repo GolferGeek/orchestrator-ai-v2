@@ -484,13 +484,23 @@ Your task:
 3. Cite specific evidence from the dimension analyses
 4. Explain why the confidence level is appropriate
 
-Respond in JSON format:
-{
-  "summary": "<comprehensive defense narrative>",
-  "key_findings": ["<finding 1>", "<finding 2>", ...],
-  "evidence_cited": ["<evidence 1>", "<evidence 2>", ...],
-  "confidence_explanation": "<why the confidence level is justified>"
-}`;
+Respond in Markdown format with these exact headers:
+
+## Summary
+[Write a comprehensive defense narrative here]
+
+## Key Findings
+- [Finding 1]
+- [Finding 2]
+- [Add more as needed]
+
+## Evidence Cited
+- [Evidence 1]
+- [Evidence 2]
+- [Add more as needed]
+
+## Confidence Explanation
+[Explain why the confidence level is justified]`;
   }
 
   /**
@@ -519,7 +529,9 @@ Dimension Assessments:
 ${dimensionSummary}
 
 Blue Team's Defense:
-${JSON.stringify(blueAssessment, null, 2)}
+${blueAssessment.summary}
+
+Key findings they cited: ${blueAssessment.key_findings.join('; ')}
 
 Your task:
 1. Challenge the assessment - what did they miss?
@@ -528,28 +540,36 @@ Your task:
 4. Highlight any overstated or understated risks
 5. For each challenge, suggest a specific score adjustment
 
-Respond in JSON format:
-{
-  "challenges": [
-    {
-      "dimension": "<dimension affected>",
-      "challenge": "<specific challenge to the assessment>",
-      "evidence": ["<supporting evidence>"],
-      "suggested_adjustment": <-20 to +20 score adjustment>
-    }
-  ],
-  "blind_spots": ["<overlooked risk factor 1>", ...],
-  "alternative_scenarios": [
-    {
-      "name": "<scenario name>",
-      "description": "<what could happen>",
-      "probability": <0.0-1.0>,
-      "impact_on_score": <-30 to +30>
-    }
-  ],
-  "overstated_risks": ["<risk that may be exaggerated>", ...],
-  "understated_risks": ["<risk that needs more attention>", ...]
-}`;
+Respond in Markdown format with these exact headers:
+
+## Challenges
+
+### Challenge 1
+- **Dimension:** [which dimension this affects]
+- **Challenge:** [specific challenge to the assessment]
+- **Evidence:** [supporting evidence]
+- **Suggested Adjustment:** [number from -20 to +20]
+
+### Challenge 2
+[repeat format for each challenge]
+
+## Blind Spots
+- [Overlooked risk factor 1]
+- [Overlooked risk factor 2]
+
+## Alternative Scenarios
+
+### Scenario 1
+- **Name:** [scenario name]
+- **Description:** [what could happen]
+- **Probability:** [0.0-1.0]
+- **Impact on Score:** [number from -30 to +30]
+
+## Overstated Risks
+- [Risk that may be exaggerated]
+
+## Understated Risks
+- [Risk that needs more attention]`;
   }
 
   /**
@@ -561,6 +581,19 @@ Respond in JSON format:
     blueAssessment: BlueAssessment,
     redChallenges: RedChallenges,
   ): string {
+    // Format Blue Team summary for Arbiter
+    const blueSummary = `Summary: ${blueAssessment.summary}
+Key Findings: ${blueAssessment.key_findings.join('; ')}`;
+
+    // Format Red Team challenges for Arbiter
+    const redSummary = redChallenges.challenges
+      .map(
+        (c, i) =>
+          `Challenge ${i + 1}: ${c.challenge} (Dimension: ${c.dimension}, Suggested: ${c.suggested_adjustment})`,
+      )
+      .join('\n');
+    const blindSpots = redChallenges.blind_spots.join('; ');
+
     return `You are the Arbiter agent providing final synthesis for ${subject.identifier}.
 
 Subject: ${subject.identifier} (${subject.name || 'Unknown'})
@@ -568,10 +601,12 @@ Subject Type: ${subject.subject_type}
 Current Risk Score: ${compositeScore.overall_score}/100
 
 Blue Team's Defense:
-${JSON.stringify(blueAssessment, null, 2)}
+${blueSummary}
 
 Red Team's Challenges:
-${JSON.stringify(redChallenges, null, 2)}
+${redSummary}
+
+Red Team's Blind Spots: ${blindSpots}
 
 Your task:
 1. Review both perspectives objectively
@@ -580,16 +615,30 @@ Your task:
 4. Provide a final score adjustment recommendation (-30 to +30)
 5. Explain your reasoning
 
-Respond in JSON format:
-{
-  "final_assessment": "<balanced conclusion synthesizing both views>",
-  "accepted_challenges": ["<challenge ID/summary that is valid>", ...],
-  "rejected_challenges": ["<challenge ID/summary that is invalid>", ...],
-  "adjustment_reasoning": "<why the score should be adjusted (or not)>",
-  "recommended_adjustment": <-30 to +30>,
-  "confidence_level": <0.0-1.0>,
-  "key_takeaways": ["<important insight 1>", ...]
-}`;
+Respond in Markdown format with these exact headers:
+
+## Final Assessment
+[Balanced conclusion synthesizing both Blue and Red team views]
+
+## Accepted Challenges
+- [Challenge that is valid and should affect the score]
+- [Another valid challenge]
+
+## Rejected Challenges
+- [Challenge that is invalid or should not affect the score]
+
+## Adjustment Reasoning
+[Explain why the score should be adjusted (or not)]
+
+## Recommended Adjustment
+[A single number from -30 to +30]
+
+## Confidence Level
+[A single number from 0.0 to 1.0]
+
+## Key Takeaways
+- [Important insight 1]
+- [Important insight 2]`;
   }
 
   /**
@@ -616,213 +665,241 @@ Respond in JSON format:
   }
 
   /**
-   * Parse Blue Agent response
+   * Sanitize LLM JSON output to fix common issues
+   * - Remove leading + signs on numbers (JSON doesn't allow +15, only -15)
+   * - Fix malformed arrays like ["a"], ["b"] -> ["a", "b"]
+   * - Fix trailing commas
+   */
+  private sanitizeJsonForParsing(content: string): string {
+    let sanitized = content;
+
+    // Remove leading + signs before numbers (e.g., +15 -> 15, +0.5 -> 0.5)
+    // Match: colon, optional whitespace, plus sign, then number
+    sanitized = sanitized.replace(/:\s*\+(\d+(?:\.\d+)?)/g, ': $1');
+
+    // Fix malformed arrays: ], [ -> , (LLM sometimes outputs multiple arrays instead of one)
+    // Pattern: ], followed by optional whitespace/newlines, then [
+    sanitized = sanitized.replace(/\],\s*\[/g, ', ');
+
+    // Remove trailing commas before closing brackets/braces
+    sanitized = sanitized.replace(/,(\s*[}\]])/g, '$1');
+
+    this.logger.debug(
+      `[Sanitize] Applied sanitization, length: ${sanitized.length}`,
+    );
+
+    return sanitized;
+  }
+
+  /**
+   * Parse Blue Agent Markdown response
    */
   private parseBlueResponse(content: string): BlueAssessment {
-    try {
-      const cleanedContent = this.stripMarkdownCodeBlocks(content);
-      const parsed = JSON.parse(cleanedContent) as Record<string, unknown>;
-      return {
-        summary:
-          typeof parsed.summary === 'string'
-            ? parsed.summary
-            : 'No summary provided',
-        key_findings: Array.isArray(parsed.key_findings)
-          ? (parsed.key_findings as string[])
-          : [],
-        evidence_cited: Array.isArray(parsed.evidence_cited)
-          ? (parsed.evidence_cited as string[])
-          : [],
-        confidence_explanation:
-          typeof parsed.confidence_explanation === 'string'
-            ? parsed.confidence_explanation
-            : 'No explanation provided',
-      };
-    } catch {
-      this.logger.warn('Failed to parse Blue Agent response as JSON');
-      return {
-        summary: content.slice(0, 500),
-        key_findings: [],
-        evidence_cited: [],
-        confidence_explanation: 'Parse error',
-      };
-    }
+    this.logger.log(
+      `[Blue Agent Parse] Parsing Markdown response, length: ${content?.length || 0}`,
+    );
+
+    const summary =
+      this.extractMarkdownSection(content, 'Summary') || 'No summary provided';
+    const keyFindings = this.extractMarkdownBullets(content, 'Key Findings');
+    const evidenceCited = this.extractMarkdownBullets(
+      content,
+      'Evidence Cited',
+    );
+    const confidenceExplanation =
+      this.extractMarkdownSection(content, 'Confidence Explanation') ||
+      'No explanation provided';
+
+    this.logger.log(
+      `[Blue Agent Parse] Extracted: summary=${summary.length}chars, findings=${keyFindings.length}, evidence=${evidenceCited.length}`,
+    );
+
+    return {
+      summary,
+      key_findings: keyFindings,
+      evidence_cited: evidenceCited,
+      confidence_explanation: confidenceExplanation,
+    };
   }
 
   /**
-   * Parse Red Agent response
+   * Parse Red Agent Markdown response
    */
   private parseRedResponse(content: string): RedChallenges {
-    try {
-      const cleanedContent = this.stripMarkdownCodeBlocks(content);
-      const parsed = JSON.parse(cleanedContent) as Record<string, unknown>;
-      return {
-        challenges: this.parseChallenges(parsed.challenges),
-        blind_spots: Array.isArray(parsed.blind_spots)
-          ? (parsed.blind_spots as string[])
-          : [],
-        alternative_scenarios: this.parseAlternativeScenarios(
-          parsed.alternative_scenarios,
-        ),
-        overstated_risks: Array.isArray(parsed.overstated_risks)
-          ? (parsed.overstated_risks as string[])
-          : [],
-        understated_risks: Array.isArray(parsed.understated_risks)
-          ? (parsed.understated_risks as string[])
-          : [],
-      };
-    } catch (error) {
-      this.logger.warn(
-        `Failed to parse Red Agent response as JSON: ${error instanceof Error ? error.message : String(error)}`,
-      );
-      this.logger.debug(
-        `Red Agent raw content (first 500 chars): ${content.slice(0, 500)}`,
-      );
+    this.logger.log(
+      `[Red Agent Parse] Parsing Markdown response, length: ${content?.length || 0}`,
+    );
 
-      // Try to extract JSON from the content (LLM might have added prose before/after)
-      const jsonMatch = content.match(/\{[\s\S]*"challenges"[\s\S]*\}/);
-      if (jsonMatch) {
-        try {
-          const extractedJson = jsonMatch[0];
-          const parsed = JSON.parse(extractedJson) as Record<string, unknown>;
-          this.logger.log(
-            'Successfully extracted JSON from Red Agent response',
-          );
-          return {
-            challenges: this.parseChallenges(parsed.challenges),
-            blind_spots: Array.isArray(parsed.blind_spots)
-              ? (parsed.blind_spots as string[])
-              : [],
-            alternative_scenarios: this.parseAlternativeScenarios(
-              parsed.alternative_scenarios,
-            ),
-            overstated_risks: Array.isArray(parsed.overstated_risks)
-              ? (parsed.overstated_risks as string[])
-              : [],
-            understated_risks: Array.isArray(parsed.understated_risks)
-              ? (parsed.understated_risks as string[])
-              : [],
-          };
-        } catch (extractError) {
-          this.logger.warn(
-            `Failed to extract JSON from Red Agent response: ${extractError instanceof Error ? extractError.message : String(extractError)}`,
-          );
-        }
+    if (!content || content.trim().length === 0) {
+      this.logger.error('[Red Agent Parse] Empty content received');
+      return this.buildRedParseError('Empty response from Red Team agent');
+    }
+
+    // Parse challenges from ### Challenge N sections
+    const challenges = this.parseMarkdownChallenges(content);
+    const blindSpots = this.extractMarkdownBullets(content, 'Blind Spots');
+    const alternativeScenarios = this.parseMarkdownScenarios(content);
+    const overstatedRisks = this.extractMarkdownBullets(
+      content,
+      'Overstated Risks',
+    );
+    const understatedRisks = this.extractMarkdownBullets(
+      content,
+      'Understated Risks',
+    );
+
+    this.logger.log(
+      `[Red Agent Parse] Extracted: challenges=${challenges.length}, blindSpots=${blindSpots.length}, scenarios=${alternativeScenarios.length}`,
+    );
+
+    return {
+      challenges,
+      blind_spots: blindSpots,
+      alternative_scenarios: alternativeScenarios,
+      overstated_risks: overstatedRisks,
+      understated_risks: understatedRisks,
+    };
+  }
+
+  /**
+   * Parse challenge blocks from Markdown (### Challenge N format)
+   */
+  private parseMarkdownChallenges(content: string): RedTeamChallenge[] {
+    const challenges: RedTeamChallenge[] = [];
+
+    // Find the Challenges section
+    const challengesSection = this.extractMarkdownSection(
+      content,
+      'Challenges',
+    );
+    if (!challengesSection) {
+      return challenges;
+    }
+
+    // Split by ### to get individual challenges
+    const challengeBlocks = challengesSection
+      .split(/###\s+Challenge\s+\d+/i)
+      .filter((b) => b.trim());
+
+    for (const block of challengeBlocks) {
+      const dimension =
+        this.extractMarkdownField(block, 'Dimension') || 'unknown';
+      const challenge = this.extractMarkdownField(block, 'Challenge') || '';
+      const evidence = this.extractMarkdownField(block, 'Evidence') || '';
+      const adjustmentStr =
+        this.extractMarkdownField(block, 'Suggested Adjustment') || '0';
+      const adjustment = this.parseNumber(adjustmentStr);
+
+      if (challenge) {
+        challenges.push({
+          dimension,
+          challenge,
+          evidence: evidence ? [evidence] : [],
+          suggested_adjustment: this.clampAdjustment(adjustment),
+        });
       }
-
-      // Last resort: return empty challenges with error message (NOT the raw JSON)
-      return {
-        challenges: [],
-        blind_spots: [
-          'Unable to parse Red Team response - please retry the analysis',
-        ],
-        alternative_scenarios: [],
-        overstated_risks: [],
-        understated_risks: [],
-      };
     }
+
+    return challenges;
   }
 
   /**
-   * Parse challenges array from Red Agent
+   * Parse scenario blocks from Markdown (### Scenario N format)
    */
-  private parseChallenges(challenges: unknown): RedTeamChallenge[] {
-    if (!Array.isArray(challenges)) {
-      return [];
+  private parseMarkdownScenarios(content: string): AlternativeScenario[] {
+    const scenarios: AlternativeScenario[] = [];
+
+    // Find the Alternative Scenarios section
+    const scenariosSection = this.extractMarkdownSection(
+      content,
+      'Alternative Scenarios',
+    );
+    if (!scenariosSection) {
+      return scenarios;
     }
 
-    return challenges.map((c: unknown) => {
-      const challenge = c as Record<string, unknown>;
-      return {
-        dimension:
-          typeof challenge.dimension === 'string'
-            ? challenge.dimension
-            : 'unknown',
-        challenge:
-          typeof challenge.challenge === 'string' ? challenge.challenge : '',
-        evidence: Array.isArray(challenge.evidence)
-          ? (challenge.evidence as string[])
-          : [],
-        suggested_adjustment: this.clampAdjustment(
-          Number(challenge.suggested_adjustment) || 0,
-        ),
-      };
-    });
+    // Split by ### to get individual scenarios
+    const scenarioBlocks = scenariosSection
+      .split(/###\s+Scenario\s+\d+/i)
+      .filter((b) => b.trim());
+
+    for (const block of scenarioBlocks) {
+      const name =
+        this.extractMarkdownField(block, 'Name') || 'Unknown scenario';
+      const description = this.extractMarkdownField(block, 'Description') || '';
+      const probabilityStr =
+        this.extractMarkdownField(block, 'Probability') || '0.5';
+      const impactStr =
+        this.extractMarkdownField(block, 'Impact on Score') || '0';
+
+      scenarios.push({
+        name,
+        description,
+        probability: Math.max(0, Math.min(1, this.parseNumber(probabilityStr))),
+        impact_on_score: this.clampAdjustment(this.parseNumber(impactStr)),
+      });
+    }
+
+    return scenarios;
   }
 
   /**
-   * Parse alternative scenarios from Red Agent
+   * Build error response for Red Team parsing failures
    */
-  private parseAlternativeScenarios(scenarios: unknown): AlternativeScenario[] {
-    if (!Array.isArray(scenarios)) {
-      return [];
-    }
-
-    return scenarios.map((s: unknown) => {
-      const scenario = s as Record<string, unknown>;
-      return {
-        name:
-          typeof scenario.name === 'string'
-            ? scenario.name
-            : 'Unknown scenario',
-        description:
-          typeof scenario.description === 'string' ? scenario.description : '',
-        probability: Math.max(
-          0,
-          Math.min(1, Number(scenario.probability) || 0.5),
-        ),
-        impact_on_score: this.clampAdjustment(
-          Number(scenario.impact_on_score) || 0,
-        ),
-      };
-    });
+  private buildRedParseError(message: string): RedChallenges {
+    return {
+      challenges: [],
+      blind_spots: [message],
+      alternative_scenarios: [],
+      overstated_risks: [],
+      understated_risks: [],
+    };
   }
 
   /**
-   * Parse Arbiter Agent response
+   * Parse Arbiter Agent Markdown response
    */
   private parseArbiterResponse(content: string): ArbiterSynthesis {
-    try {
-      const cleanedContent = this.stripMarkdownCodeBlocks(content);
-      const parsed = JSON.parse(cleanedContent) as Record<string, unknown>;
-      return {
-        final_assessment:
-          typeof parsed.final_assessment === 'string'
-            ? parsed.final_assessment
-            : 'No assessment provided',
-        accepted_challenges: Array.isArray(parsed.accepted_challenges)
-          ? (parsed.accepted_challenges as string[])
-          : [],
-        rejected_challenges: Array.isArray(parsed.rejected_challenges)
-          ? (parsed.rejected_challenges as string[])
-          : [],
-        adjustment_reasoning:
-          typeof parsed.adjustment_reasoning === 'string'
-            ? parsed.adjustment_reasoning
-            : 'No reasoning provided',
-        confidence_level: Math.max(
-          0,
-          Math.min(1, Number(parsed.confidence_level) || 0.5),
-        ),
-        key_takeaways: Array.isArray(parsed.key_takeaways)
-          ? (parsed.key_takeaways as string[])
-          : [],
-        recommended_adjustment: this.clampAdjustment(
-          Number(parsed.recommended_adjustment) || 0,
-        ),
-      };
-    } catch {
-      this.logger.warn('Failed to parse Arbiter Agent response as JSON');
-      return {
-        final_assessment: content.slice(0, 500),
-        accepted_challenges: [],
-        rejected_challenges: [],
-        adjustment_reasoning: 'Parse error',
-        confidence_level: 0.3,
-        key_takeaways: [],
-        recommended_adjustment: 0,
-      };
-    }
+    this.logger.log(
+      `[Arbiter Parse] Parsing Markdown response, length: ${content?.length || 0}`,
+    );
+
+    const finalAssessment =
+      this.extractMarkdownSection(content, 'Final Assessment') ||
+      'No assessment provided';
+    const acceptedChallenges = this.extractMarkdownBullets(
+      content,
+      'Accepted Challenges',
+    );
+    const rejectedChallenges = this.extractMarkdownBullets(
+      content,
+      'Rejected Challenges',
+    );
+    const adjustmentReasoning =
+      this.extractMarkdownSection(content, 'Adjustment Reasoning') ||
+      'No reasoning provided';
+    const recommendedAdjustmentStr =
+      this.extractMarkdownSection(content, 'Recommended Adjustment') || '0';
+    const confidenceLevelStr =
+      this.extractMarkdownSection(content, 'Confidence Level') || '0.5';
+    const keyTakeaways = this.extractMarkdownBullets(content, 'Key Takeaways');
+
+    const recommendedAdjustment = this.parseNumber(recommendedAdjustmentStr);
+    const confidenceLevel = this.parseNumber(confidenceLevelStr);
+
+    this.logger.log(
+      `[Arbiter Parse] Extracted: adjustment=${recommendedAdjustment}, confidence=${confidenceLevel}, takeaways=${keyTakeaways.length}`,
+    );
+
+    return {
+      final_assessment: finalAssessment,
+      accepted_challenges: acceptedChallenges,
+      rejected_challenges: rejectedChallenges,
+      adjustment_reasoning: adjustmentReasoning,
+      confidence_level: Math.max(0, Math.min(1, confidenceLevel)),
+      key_takeaways: keyTakeaways,
+      recommended_adjustment: this.clampAdjustment(recommendedAdjustment),
+    };
   }
 
   /**
@@ -839,6 +916,87 @@ Respond in JSON format:
    */
   private clampAdjustment(adjustment: number): number {
     return Math.max(-30, Math.min(30, Math.round(adjustment)));
+  }
+
+  // ==========================================================================
+  // MARKDOWN PARSING HELPERS
+  // ==========================================================================
+
+  /**
+   * Extract content from a Markdown section (## Header format)
+   * Returns the text between this header and the next ## header
+   */
+  private extractMarkdownSection(
+    content: string,
+    sectionName: string,
+  ): string | null {
+    // Match ## Section Name (case insensitive)
+    const pattern = new RegExp(
+      `##\\s*${sectionName}\\s*\\n([\\s\\S]*?)(?=\\n##\\s|$)`,
+      'i',
+    );
+    const match = content.match(pattern);
+    if (match && match[1]) {
+      return match[1].trim();
+    }
+    return null;
+  }
+
+  /**
+   * Extract bullet points from a Markdown section
+   * Returns array of bullet content (strips the - or * prefix)
+   */
+  private extractMarkdownBullets(
+    content: string,
+    sectionName: string,
+  ): string[] {
+    const section = this.extractMarkdownSection(content, sectionName);
+    if (!section) {
+      return [];
+    }
+
+    const bullets: string[] = [];
+    // Match lines starting with - or * (bullet points)
+    const lines = section.split('\n');
+    for (const line of lines) {
+      const bulletMatch = line.match(/^\s*[-*]\s+(.+)$/);
+      if (bulletMatch && bulletMatch[1]) {
+        bullets.push(bulletMatch[1].trim());
+      }
+    }
+    return bullets;
+  }
+
+  /**
+   * Extract a field value from Markdown (- **Field:** value format)
+   */
+  private extractMarkdownField(
+    content: string,
+    fieldName: string,
+  ): string | null {
+    // Match - **Field Name:** value or **Field Name:** value
+    const pattern = new RegExp(
+      `[-*]?\\s*\\*\\*${fieldName}:\\*\\*\\s*(.+?)(?=\\n|$)`,
+      'i',
+    );
+    const match = content.match(pattern);
+    if (match && match[1]) {
+      return match[1].trim();
+    }
+    return null;
+  }
+
+  /**
+   * Parse a number from a string, handling +/- signs and text
+   */
+  private parseNumber(str: string): number {
+    if (!str) return 0;
+    // Extract the first number (including negative sign and decimals)
+    const match = str.match(/[+-]?\d+\.?\d*/);
+    if (match) {
+      return parseFloat(match[0]);
+    }
+    return 0;
   }
 
   /**

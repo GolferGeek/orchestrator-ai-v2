@@ -51,6 +51,38 @@
  */
 
 /* Apply enhanced dark theme when manually toggled */
+html[data-theme="dark"],
+html.ion-palette-dark {
+  /* ============================================================================
+     Muted Color Palette for Risk Dashboard (Dark Mode)
+     Softer, professional variants of status colors
+     ============================================================================ */
+
+  /* Muted Danger/Critical (dark mode) */
+  --ion-color-danger-muted: #cc8888;
+  --ion-color-danger-muted-rgb: 204, 136, 136;
+  --ion-color-danger-muted-bg: #3d2828;
+  --ion-color-danger-muted-contrast: #f5d5d5;
+
+  /* Muted Warning/High (dark mode) */
+  --ion-color-warning-muted: #ccaa88;
+  --ion-color-warning-muted-rgb: 204, 170, 136;
+  --ion-color-warning-muted-bg: #3d3328;
+  --ion-color-warning-muted-contrast: #f5e6d5;
+
+  /* Muted Medium (dark mode) */
+  --ion-color-medium-muted: #b8b088;
+  --ion-color-medium-muted-rgb: 184, 176, 136;
+  --ion-color-medium-muted-bg: #3d3a28;
+  --ion-color-medium-muted-contrast: #f5f0d5;
+
+  /* Muted Success/Low (dark mode) */
+  --ion-color-success-muted: #88bb88;
+  --ion-color-success-muted-rgb: 136, 187, 136;
+  --ion-color-success-muted-bg: #283d28;
+  --ion-color-success-muted-contrast: #d5e8d5;
+}
+
 html[data-theme="dark"] {
   /* Override Ionic's default dark variables with our enhanced palette */
   --ion-background-color: var(--dark-bg-primary);

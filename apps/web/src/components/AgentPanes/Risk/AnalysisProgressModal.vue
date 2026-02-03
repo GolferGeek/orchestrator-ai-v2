@@ -2,7 +2,37 @@
   <Teleport to="body">
     <Transition name="modal-fade">
       <div v-if="isVisible" class="modal-overlay" @click.self="handleCancel">
-        <div class="modal-content analysis-progress-modal">
+        <div class="modal-content analysis-progress-modal" :class="{ 'batch-mode': batchMode }">
+          <!-- Batch Header (shown when in batch mode) -->
+          <div v-if="batchMode && batchProgress" class="batch-header">
+            <div class="batch-title">
+              <span class="batch-label">Batch Analysis:</span>
+              <span class="batch-subject">{{ batchProgress.currentSubject }}</span>
+              <span class="batch-count">({{ batchProgress.current }} of {{ batchProgress.total }})</span>
+            </div>
+            <div class="batch-progress-dots">
+              <span
+                v-for="(subject, idx) in batchProgress.subjects"
+                :key="subject"
+                class="batch-dot"
+                :class="{
+                  'completed': batchProgress.completedSubjects.includes(subject),
+                  'current': subject === batchProgress.currentSubject,
+                  'pending': !batchProgress.completedSubjects.includes(subject) && subject !== batchProgress.currentSubject
+                }"
+                :title="subject"
+              >
+                {{ batchProgress.completedSubjects.includes(subject) ? '✓' : (subject === batchProgress.currentSubject ? '◉' : '○') }}
+              </span>
+            </div>
+            <div class="batch-phase">
+              <span class="phase-label">Phase:</span>
+              <span class="phase-value" :class="batchProgress.currentPhase">
+                {{ batchProgress.currentPhase === 'analysis' ? 'Risk Analysis' : batchProgress.currentPhase === 'debate' ? 'Red vs Blue Debate' : 'Executive Summary' }}
+              </span>
+            </div>
+          </div>
+
           <div class="modal-header">
             <h3>{{ modalTitle }}</h3>
             <div class="header-badge" :class="statusClass">{{ statusLabel }}</div>
@@ -11,7 +41,7 @@
           <div class="modal-body">
             <!-- Subject Info -->
             <div class="subject-info">
-              <span class="subject-label">Analyzing:</span>
+              <span class="subject-label">{{ batchMode ? 'Current:' : 'Analyzing:' }}</span>
               <span class="subject-name">{{ subjectIdentifier }}</span>
             </div>
 
@@ -159,16 +189,29 @@ interface ProgressEvent {
   debateTriggered?: boolean;
 }
 
+interface BatchProgress {
+  current: number;
+  total: number;
+  subjects: string[];
+  currentSubject: string;
+  completedSubjects: string[];
+  currentPhase: 'analysis' | 'debate' | 'summary';
+}
+
 interface Props {
   isVisible: boolean;
   subjectIdentifier: string;
   taskId?: string;
   mode?: 'analysis' | 'debate' | 'summary';
+  batchMode?: boolean;
+  batchProgress?: BatchProgress | null;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   taskId: undefined,
   mode: 'analysis',
+  batchMode: false,
+  batchProgress: null,
 });
 
 const emit = defineEmits<{
@@ -792,6 +835,105 @@ defineExpose({
   opacity: 0;
 }
 
+/* Batch Mode Styles */
+.modal-content.batch-mode {
+  max-width: 540px;
+}
+
+.batch-header {
+  padding: 1rem 1.25rem;
+  background: linear-gradient(135deg, var(--ion-color-primary, #3880ff) 0%, var(--ion-color-primary-shade, #3171e0) 100%);
+  color: white;
+  border-radius: 12px 12px 0 0;
+}
+
+.batch-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.batch-label {
+  font-size: 0.8125rem;
+  opacity: 0.9;
+}
+
+.batch-subject {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.batch-count {
+  font-size: 0.8125rem;
+  opacity: 0.8;
+}
+
+.batch-progress-dots {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.batch-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  font-size: 0.75rem;
+  border-radius: 50%;
+  transition: all 0.2s;
+}
+
+.batch-dot.completed {
+  background: rgba(255, 255, 255, 0.3);
+  color: white;
+}
+
+.batch-dot.current {
+  background: white;
+  color: var(--ion-color-primary, #3880ff);
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.batch-dot.pending {
+  background: transparent;
+  opacity: 0.5;
+}
+
+.batch-phase {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+}
+
+.phase-label {
+  opacity: 0.8;
+}
+
+.phase-value {
+  padding: 0.25rem 0.625rem;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+.phase-value.analysis {
+  background: rgba(59, 130, 246, 0.3);
+}
+
+.phase-value.debate {
+  background: rgba(239, 68, 68, 0.3);
+}
+
+.phase-value.summary {
+  background: rgba(16, 185, 129, 0.3);
+}
+
 /* Dark mode */
 @media (prefers-color-scheme: dark) {
   .modal-content {
@@ -806,6 +948,10 @@ defineExpose({
   .current-step,
   .result-summary {
     background: #2a2a2a;
+  }
+
+  .batch-header {
+    background: linear-gradient(135deg, #2d4a7c 0%, #1e3a5f 100%);
   }
 }
 </style>

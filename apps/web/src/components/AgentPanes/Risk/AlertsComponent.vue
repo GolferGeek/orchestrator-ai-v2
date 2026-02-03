@@ -514,13 +514,15 @@ function escapeHtml(text: string): string {
 }
 
 .alert-card.critical {
-  border-left-color: var(--ion-color-danger, #eb445a);
-  background: var(--ion-color-danger-tint, #ffeeee);
+  border-left-color: var(--ion-color-danger-muted, #8b4444);
+  background: var(--ion-color-danger-muted-bg, #f5d5d5);
+  color: var(--ion-color-danger-muted-contrast, #8b4444);
 }
 
 .alert-card.warning {
-  border-left-color: var(--ion-color-warning, #ffc409);
-  background: var(--ion-color-warning-tint, #fff8e6);
+  border-left-color: var(--ion-color-warning-muted, #8b6644);
+  background: var(--ion-color-warning-muted-bg, #f5e6d5);
+  color: var(--ion-color-warning-muted-contrast, #8b6644);
 }
 
 .alert-header {
@@ -623,11 +625,13 @@ function escapeHtml(text: string): string {
 }
 
 .modal-header.severity-critical {
-  background: var(--ion-color-danger-tint, #ffcccc);
+  background: var(--ion-color-danger-muted-bg, #f5d5d5);
+  color: var(--ion-color-danger-muted-contrast, #8b4444);
 }
 
 .modal-header.severity-warning {
-  background: var(--ion-color-warning-tint, #fff3cd);
+  background: var(--ion-color-warning-muted-bg, #f5e6d5);
+  color: var(--ion-color-warning-muted-contrast, #8b6644);
 }
 
 .modal-header.severity-info {
@@ -679,10 +683,10 @@ function escapeHtml(text: string): string {
   font-size: 0.875rem;
 }
 
-.detail-value.critical { color: var(--ion-color-danger, #eb445a); }
-.detail-value.high { color: var(--ion-color-warning, #ffc409); }
-.detail-value.medium { color: #ffd966; }
-.detail-value.low { color: var(--ion-color-success, #2dd36f); }
+.detail-value.critical { color: var(--ion-color-danger-muted-contrast, #8b4444); }
+.detail-value.high { color: var(--ion-color-warning-muted-contrast, #8b6644); }
+.detail-value.medium { color: var(--ion-color-medium-muted-contrast, #7a7344); }
+.detail-value.low { color: var(--ion-color-success-muted-contrast, #447744); }
 
 .context-section {
   margin-top: 1.5rem;
@@ -743,10 +747,10 @@ function escapeHtml(text: string): string {
   background: var(--ion-color-light, #f4f5f8);
 }
 
-.context-score.critical { background: var(--ion-color-danger, #eb445a); color: white; }
-.context-score.high { background: var(--ion-color-warning, #ffc409); color: #333; }
-.context-score.medium { background: #ffd966; color: #333; }
-.context-score.low { background: var(--ion-color-success, #2dd36f); color: white; }
+.context-score.critical { background: var(--ion-color-danger-muted-bg, #f5d5d5); color: var(--ion-color-danger-muted-contrast, #8b4444); }
+.context-score.high { background: var(--ion-color-warning-muted-bg, #f5e6d5); color: var(--ion-color-warning-muted-contrast, #8b6644); }
+.context-score.medium { background: var(--ion-color-medium-muted-bg, #f5f0d5); color: var(--ion-color-medium-muted-contrast, #7a7344); }
+.context-score.low { background: var(--ion-color-success-muted-bg, #d5e8d5); color: var(--ion-color-success-muted-contrast, #447744); }
 
 .context-reasoning {
   background: var(--ion-color-light, #f4f5f8);
@@ -789,8 +793,8 @@ function escapeHtml(text: string): string {
 }
 
 .signals-list li { margin-bottom: 0.375rem; }
-.signals-list li.signal-positive { color: var(--ion-color-success, #2dd36f); }
-.signals-list li.signal-negative { color: var(--ion-color-danger, #eb445a); }
+.signals-list li.signal-positive { color: var(--ion-color-success-muted-contrast, #447744); }
+.signals-list li.signal-negative { color: var(--ion-color-danger-muted-contrast, #8b4444); }
 .signals-list li.signal-neutral { color: var(--ion-color-medium, #666); }
 
 .signals-list .signal-item {
@@ -858,8 +862,8 @@ function escapeHtml(text: string): string {
   max-width: 60%;
 }
 
-.signal-detail-row .impact-positive { color: var(--ion-color-success, #2dd36f); }
-.signal-detail-row .impact-negative { color: var(--ion-color-danger, #eb445a); }
+.signal-detail-row .impact-positive { color: var(--ion-color-success-muted-contrast, #447744); }
+.signal-detail-row .impact-negative { color: var(--ion-color-danger-muted-contrast, #8b4444); }
 .signal-detail-row .impact-neutral { color: var(--ion-color-medium, #666); }
 
 .modal-actions {

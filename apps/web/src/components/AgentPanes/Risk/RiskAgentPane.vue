@@ -11,6 +11,15 @@
       </div>
 
       <div class="header-controls">
+        <!-- LLM Model Selector -->
+        <button
+          class="control-btn llm-selector-btn"
+          @click="showLLMSelector = true"
+          title="Change LLM model for analysis"
+        >
+          {{ currentLLMDisplay }}
+        </button>
+
         <button
           class="control-btn analyze-btn"
           :disabled="isAnalyzing || !currentScope"
@@ -273,6 +282,8 @@
       :subject-identifier="analysisSubjectIdentifier"
       :task-id="analysisTaskId"
       :mode="analysisMode"
+      :batch-mode="isBatchMode"
+      :batch-progress="batchProgress"
       @close="handleAnalysisProgressClose"
       @cancel="handleAnalysisProgressCancel"
       @complete="handleAnalysisProgressClose"
@@ -301,6 +312,12 @@
       :composite-scores="compositeScores"
       @close="showCompareModal = false"
     />
+
+    <!-- LLM Selector Modal -->
+    <LLMSelectorModal
+      :is-open="showLLMSelector"
+      @dismiss="handleLLMSelectorDismiss"
+    />
   </div>
 </template>
 
@@ -319,7 +336,18 @@ import AnalysisProgressModal from './AnalysisProgressModal.vue';
 import ScenarioModal from './ScenarioModal.vue';
 import HistoryModal from './HistoryModal.vue';
 import CompareModal from './CompareModal.vue';
+import LLMSelectorModal from '@/components/LLMSelectorModal.vue';
+import { useExecutionContextStore } from '@/stores/executionContextStore';
+import { useLLMPreferencesStore } from '@/stores/llmPreferencesStore';
 import type { CreateSubjectRequest, RiskDimension, ExecutiveSummary } from '@/types/risk-agent';
+
+// LocalStorage key for Risk dashboard LLM preference
+const RISK_LLM_STORAGE_KEY = 'risk-dashboard-llm';
+
+interface RiskLLMPreference {
+  provider: string;
+  model: string;
+}
 
 interface Props {
   conversation?: { id: string; agentName?: string; organizationSlug?: string } | null;
@@ -329,6 +357,8 @@ interface Props {
 const props = defineProps<Props>();
 
 const store = useRiskDashboardStore();
+const executionContextStore = useExecutionContextStore();
+const llmStore = useLLMPreferencesStore();
 
 // UI State
 const activeTab = ref('overview');
@@ -341,6 +371,19 @@ const showCompareModal = ref(false);
 const createSubjectModalRef = ref<InstanceType<typeof CreateSubjectModal> | null>(null);
 const isDebating = ref(false);
 const isGeneratingSummary = ref(false);
+const showLLMSelector = ref(false);
+
+// Batch analysis state
+interface BatchProgress {
+  current: number;
+  total: number;
+  subjects: string[];
+  currentSubject: string;
+  completedSubjects: string[];
+  currentPhase: 'analysis' | 'debate' | 'summary';
+}
+const batchProgress = ref<BatchProgress | null>(null);
+const isBatchMode = ref(false);
 
 // Executive Summary State
 const executiveSummary = ref<ExecutiveSummary | null>(null);
@@ -377,6 +420,18 @@ const stats = computed(() => store.stats);
 const isLoading = computed(() => store.isLoading);
 const isAnalyzing = computed(() => store.isAnalyzing);
 const error = computed(() => store.error);
+
+// LLM display for header
+const currentLLMDisplay = computed(() => {
+  const provider = llmStore.selectedProvider?.name || executionContextStore.contextOrNull?.provider;
+  const model = llmStore.selectedModel?.modelName || executionContextStore.contextOrNull?.model;
+  if (provider && model) {
+    // Shorten model name for display
+    const shortModel = model.split('/').pop() || model;
+    return `${provider} - ${shortModel}`;
+  }
+  return 'Select Model';
+});
 
 // Tabs with dynamic badges
 const tabs = computed(() => [
@@ -683,24 +738,168 @@ function handleAnalysisProgressClose() {
   analysisSubjectIdentifier.value = '';
   analysisTaskId.value = undefined;
   analysisMode.value = 'analysis';
+  // Reset batch state
+  isBatchMode.value = false;
+  batchProgress.value = null;
 }
 
 function handleAnalysisProgressCancel() {
   showAnalysisProgress.value = false;
   store.setAnalyzing(false);
+  // Reset batch state
+  isBatchMode.value = false;
+  batchProgress.value = null;
   // Note: In production, this would also cancel the backend task
 }
 
 async function handleAnalyzeAll() {
-  if (!currentScope.value) return;
+  if (!currentScope.value || subjects.value.length === 0) return;
 
+  // Initialize batch state
+  const subjectsList = subjects.value;
+  const subjectIdentifiers = subjectsList.map(s => s.identifier);
+
+  isBatchMode.value = true;
+  batchProgress.value = {
+    current: 0,
+    total: subjectsList.length,
+    subjects: subjectIdentifiers,
+    currentSubject: '',
+    completedSubjects: [],
+    currentPhase: 'analysis',
+  };
+
+  // Show progress modal
+  showAnalysisProgress.value = true;
   store.setAnalyzing(true);
+  store.clearError();
+
   try {
-    await riskDashboardService.analyzeScope(currentScope.value.id, { forceRefresh: true });
+    // Process each subject
+    for (let i = 0; i < subjectsList.length; i++) {
+      const subject = subjectsList[i];
+
+      // Update batch progress
+      batchProgress.value = {
+        ...batchProgress.value!,
+        current: i + 1,
+        currentSubject: subject.identifier,
+        currentPhase: 'analysis',
+      };
+
+      // Generate a taskId for this subject's analysis
+      const taskId = crypto.randomUUID();
+      analysisTaskId.value = taskId;
+      analysisSubjectIdentifier.value = subject.identifier;
+      analysisMode.value = 'analysis';
+
+      // Show initial progress
+      if (analysisProgressRef.value) {
+        analysisProgressRef.value.handleProgressEvent({
+          step: 'analyzing',
+          message: `Analyzing ${subject.identifier}...`,
+          progress: 10,
+        });
+      }
+
+      // Step 1: Analyze the subject
+      try {
+        const response = await riskDashboardService.analyzeSubject(subject.id, { forceRefresh: true, taskId });
+
+        if (!response.success) {
+          console.warn(`[RiskAgentPane] Analysis failed for ${subject.identifier}:`, response.error);
+          // Continue to next subject instead of stopping
+        } else {
+          // Step 2: Run debate for this subject
+          batchProgress.value = {
+            ...batchProgress.value!,
+            currentPhase: 'debate',
+          };
+          analysisMode.value = 'debate';
+
+          if (analysisProgressRef.value) {
+            analysisProgressRef.value.handleProgressEvent({
+              step: 'debate-starting',
+              message: `Running Red vs Blue debate for ${subject.identifier}...`,
+              progress: 50,
+            });
+          }
+
+          const debateTaskId = crypto.randomUUID();
+          analysisTaskId.value = debateTaskId;
+
+          await riskDashboardService.triggerDebate(subject.id, { taskId: debateTaskId });
+        }
+      } catch (err) {
+        console.error(`[RiskAgentPane] Error processing ${subject.identifier}:`, err);
+        // Continue to next subject
+      }
+
+      // Mark subject as completed
+      batchProgress.value = {
+        ...batchProgress.value!,
+        completedSubjects: [...batchProgress.value!.completedSubjects, subject.identifier],
+      };
+
+      if (analysisProgressRef.value) {
+        analysisProgressRef.value.handleProgressEvent({
+          step: 'subject-complete',
+          message: `Completed ${subject.identifier} (${i + 1} of ${subjectsList.length})`,
+          progress: Math.round(((i + 1) / subjectsList.length) * 90),
+        });
+      }
+    }
+
+    // Step 3: Generate executive summary after all subjects
+    batchProgress.value = {
+      ...batchProgress.value!,
+      currentSubject: 'Portfolio Summary',
+      currentPhase: 'summary',
+    };
+    analysisMode.value = 'summary';
+    analysisSubjectIdentifier.value = currentScope.value.name || 'Portfolio';
+
+    if (analysisProgressRef.value) {
+      analysisProgressRef.value.handleProgressEvent({
+        step: 'summary-starting',
+        message: `Generating executive summary for ${currentScope.value.name}...`,
+        progress: 92,
+      });
+    }
+
+    const summaryTaskId = crypto.randomUUID();
+    analysisTaskId.value = summaryTaskId;
+
+    const summaryResult = await riskDashboardService.generateExecutiveSummary({
+      scopeId: currentScope.value.id,
+      summaryType: 'ad-hoc',
+      forceRefresh: true,
+      taskId: summaryTaskId,
+    });
+
+    if (summaryResult.success && summaryResult.content) {
+      executiveSummary.value = transformExecutiveSummary(summaryResult.content as unknown as Record<string, unknown>);
+    }
+
+    // Mark batch complete
+    if (analysisProgressRef.value) {
+      analysisProgressRef.value.setComplete({
+        overallScore: 0,
+        confidence: 0,
+        assessmentCount: subjectsList.length,
+        debateTriggered: true,
+      });
+    }
+
     // Refresh all data
     await loadScopeData(currentScope.value.id);
+
   } catch (err) {
+    console.error('[RiskAgentPane] Batch analysis error:', err);
     store.setError(err instanceof Error ? err.message : 'Batch analysis failed');
+    if (analysisProgressRef.value) {
+      analysisProgressRef.value.setError(err instanceof Error ? err.message : 'Batch analysis failed');
+    }
   } finally {
     store.setAnalyzing(false);
   }
@@ -966,6 +1165,33 @@ function clearError() {
   store.clearError();
 }
 
+// LLM Selector handlers
+function handleLLMSelectorDismiss() {
+  showLLMSelector.value = false;
+  // Save current selection to localStorage for persistence
+  const provider = llmStore.selectedProvider?.name;
+  const model = llmStore.selectedModel?.modelName;
+  if (provider && model) {
+    const pref: RiskLLMPreference = { provider, model };
+    localStorage.setItem(RISK_LLM_STORAGE_KEY, JSON.stringify(pref));
+  }
+}
+
+// Load saved LLM preference from localStorage
+function loadSavedLLMPreference() {
+  const saved = localStorage.getItem(RISK_LLM_STORAGE_KEY);
+  if (saved) {
+    try {
+      const pref: RiskLLMPreference = JSON.parse(saved);
+      if (pref.provider && pref.model && executionContextStore.isInitialized) {
+        executionContextStore.setLLM(pref.provider, pref.model);
+      }
+    } catch {
+      // Invalid JSON, ignore
+    }
+  }
+}
+
 // Helper to extract org from agent (handles array or string)
 function getAgentOrg(): string | null {
   const agentOrg = props.agent?.organizationSlug;
@@ -976,7 +1202,7 @@ function getAgentOrg(): string | null {
 }
 
 // Initialize on mount
-onMounted(() => {
+onMounted(async () => {
   // Priority: agent's org > conversation's org
   // The agent knows what org it belongs to
   const agentOrg = getAgentOrg();
@@ -996,6 +1222,10 @@ onMounted(() => {
   const dashboardConvId = crypto.randomUUID();
   riskDashboardService.setDashboardConversationId(dashboardConvId);
   console.log('[RiskAgentPane] Set dashboard conversation ID:', dashboardConvId);
+
+  // Initialize LLM store and load saved preference
+  await llmStore.initialize();
+  loadSavedLLMPreference();
 
   handleRefresh();
 });
@@ -1095,6 +1325,22 @@ watch(
   background: var(--ion-color-light-shade, #d7d8da);
 }
 
+.llm-selector-btn {
+  background: var(--ion-card-background, #fff);
+  color: var(--ion-text-color, #333);
+  border: 1px solid var(--ion-border-color, #e0e0e0);
+  font-size: 0.8125rem;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.llm-selector-btn:hover {
+  background: var(--ion-color-light, #f4f5f8);
+  border-color: var(--ion-color-primary, #3880ff);
+}
+
 .error-banner {
   display: flex;
   align-items: center;
@@ -1135,11 +1381,13 @@ watch(
 }
 
 .summary-card.critical {
-  background: var(--ion-color-danger-tint, #ffcccc);
+  background: var(--ion-color-danger-muted-bg, #f5d5d5);
+  color: var(--ion-color-danger-muted-contrast, #8b4444);
 }
 
 .summary-card.warning {
-  background: var(--ion-color-warning-tint, #fff3cd);
+  background: var(--ion-color-warning-muted-bg, #f5e6d5);
+  color: var(--ion-color-warning-muted-contrast, #8b6644);
 }
 
 .summary-value {
@@ -1285,10 +1533,10 @@ watch(
   flex-shrink: 0;
 }
 
-.summary-status-badge.critical { background: #fee2e2; color: #dc2626; }
-.summary-status-badge.high { background: #fef3c7; color: #d97706; }
-.summary-status-badge.medium { background: #fef9c3; color: #ca8a04; }
-.summary-status-badge.low { background: #dcfce7; color: #16a34a; }
+.summary-status-badge.critical { background: var(--ion-color-danger-muted-bg, #f5d5d5); color: var(--ion-color-danger-muted-contrast, #8b4444); }
+.summary-status-badge.high { background: var(--ion-color-warning-muted-bg, #f5e6d5); color: var(--ion-color-warning-muted-contrast, #8b6644); }
+.summary-status-badge.medium { background: var(--ion-color-medium-muted-bg, #f5f0d5); color: var(--ion-color-medium-muted-contrast, #7a7344); }
+.summary-status-badge.low { background: var(--ion-color-success-muted-bg, #d5e8d5); color: var(--ion-color-success-muted-contrast, #447744); }
 .summary-status-badge.stable { background: #dbeafe; color: #2563eb; }
 
 .summary-headline {
@@ -1415,13 +1663,13 @@ watch(
 }
 
 .summary-changes .change-indicator.up {
-  color: #dc2626;
-  background: rgba(220, 38, 38, 0.1);
+  color: var(--ion-color-danger-muted-contrast, #8b4444);
+  background: var(--ion-color-danger-muted-bg, #f5d5d5);
 }
 
 .summary-changes .change-indicator.down {
-  color: #16a34a;
-  background: rgba(22, 163, 74, 0.1);
+  color: var(--ion-color-success-muted-contrast, #447744);
+  background: var(--ion-color-success-muted-bg, #d5e8d5);
 }
 
 .summary-changes .no-changes {

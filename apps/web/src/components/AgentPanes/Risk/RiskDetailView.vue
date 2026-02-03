@@ -763,11 +763,13 @@ function escapeHtml(text: string): string {
 }
 
 .alert-item.critical {
-  background: var(--ion-color-danger-tint, #ffcccc);
+  background: var(--ion-color-danger-muted-bg, #f5d5d5);
+  color: var(--ion-color-danger-muted-contrast, #8b4444);
 }
 
 .alert-item.warning {
-  background: var(--ion-color-warning-tint, #fff3cd);
+  background: var(--ion-color-warning-muted-bg, #f5e6d5);
+  color: var(--ion-color-warning-muted-contrast, #8b6644);
 }
 
 .alert-severity {
@@ -832,11 +834,13 @@ function escapeHtml(text: string): string {
 }
 
 .modal-header.severity-critical {
-  background: var(--ion-color-danger-tint, #ffcccc);
+  background: var(--ion-color-danger-muted-bg, #f5d5d5);
+  color: var(--ion-color-danger-muted-contrast, #8b4444);
 }
 
 .modal-header.severity-warning {
-  background: var(--ion-color-warning-tint, #fff3cd);
+  background: var(--ion-color-warning-muted-bg, #f5e6d5);
+  color: var(--ion-color-warning-muted-contrast, #8b6644);
 }
 
 .modal-header.severity-info {
@@ -893,27 +897,27 @@ function escapeHtml(text: string): string {
 }
 
 .detail-value.critical {
-  color: var(--ion-color-danger, #eb445a);
+  color: var(--ion-color-danger-muted-contrast, #8b4444);
 }
 
 .detail-value.high {
-  color: var(--ion-color-warning, #ffc409);
+  color: var(--ion-color-warning-muted-contrast, #8b6644);
 }
 
 .detail-value.medium {
-  color: #ffd966;
+  color: var(--ion-color-medium-muted-contrast, #7a7344);
 }
 
 .detail-value.low {
-  color: var(--ion-color-success, #2dd36f);
+  color: var(--ion-color-success-muted-contrast, #447744);
 }
 
 .detail-value.increase {
-  color: var(--ion-color-danger, #eb445a);
+  color: var(--ion-color-danger-muted-contrast, #8b4444);
 }
 
 .detail-value.decrease {
-  color: var(--ion-color-success, #2dd36f);
+  color: var(--ion-color-success-muted-contrast, #447744);
 }
 
 .detail-section {
@@ -1032,23 +1036,23 @@ function escapeHtml(text: string): string {
 }
 
 .context-score.critical {
-  background: var(--ion-color-danger, #eb445a);
-  color: #fff;
+  background: var(--ion-color-danger-muted-bg, #f5d5d5);
+  color: var(--ion-color-danger-muted-contrast, #8b4444);
 }
 
 .context-score.high {
-  background: var(--ion-color-warning-tint, #fff3cd);
-  color: var(--ion-color-warning-shade, #e0ac08);
+  background: var(--ion-color-warning-muted-bg, #f5e6d5);
+  color: var(--ion-color-warning-muted-contrast, #8b6644);
 }
 
 .context-score.medium {
-  background: #fff9e6;
-  color: #b38f00;
+  background: var(--ion-color-medium-muted-bg, #f5f0d5);
+  color: var(--ion-color-medium-muted-contrast, #7a7344);
 }
 
 .context-score.low {
-  background: var(--ion-color-success-tint, #d4edda);
-  color: var(--ion-color-success, #2dd36f);
+  background: var(--ion-color-success-muted-bg, #d5e8d5);
+  color: var(--ion-color-success-muted-contrast, #447744);
 }
 
 .context-reasoning {
@@ -1153,11 +1157,11 @@ function escapeHtml(text: string): string {
 }
 
 .context-signals .signals-list li.signal-positive {
-  color: var(--ion-color-success, #2dd36f);
+  color: var(--ion-color-success-muted-contrast, #447744);
 }
 
 .context-signals .signals-list li.signal-negative {
-  color: var(--ion-color-danger, #eb445a);
+  color: var(--ion-color-danger-muted-contrast, #8b4444);
 }
 
 .context-signals .signals-list li.signal-neutral {
@@ -1227,11 +1231,11 @@ function escapeHtml(text: string): string {
 }
 
 .signal-detail-row .impact-positive {
-  color: var(--ion-color-success, #2dd36f);
+  color: var(--ion-color-success-muted-contrast, #447744);
 }
 
 .signal-detail-row .impact-negative {
-  color: var(--ion-color-danger, #eb445a);
+  color: var(--ion-color-danger-muted-contrast, #8b4444);
 }
 
 .signal-detail-row .impact-neutral {
@@ -1261,11 +1265,11 @@ function escapeHtml(text: string): string {
 }
 
 .score-change.increase {
-  color: var(--ion-color-danger, #eb445a);
+  color: var(--ion-color-danger-muted-contrast, #8b4444);
 }
 
 .score-change.decrease {
-  color: var(--ion-color-success, #2dd36f);
+  color: var(--ion-color-success-muted-contrast, #447744);
 }
 
 .previous-reasoning {

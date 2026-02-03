@@ -182,19 +182,19 @@ function formatPercent(value: number): string {
 }
 
 .risk-dimension-card.critical {
-  border-left-color: var(--ion-color-danger, #eb445a);
+  border-left-color: var(--ion-color-danger-muted, #8b4444);
 }
 
 .risk-dimension-card.high {
-  border-left-color: var(--ion-color-warning, #ffc409);
+  border-left-color: var(--ion-color-warning-muted, #8b6644);
 }
 
 .risk-dimension-card.medium {
-  border-left-color: #ffd966;
+  border-left-color: var(--ion-color-medium-muted, #7a7344);
 }
 
 .risk-dimension-card.low {
-  border-left-color: var(--ion-color-success, #2dd36f);
+  border-left-color: var(--ion-color-success-muted, #447744);
 }
 
 .card-header {
@@ -252,11 +252,11 @@ function formatPercent(value: number): string {
 }
 
 .signals-list li.negative .signal-link {
-  color: var(--ion-color-danger, #eb445a);
+  color: var(--ion-color-danger-muted-contrast, #8b4444);
 }
 
 .signals-list li.positive .signal-link {
-  color: var(--ion-color-success, #2dd36f);
+  color: var(--ion-color-success-muted-contrast, #447744);
 }
 
 .signal-link {
@@ -296,11 +296,11 @@ function formatPercent(value: number): string {
 }
 
 .detail-value.negative {
-  color: var(--ion-color-danger, #eb445a);
+  color: var(--ion-color-danger-muted-contrast, #8b4444);
 }
 
 .detail-value.positive {
-  color: var(--ion-color-success, #2dd36f);
+  color: var(--ion-color-success-muted-contrast, #447744);
 }
 
 .detail-value.neutral {

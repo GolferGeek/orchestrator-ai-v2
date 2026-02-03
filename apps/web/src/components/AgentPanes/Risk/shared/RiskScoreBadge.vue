@@ -71,27 +71,27 @@ const riskLabel = computed(() => {
 }
 
 .critical {
-  background: var(--ion-color-danger, #eb445a);
-  color: white;
+  background: var(--ion-color-danger-muted-bg, #f5d5d5);
+  color: var(--ion-color-danger-muted-contrast, #8b4444);
 }
 
 .high {
-  background: var(--ion-color-warning, #ffc409);
-  color: #333;
+  background: var(--ion-color-warning-muted-bg, #f5e6d5);
+  color: var(--ion-color-warning-muted-contrast, #8b6644);
 }
 
 .medium {
-  background: #ffd966;
-  color: #333;
+  background: var(--ion-color-medium-muted-bg, #f5f0d5);
+  color: var(--ion-color-medium-muted-contrast, #7a7344);
 }
 
 .low {
-  background: var(--ion-color-success-tint, #c8f7c5);
-  color: #333;
+  background: var(--ion-color-success-muted-bg, #d5e8d5);
+  color: var(--ion-color-success-muted-contrast, #447744);
 }
 
 .minimal {
-  background: var(--ion-color-success, #2dd36f);
-  color: white;
+  background: var(--ion-color-success-muted-bg, #d5e8d5);
+  color: var(--ion-color-success-muted-contrast, #447744);
 }
 </style>
