@@ -303,6 +303,18 @@ export class ArticleProcessorService {
     },
     isTestTarget: boolean,
   ): Promise<boolean> {
+    // Check if signal already exists for this article+target combination
+    const existingSignal = await this.signalRepository.findByArticleAndTarget(
+      article.id,
+      targetId,
+    );
+    if (existingSignal) {
+      this.logger.debug(
+        `Signal already exists for article ${article.id} and target ${targetId}, skipping`,
+      );
+      return false;
+    }
+
     // Apply keyword filters
     if (!this.passesFilters(article, filterConfig)) {
       this.logger.debug(`Article ${article.id} filtered out by keyword rules`);

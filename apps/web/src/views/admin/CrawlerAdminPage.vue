@@ -78,6 +78,37 @@
                 </ion-card>
               </ion-col>
             </ion-row>
+            <ion-row>
+              <ion-col size="12">
+                <ion-card class="stat-card diagnostic-card">
+                  <ion-card-header>
+                    <ion-card-title>Article → Signal Conversion</ion-card-title>
+                    <ion-card-subtitle>Sample of recent articles</ion-card-subtitle>
+                  </ion-card-header>
+                  <ion-card-content>
+                    <div v-if="loadingSampleData" class="loading-inline">
+                      <ion-spinner name="dots" />
+                      <span>Loading sample...</span>
+                    </div>
+                    <div v-else-if="sampleArticles.length > 0" class="sample-stats">
+                      <div class="sample-summary">
+                        <h3>{{ totalSignalsInSample }}</h3>
+                        <p>signals from {{ sampleArticles.length }} recent articles</p>
+                        <p class="ratio">Avg: {{ avgSignalsPerArticle }} signals/article</p>
+                      </div>
+                      <ion-button size="small" fill="clear" @click="loadSampleData">
+                        <ion-icon :icon="refreshOutline" slot="start" />
+                        Refresh Sample
+                      </ion-button>
+                    </div>
+                    <div v-else class="empty-sample">
+                      <p>No articles with signals found</p>
+                      <ion-button size="small" @click="loadSampleData">Load Sample</ion-button>
+                    </div>
+                  </ion-card-content>
+                </ion-card>
+              </ion-col>
+            </ion-row>
           </ion-grid>
         </div>
 
@@ -445,6 +476,10 @@ const showSourceModal = ref(false);
 const editingSource = ref<SourceWithStats | null>(null);
 const expandedSourceId = ref<string | null>(null);
 
+// Sample data for signal analysis
+const loadingSampleData = ref(false);
+const sampleArticles = ref<any[]>([]);
+
 const stats = ref<DashboardStats>({
   total_sources: 0,
   active_sources: 0,
@@ -489,6 +524,17 @@ const totalDedup = computed(() => {
   return d.exact + d.cross_source + d.fuzzy_title + d.phrase_overlap;
 });
 
+const totalSignalsInSample = computed(() => {
+  return sampleArticles.value.reduce((total, article) => {
+    return total + (article.signals?.length || 0);
+  }, 0);
+});
+
+const avgSignalsPerArticle = computed(() => {
+  if (sampleArticles.value.length === 0) return '0.0';
+  return (totalSignalsInSample.value / sampleArticles.value.length).toFixed(1);
+});
+
 const isFormValid = computed(() => {
   return sourceForm.value.name.trim() !== '' && sourceForm.value.url.trim() !== '';
 });
@@ -505,6 +551,9 @@ async function loadData() {
     ]);
     stats.value = statsData;
     sources.value = sourcesData;
+
+    // Load sample data after sources are loaded
+    await loadSampleData();
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to load crawler data';
     console.error('Failed to load crawler data:', e);
@@ -518,6 +567,31 @@ async function loadSources() {
     sources.value = await crawlerService.getSources(getOrgSlug(), showInactive.value);
   } catch (e) {
     console.error('Failed to load sources:', e);
+  }
+}
+
+async function loadSampleData() {
+  loadingSampleData.value = true;
+  try {
+    const orgSlug = getOrgSlug();
+    // Get the first active source that has articles
+    const activeSource = sources.value.find(s => s.is_active && s.article_count > 0);
+    if (!activeSource) {
+      sampleArticles.value = [];
+      return;
+    }
+
+    // Fetch recent articles with signals
+    const articles = await crawlerService.getSourceArticles(orgSlug, activeSource.id, {
+      limit: 100,
+      includeSignals: true,
+    });
+
+    sampleArticles.value = articles;
+  } catch (e) {
+    console.error('Failed to load sample data:', e);
+  } finally {
+    loadingSampleData.value = false;
   }
 }
 

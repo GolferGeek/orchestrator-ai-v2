@@ -186,6 +186,34 @@ export class SignalRepository {
     return data;
   }
 
+  /**
+   * Find existing signal for a specific article and target combination
+   * Used to prevent duplicate signal creation
+   */
+  async findByArticleAndTarget(
+    articleId: string,
+    targetId: string,
+  ): Promise<Signal | null> {
+    const { data, error } = (await this.getClient()
+      .schema(this.schema)
+      .from(this.table)
+      .select('*')
+      .eq('target_id', targetId)
+      .contains('metadata', { crawler_article_id: articleId })
+      .limit(1)
+      .single()) as SupabaseSelectResponse<Signal>;
+
+    if (error && error.code !== 'PGRST116') {
+      // PGRST116 = no rows returned, which is fine (no duplicate)
+      this.logger.error(
+        `Failed to check for existing signal: ${error.message}`,
+      );
+      throw new Error(`Failed to check for existing signal: ${error.message}`);
+    }
+
+    return data;
+  }
+
   async create(signalData: CreateSignalData): Promise<Signal> {
     const { data, error } = (await this.getClient()
       .schema(this.schema)

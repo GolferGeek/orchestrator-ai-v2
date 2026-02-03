@@ -114,6 +114,13 @@
       @dismiss="closeAnalystModal"
     />
 
+    <!-- Analyst Assessments Modal -->
+    <AnalystAssessmentsModal
+      :is-open="isAnalysisModalOpen"
+      :prediction-id="prediction.id"
+      @dismiss="closeAnalysisModal"
+    />
+
     <div class="card-footer">
       <div class="footer-left">
         <div class="timestamp">
@@ -125,15 +132,25 @@
           <span class="value">{{ formatDate(prediction.expiresAt) }}</span>
         </div>
       </div>
-      <button
-        v-if="canTakePosition"
-        class="take-position-btn"
-        @click="handleTakePosition"
-        title="Take position based on this prediction"
-      >
-        <span class="btn-icon">&#128176;</span>
-        <span class="btn-text">Take Position</span>
-      </button>
+      <div class="footer-actions">
+        <button
+          class="analysis-btn"
+          @click="handleViewAnalysis"
+          title="View analyst assessments"
+        >
+          <span class="btn-icon">&#128101;</span>
+          <span class="btn-text">Analysts</span>
+        </button>
+        <button
+          v-if="canTakePosition"
+          class="take-position-btn"
+          @click="handleTakePosition"
+          title="Take position based on this prediction"
+        >
+          <span class="btn-icon">&#128176;</span>
+          <span class="btn-text">Take Position</span>
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -143,6 +160,7 @@ import { computed, ref } from 'vue';
 import type { Prediction } from '@/services/predictionDashboardService';
 import LLMComparisonBadge from './LLMComparisonBadge.vue';
 import AnalystOpinionModal from './AnalystOpinionModal.vue';
+import AnalystAssessmentsModal from './AnalystAssessmentsModal.vue';
 
 // Fork assessment structure
 interface ForkAssessment {
@@ -208,6 +226,18 @@ function openAnalystModal(analyst: AnalystAssessment) {
 function closeAnalystModal() {
   isAnalystModalOpen.value = false;
   selectedAnalyst.value = null;
+}
+
+// Analysis modal state
+const isAnalysisModalOpen = ref(false);
+
+function handleViewAnalysis(event: Event) {
+  event.stopPropagation();
+  isAnalysisModalOpen.value = true;
+}
+
+function closeAnalysisModal() {
+  isAnalysisModalOpen.value = false;
 }
 
 const statusClass = computed(() => `status-${props.prediction.status || 'active'}`);
@@ -508,15 +538,50 @@ function truncateReasoning(reasoning: string, maxLength = 120): string {
   gap: 0.125rem;
 }
 
+.footer-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.analysis-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.375rem 0.75rem;
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 6px;
+  color: var(--text-secondary, #6b7280);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.analysis-btn:hover {
+  background: var(--hover-bg, rgba(0, 0, 0, 0.02));
+  border-color: var(--text-secondary, #9ca3af);
+  color: var(--text-primary, #374151);
+  transform: translateY(-1px);
+}
+
+.analysis-btn .btn-icon {
+  font-size: 0.875rem;
+}
+
+.analysis-btn .btn-text {
+  white-space: nowrap;
+}
+
 .take-position-btn {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
   padding: 0.375rem 0.75rem;
-  background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(22, 163, 74, 0.2));
-  border: 1px solid #22c55e;
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #e5e7eb);
   border-radius: 6px;
-  color: #16a34a;
+  color: var(--text-secondary, #6b7280);
   font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
@@ -524,8 +589,9 @@ function truncateReasoning(reasoning: string, maxLength = 120): string {
 }
 
 .take-position-btn:hover {
-  background: linear-gradient(135deg, rgba(34, 197, 94, 0.25), rgba(22, 163, 74, 0.3));
-  border-color: #16a34a;
+  background: var(--hover-bg, rgba(0, 0, 0, 0.02));
+  border-color: var(--text-secondary, #9ca3af);
+  color: var(--text-primary, #374151);
   transform: translateY(-1px);
 }
 
