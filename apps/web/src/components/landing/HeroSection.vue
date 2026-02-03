@@ -1,9 +1,9 @@
 <template>
   <section class="hero-section">
-    <div class="hero-content">
+    <div class="hero-content landing-section">
       <!-- Video Player Section -->
       <div class="video-section">
-        <h2>Let's Build Something Together</h2>
+        <h2>AI for Small Business</h2>
         
         <!-- Video Player -->
         <VideoPlayer :current-video="currentVideo" />
@@ -17,23 +17,48 @@
             :class="{ active: currentVideo?.id === video.id }"
             @click="selectVideo(video)"
           >
-            <ion-icon :icon="playCircleOutline"></ion-icon>
+            <span class="play-icon-wrapper">▶</span>
             <span>{{ video.title }}</span>
           </button>
         </div>
+
+        <!-- Demo Highlight Card -->
+        <ion-card class="demo-highlight-box">
+          <ion-card-header>
+            <ion-card-title class="demo-highlight-title">
+              🚀 Try the Full App Now
+            </ion-card-title>
+          </ion-card-header>
+          <ion-card-content>
+            <p class="demo-highlight-text">
+              <strong>Jump right in:</strong> The demo environment is a <span class="highlight">fully functional system</span>—everything you see here (and in the videos) is live and ready for you to explore.
+            </p>
+            <ul class="demo-highlight-list">
+              <li>Log in instantly with the provided demo credentials.</li>
+              <li>All agents are active and ready—ask what they do, then try them out!</li>
+              <li>Switch between LLM models to see real-time differences in performance.</li>
+              <li>This is the exact system we deploy for you, inside your own infrastructure.</li>
+            </ul>
+            <p class="demo-highlight-text">
+              <em>Experience OrchestratorAI hands-on—no waiting, no limitations.</em>
+            </p>
+            <div class="demo-actions">
+              <ion-button size="large" @click="goToDemo">
+                Launch Full App
+              </ion-button>
+            </div>
+          </ion-card-content>
+        </ion-card>
       </div>
     </div>
   </section>
 </template>
+
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
-import { IonIcon } from '@ionic/vue';
-import { 
-  playCircleOutline
-} from 'ionicons/icons';
+import { IonIcon, IonCard, IonCardHeader, IonCardTitle, IonCardContent, IonButton } from '@ionic/vue';
 import { useLandingStore } from '@/stores/landingStore';
 import { useRouter } from 'vue-router';
-import { useAuthStore } from '@/stores/rbacStore';
 import VideoPlayer from './VideoPlayer.vue';
 import { videoService } from '@/services/videoService';
 
@@ -46,34 +71,42 @@ interface VideoPlayerVideo {
 }
 
 const landingStore = useLandingStore();
-const _router = useRouter();
-const _authStore = useAuthStore();
+const router = useRouter();
 
 // Get featured videos for the hero section
 const featuredVideos = computed(() => {
-  return videoService.getFeaturedVideos().map(item => ({
-    id: item.categoryKey,
-    title: item.category.title,
-    description: item.category.description,
-    videoUrl: item.video.url
-  }));
+  const videos: VideoPlayerVideo[] = [];
+  
+  // Get all categories in order
+  const categoriesInOrder = videoService.getCategoriesInOrder();
+  
+  categoriesInOrder.forEach(({ key: _key, category }) => {
+    // Get all featured videos from this category
+    const featuredVideosInCategory = category.videos.filter(video => video.featured);
+    
+    featuredVideosInCategory.forEach(video => {
+      videos.push({
+        id: video.id,
+        title: video.title,
+        description: video.description,
+        videoUrl: video.url
+      });
+    });
+  });
+  
+  return videos;
 });
 
 // Current video state
 const currentVideo = ref<VideoPlayerVideo | null>(null);
 
-// Emit events to parent (keeping for other sections that still use modal)
-const _emit = defineEmits<{
-  openVideoModal: [video: VideoPlayerVideo];
-}>();
-
 function selectVideo(video: VideoPlayerVideo) {
   currentVideo.value = video;
 }
 
-// function openVideoModal(video: VideoPlayerVideo) {
-//   emit('openVideoModal', video);
-// }
+function goToDemo() {
+  router.push('/login');
+}
 
 onMounted(() => {
   // Track hero section view
@@ -85,53 +118,60 @@ onMounted(() => {
   }
 });
 </script>
+
 <style scoped>
 .hero-section {
-  background: var(--landing-gradient);
-  color: white;
-  padding: 4rem 0;
+  background: var(--landing-gradient, linear-gradient(135deg, #8b5a3c 0%, #a16c4a 70%, #15803d 100%));
+  color: var(--landing-white, #fffbf7);
+  padding: var(--space-16, 4rem) 0;
   min-height: 60vh;
   display: flex;
   align-items: center;
+  position: relative;
+  overflow: hidden;
 }
 
 .hero-content {
-  max-width: var(--container-max-width);
+  max-width: var(--container-max-width, 1200px);
   margin: 0 auto;
-  padding: 0 2rem;
+  padding: 0 var(--space-8, 2rem);
   text-align: center;
+  position: relative;
+  z-index: 1;
 }
 
 .video-section h2 {
-  font-size: 2.5rem;
-  margin-bottom: 2rem;
-  font-weight: 700;
-  color: white;
+  font-size: var(--text-4xl, 2.25rem);
+  margin-bottom: var(--space-8, 2rem);
+  font-weight: var(--font-weight-bold, 700);
+  color: var(--landing-white, #fffbf7);
 }
 
 .video-buttons-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
+  gap: var(--space-4, 1rem);
   max-width: 800px;
-  margin: 0 auto;
+  margin: 0 auto var(--space-8, 2rem);
 }
 
 .video-button {
   background: rgba(255, 255, 255, 0.1);
   border: 2px solid rgba(255, 255, 255, 0.3);
-  color: white;
-  padding: 1rem 1.5rem;
-  border-radius: 12px;
-  font-weight: 600;
+  color: var(--landing-white, white);
+  padding: var(--space-4, 1rem) var(--space-6, 1.5rem);
+  border-radius: var(--radius-xl, 12px);
+  font-weight: var(--font-weight-semibold, 600);
   cursor: pointer;
   transition: var(--transition-smooth);
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  font-size: 0.95rem;
+  justify-content: flex-start;
+  text-align: left;
+  gap: var(--space-3, 0.75rem);
+  font-size: var(--text-sm, 0.95rem);
   backdrop-filter: blur(10px);
+  width: 100%;
 }
 
 .video-button:hover {
@@ -141,188 +181,135 @@ onMounted(() => {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
 }
 
+.play-icon-wrapper {
+  background: transparent;
+  color: white;
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  min-height: 20px;
+  border: 2px solid white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  padding-left: 2px; /* Visual adjustment to center the triangle */
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
 .video-button.active {
   background: var(--landing-accent);
   border-color: var(--landing-accent);
-  color: white;
+  color: var(--landing-white, white);
   transform: translateY(-2px);
   box-shadow: 0 4px 20px rgba(245, 158, 11, 0.3);
 }
 
-.video-button ion-icon {
-  font-size: 1.1rem;
+/* Demo Highlight Card */
+.demo-highlight-box {
+  margin: var(--space-8, 2rem) auto;
+  max-width: 800px;
+  --background: rgba(255, 255, 255, 0.97);
+  --color: var(--landing-dark);
+  border-radius: var(--radius-2xl);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.demo-highlight-box ion-card-header {
+  padding-bottom: var(--space-2);
+}
+
+.demo-highlight-box ion-card-content {
+  padding-top: var(--space-2);
+}
+
+.demo-highlight-title {
+  font-size: var(--text-2xl, 1.5rem);
+  font-weight: var(--font-weight-bold);
+  color: var(--landing-primary);
+  margin: 0;
+  text-align: center;
+}
+
+.demo-highlight-text {
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--landing-dark);
+  margin: var(--space-4) 0;
+  font-weight: var(--font-weight-normal);
+}
+
+.demo-highlight-text .highlight {
+  background: var(--landing-gradient-accent);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: var(--font-weight-semibold);
+}
+
+.demo-highlight-list {
+  list-style: none;
+  padding: 0;
+  margin: var(--space-3) 0;
+  text-align: left;
+}
+
+.demo-highlight-list li {
+  padding: var(--space-2) 0;
+  position: relative;
+  padding-left: var(--space-6);
+  color: var(--landing-dark);
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+.demo-highlight-list li::before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  top: var(--space-2);
+  color: var(--landing-secondary);
+  font-weight: var(--font-weight-bold);
+}
+
+.demo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  justify-content: center;
+  margin-top: var(--space-6);
+}
+
+.demo-actions ion-button {
+  --background: var(--landing-accent);
+  --color: var(--landing-white);
+  --border-radius: var(--radius-lg);
+  font-weight: var(--font-weight-semibold);
+  width: 100%;
 }
 
 @media (max-width: 768px) {
   .hero-section {
-    padding: 2rem 0;
+    padding: var(--space-8, 2rem) 0;
     min-height: 50vh;
   }
   
   .video-section h2 {
-    font-size: 2rem;
-    margin-bottom: 1.5rem;
+    font-size: var(--text-3xl, 2rem);
+    margin-bottom: var(--space-6, 1.5rem);
   }
   
   .video-buttons-grid {
     grid-template-columns: 1fr;
-    gap: 0.75rem;
+    gap: var(--space-3, 0.75rem);
   }
   
   .video-button {
-    padding: 0.875rem 1rem;
-    font-size: 0.9rem;
-  }
-}
-
-.trust-signals {
-  display: flex;
-  justify-content: center;
-  gap: 2rem;
-  margin-top: 3rem;
-  flex-wrap: wrap;
-}
-.trust-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 0.9rem;
-  font-weight: 500;
-}
-.trust-item ion-icon {
-  font-size: 1.2rem;
-  color: var(--landing-accent);
-}
-.cta-button {
-  margin: 0 0.5rem;
-  font-weight: 600;
-  --border-radius: 8px;
-}
-.cta-button.primary {
-  --background: var(--landing-accent);
-  --color: white;
-  --box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
-}
-.cta-button.secondary {
-  --color: white;
-  --border-color: rgba(255, 255, 255, 0.5);
-}
-.cta-button.app-access {
-  --color: rgba(255, 255, 255, 0.8);
-  font-size: 0.9rem;
-  margin-top: 0.5rem;
-}
-.cta-button.app-access:hover {
-  --color: white;
-}
-.cta-button:hover {
-  transform: translateY(-2px);
-  transition: var(--transition-smooth);
-}
-/* Video Carousel Styles */
-.video-carousel {
-  position: relative;
-  margin: 2rem 0;
-}
-
-.video-navigation {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-.nav-arrow {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: white;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: var(--transition-smooth);
-}
-
-.nav-arrow:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.2);
-  transform: scale(1.1);
-}
-
-.nav-arrow:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-}
-
-.video-indicators {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.indicator {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.3);
-  cursor: pointer;
-  transition: var(--transition-smooth);
-}
-
-.indicator.active {
-  background: var(--landing-accent);
-  transform: scale(1.2);
-}
-
-.indicator:hover {
-  background: rgba(255, 255, 255, 0.6);
-}
-
-.video-title {
-  text-align: center;
-  margin-top: 1rem;
-  color: white;
-}
-
-.video-title h3 {
-  font-size: 1.2rem;
-  margin-bottom: 0.5rem;
-  font-weight: 600;
-}
-
-.video-title p {
-  font-size: 0.9rem;
-  opacity: 0.8;
-  margin: 0;
-}
-
-@media (max-width: 768px) {
-  .trust-signals {
-    gap: 1rem;
-  }
-  .trust-item {
-    font-size: 0.8rem;
-  }
-  .cta-button {
-    display: block;
-    width: 100%;
-    margin: 0.5rem 0;
-  }
-  .video-navigation {
-    gap: 0.5rem;
-  }
-  .nav-arrow {
-    width: 35px;
-    height: 35px;
-  }
-  .video-title h3 {
-    font-size: 1rem;
-  }
-  .video-title p {
-    font-size: 0.8rem;
+    padding: var(--space-3.5, 0.875rem) var(--space-4, 1rem);
+    font-size: var(--text-sm, 0.9rem);
   }
 }
 </style>

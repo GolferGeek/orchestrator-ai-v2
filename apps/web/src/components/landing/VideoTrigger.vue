@@ -149,8 +149,8 @@ function handleClick() {
     height: 120px;
   }
   
-  .play-icon {
-    font-size: 2.5rem;
+  .video-thumbnail {
+    height: 120px;
   }
   
   .video-title {
@@ -159,20 +159,6 @@ function handleClick() {
   
   .video-description {
     font-size: 0.8rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .video-trigger-button {
-    padding: 0.5rem;
-  }
-  
-  .video-thumbnail {
-    height: 100px;
-  }
-  
-  .play-icon {
-    font-size: 2rem;
   }
 }
 </style>

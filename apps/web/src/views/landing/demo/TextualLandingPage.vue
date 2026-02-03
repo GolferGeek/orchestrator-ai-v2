@@ -1050,8 +1050,7 @@ onMounted(() => {
 
 .page-header {
   background: linear-gradient(135deg, var(--landing-primary-50) 0%, var(--landing-accent-50) 100%);
-  padding: 3rem 0;
-  border-bottom: 1px solid rgba(139, 90, 60, 0.1);
+  padding: 2rem 0 0 0;
 }
 
 .container {
@@ -1078,7 +1077,7 @@ onMounted(() => {
 
 
 .accordion-container {
-  padding: 2rem 0;
+  padding: 1rem 0;
 }
 
 .section-summary {
