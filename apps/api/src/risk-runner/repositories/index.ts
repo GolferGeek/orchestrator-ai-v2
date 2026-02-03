@@ -13,3 +13,6 @@ export * from './evaluation.repository';
 
 // Central Crawler Integration
 export * from './source-subscription.repository';
+
+// Predictor Integration (reads from prediction schema)
+export * from './predictor-reader.repository';

@@ -15,6 +15,10 @@ import { SubjectRepository } from '../repositories/subject.repository';
 import { DimensionRepository } from '../repositories/dimension.repository';
 import { AssessmentRepository } from '../repositories/assessment.repository';
 import { CompositeScoreRepository } from '../repositories/composite-score.repository';
+import {
+  PredictorReaderRepository,
+  PredictorForRisk,
+} from '../repositories/predictor-reader.repository';
 import { DimensionAnalyzerService } from './dimension-analyzer.service';
 import { ScoreAggregationService } from './score-aggregation.service';
 import { DebateService } from './debate.service';
@@ -38,6 +42,7 @@ export class RiskAnalysisService {
     private readonly dimensionRepo: DimensionRepository,
     private readonly assessmentRepo: AssessmentRepository,
     private readonly compositeScoreRepo: CompositeScoreRepository,
+    private readonly predictorReaderRepo: PredictorReaderRepository,
     private readonly dimensionAnalyzer: DimensionAnalyzerService,
     private readonly scoreAggregation: ScoreAggregationService,
     @Inject(forwardRef(() => DebateService))
@@ -152,6 +157,26 @@ export class RiskAnalysisService {
       },
     );
 
+    // 1b. Fetch predictors for this subject from prediction system
+    let predictors: PredictorForRisk[] = [];
+    try {
+      // Get predictors from last 24 hours for this instrument
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      predictors = await this.predictorReaderRepo.findPredictorsBySymbol(
+        subject.identifier,
+        since,
+        20, // Limit to 20 most recent predictors
+      );
+      this.logger.debug(
+        `Found ${predictors.length} predictors for ${subject.identifier}`,
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Failed to fetch predictors for ${subject.identifier}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      // Continue without predictors - don't fail analysis
+    }
+
     // 2. Run dimension analysis with individual progress updates
     this.emitProgress(
       context,
@@ -198,6 +223,7 @@ export class RiskAnalysisService {
           dimension,
           context,
           marketData: {},
+          predictors, // Pass predictors from prediction system
         });
         successfulAssessments.push(assessment);
       } catch (error) {

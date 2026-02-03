@@ -105,11 +105,11 @@
           <button
             class="btn btn-action"
             :disabled="actionInProgress !== null"
-            @click="handleProcessSignals"
+            @click="handleProcessArticles"
           >
             <span v-if="actionInProgress === 'process'" class="spinner-small"></span>
             <span v-else class="action-icon">⚡</span>
-            {{ actionInProgress === 'process' ? 'Processing...' : 'Process Signals' }}
+            {{ actionInProgress === 'process' ? 'Processing...' : 'Process Articles' }}
           </button>
           <button
             class="btn btn-action"
@@ -148,8 +148,7 @@
         </div>
       </section>
 
-      <!-- Signals Section (placeholder) -->
-      <SignalList :signals="signals" />
+      <!-- Note: Signals section removed - predictors are now created directly from articles -->
     </div>
       </div>
     </ion-content>
@@ -163,7 +162,6 @@ import { IonPage, IonContent } from '@ionic/vue';
 import { usePredictionStore } from '@/stores/predictionStore';
 import { predictionDashboardService } from '@/services/predictionDashboardService';
 import PredictionCard from '@/components/prediction/PredictionCard.vue';
-import SignalList from '@/components/prediction/SignalList.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -176,16 +174,7 @@ const error = ref<string | null>(null);
 const actionInProgress = ref<'crawl' | 'process' | 'generate' | null>(null);
 const actionResult = ref<{ type: 'success' | 'error'; message: string } | null>(null);
 
-// Placeholder signals - would be loaded from API
-const signals = ref<Array<{
-  id: string;
-  content: string;
-  disposition: 'bullish' | 'bearish' | 'neutral';
-  status: 'new' | 'processing' | 'promoted' | 'rejected' | 'stale';
-  urgency: 'urgent' | 'notable' | 'routine';
-  source: string;
-  createdAt: string;
-}>>([]);
+// Note: Signals removed - predictors are now created directly from articles via the SignalGeneratorRunner;
 
 const targetId = computed(() => route.params.id as string);
 const target = computed(() => store.selectedTarget);
@@ -287,14 +276,16 @@ async function handleCrawlSources() {
   }
 }
 
-async function handleProcessSignals() {
+async function handleProcessArticles() {
   if (!targetId.value || actionInProgress.value) return;
 
   actionInProgress.value = 'process';
   actionResult.value = null;
 
   try {
-    const response = await predictionDashboardService.processSignals({
+    // Process articles to create predictors directly
+    // The SignalGeneratorRunner now creates predictors from articles
+    const response = await predictionDashboardService.processArticles({
       targetId: targetId.value,
       batchSize: 20,
     });
@@ -309,13 +300,13 @@ async function handleProcessSignals() {
     } else {
       actionResult.value = {
         type: 'error',
-        message: 'Failed to process signals',
+        message: 'Failed to process articles',
       };
     }
   } catch (err) {
     actionResult.value = {
       type: 'error',
-      message: err instanceof Error ? err.message : 'Failed to process signals',
+      message: err instanceof Error ? err.message : 'Failed to process articles',
     };
   } finally {
     actionInProgress.value = null;

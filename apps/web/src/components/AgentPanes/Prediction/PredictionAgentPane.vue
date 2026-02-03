@@ -30,9 +30,9 @@
         <button
           class="control-btn process-btn"
           :disabled="isExecuting || !currentUniverse"
-          @click="handleProcessSignals"
+          @click="handleProcessArticles"
         >
-          Process Signals
+          Process Articles
         </button>
 
         <button
@@ -366,14 +366,14 @@ async function handleCrawlSources() {
   }
 }
 
-async function handleProcessSignals() {
+async function handleProcessArticles() {
   if (!currentUniverse.value) return;
 
   isExecuting.value = true;
   store.clearError();
 
   try {
-    const result = await predictionDashboardService.processSignals({
+    const result = await predictionDashboardService.processArticles({
       universeId: currentUniverse.value.id,
     });
 
@@ -381,17 +381,17 @@ async function handleProcessSignals() {
       pipelineResult.value = {
         ...pipelineResult.value,
         processResult: {
-          predictorsCreated: result.content.totalPredictorsCreated || result.content.predictorsCreated || 0,
-          errors: result.content.totalErrors || result.content.errors || 0,
+          predictorsCreated: result.content.predictorsCreated || 0,
+          errors: result.content.errors || 0,
         },
       };
     }
 
-    console.log('[PredictionAgentPane] Signals processed');
+    console.log('[PredictionAgentPane] Articles processed');
     await loadData();
   } catch (err) {
-    console.error('Failed to process signals:', err);
-    store.setError(err instanceof Error ? err.message : 'Failed to process signals');
+    console.error('Failed to process articles:', err);
+    store.setError(err instanceof Error ? err.message : 'Failed to process articles');
   } finally {
     isExecuting.value = false;
   }

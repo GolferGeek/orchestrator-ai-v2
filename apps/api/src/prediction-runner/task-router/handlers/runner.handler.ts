@@ -2,14 +2,19 @@
  * Runner Handler
  *
  * Handles manual trigger of prediction system runners via dashboard mode.
- * Allows triggering price fetching, baseline predictions, and outcome resolution.
+ * Allows triggering price fetching, baseline predictions, article processing,
+ * and outcome resolution.
  *
  * Actions:
  * - runner.fetchPrices: Fetch prices for all active targets
  * - runner.createBaselines: Create baseline predictions for uncovered targets
+ * - runner.processArticles: Process articles to create predictors (new unified flow)
  * - runner.resolveOutcomes: Trigger outcome tracking for pending predictions
  * - runner.status: Get status of all runners
  * - runner.runAll: Run complete daily flow (fetch → baselines → resolve)
+ *
+ * NOTE: processSignals is DEPRECATED - use processArticles instead.
+ * The signals intermediate layer has been removed.
  */
 
 import { Injectable, Logger } from '@nestjs/common';
@@ -17,7 +22,7 @@ import type { ExecutionContext } from '@orchestrator-ai/transport-types';
 import type { DashboardRequestPayload } from '@orchestrator-ai/transport-types';
 import { OutcomeTrackingRunner } from '../../runners/outcome-tracking.runner';
 import { BaselinePredictionRunner } from '../../runners/baseline-prediction.runner';
-import { BatchSignalProcessorRunner } from '../../runners/batch-signal-processor.runner';
+import { ArticleProcessorService } from '../../services/article-processor.service';
 import { TargetSnapshotService } from '../../services/target-snapshot.service';
 import { TargetRepository } from '../../repositories/target.repository';
 import { UniverseRepository } from '../../repositories/universe.repository';
@@ -32,7 +37,8 @@ interface RunnerParams {
   date?: string; // YYYY-MM-DD format
   universeId?: string;
   domain?: 'stocks' | 'crypto' | 'polymarket' | 'elections';
-  targetId?: string; // For processing specific target's signals
+  targetId?: string; // For processing specific target's articles
+  batchSize?: number; // Max articles to process
 }
 
 @Injectable()
@@ -42,7 +48,8 @@ export class RunnerHandler implements IDashboardHandler {
     'fetchPrices',
     'createBaselines',
     'resolveOutcomes',
-    'processSignals',
+    'processArticles', // New unified flow
+    'processSignals', // Deprecated - redirects to processArticles
     'status',
     'runAll',
   ];
@@ -50,7 +57,7 @@ export class RunnerHandler implements IDashboardHandler {
   constructor(
     private readonly outcomeTrackingRunner: OutcomeTrackingRunner,
     private readonly baselinePredictionRunner: BaselinePredictionRunner,
-    private readonly batchSignalProcessorRunner: BatchSignalProcessorRunner,
+    private readonly articleProcessorService: ArticleProcessorService,
     private readonly targetSnapshotService: TargetSnapshotService,
     private readonly targetRepository: TargetRepository,
     private readonly universeRepository: UniverseRepository,
@@ -74,8 +81,14 @@ export class RunnerHandler implements IDashboardHandler {
         return this.handleCreateBaselines(params);
       case 'resolveoutcomes':
         return this.handleResolveOutcomes();
+      case 'processarticles':
+        return this.handleProcessArticles(params);
       case 'processsignals':
-        return this.handleProcessSignals(params);
+        // Deprecated - redirect to processArticles
+        this.logger.warn(
+          'processSignals is deprecated - use processArticles instead',
+        );
+        return this.handleProcessArticles(params);
       case 'status':
         return this.handleStatus();
       case 'runall':
@@ -218,42 +231,36 @@ export class RunnerHandler implements IDashboardHandler {
   }
 
   /**
-   * Process pending signals through Tier 1 (Signal Detection)
-   * Can process all targets or a specific target
+   * Process crawler articles to create predictors directly.
+   * This is the new unified flow that replaces signals.
+   *
+   * Articles are analyzed for instrument relevance, then run through
+   * the analyst ensemble to create predictors.
    */
-  private async handleProcessSignals(
+  private async handleProcessArticles(
     params?: RunnerParams,
   ): Promise<DashboardActionResult> {
-    this.logger.log('Manual signal processing triggered');
+    this.logger.log('Manual article processing triggered');
 
     try {
-      if (params?.targetId) {
-        // Process specific target
-        const result =
-          await this.batchSignalProcessorRunner.processTargetManually(
-            params.targetId,
-          );
-        return buildDashboardSuccess({
-          action: 'processSignals',
-          targetId: params.targetId,
-          ...result,
-        });
-      } else {
-        // Process all targets
-        const result =
-          await this.batchSignalProcessorRunner.runBatchProcessing();
-        return buildDashboardSuccess({
-          action: 'processSignals',
-          ...result,
-        });
-      }
+      // Process articles for all targets (the service handles filtering)
+      const result = await this.articleProcessorService.processAllTargets();
+
+      return buildDashboardSuccess({
+        action: 'processArticles',
+        articlesProcessed: result.articles_processed,
+        predictorsCreated: result.predictors_created,
+        targetsAnalyzed: result.targets_affected,
+        errors: result.errors.length,
+        message: `Processed ${result.articles_processed} articles, created ${result.predictors_created} predictors for ${result.targets_affected} targets`,
+      });
     } catch (error) {
       this.logger.error(
-        `Signal processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Article processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
       );
       return buildDashboardError(
-        'PROCESS_SIGNALS_FAILED',
-        error instanceof Error ? error.message : 'Failed to process signals',
+        'PROCESS_ARTICLES_FAILED',
+        error instanceof Error ? error.message : 'Failed to process articles',
       );
     }
   }

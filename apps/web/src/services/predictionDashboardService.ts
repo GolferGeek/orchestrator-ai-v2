@@ -2923,23 +2923,51 @@ class PredictionDashboardService {
   // MANUAL PROCESSING OPERATIONS
   // ==========================================================================
   // These actions allow manual triggering of pipeline steps:
-  // 1. processSignals: Signal → Predictor conversion
-  // 2. generatePredictions: Predictor → Prediction generation
-  // 3. crawlSources: Source crawl → Signal creation
+  // 1. crawlSources: Source crawl → Article creation (in crawler schema)
+  // 2. processArticles: Article → Predictor creation (new unified flow)
+  // 3. generatePredictions: Predictor → Prediction generation
+  //
+  // NOTE: processSignals is DEPRECATED - use processArticles instead.
+  // The signals intermediate layer has been removed; predictors are now
+  // created directly from articles via the ArticleProcessorService.
 
   /**
-   * Result of manual signal processing
-   */
-  // Types are defined inline for simplicity
-
-  /**
-   * Manually process pending signals for a target or all targets in a universe
-   * Converts signals to predictors through the analyst ensemble
+   * Process crawler articles to create predictors directly
+   * This is the new unified flow that replaces signals.
    *
-   * @param params.targetId - Target to process signals for (single target)
-   * @param params.universeId - Process signals for all active targets in universe
-   * @param params.batchSize - Max signals to process per target (default: 10)
-   * @param params.includeTest - Include test data (default: false)
+   * Articles are analyzed for instrument relevance, then run through
+   * the analyst ensemble to create predictors.
+   *
+   * @param params.targetId - Target to process articles for (single target)
+   * @param params.universeId - Process articles for all active targets in universe
+   * @param params.batchSize - Max articles to process (default: 20)
+   */
+  async processArticles(params: {
+    targetId?: string;
+    universeId?: string;
+    batchSize?: number;
+  }): Promise<DashboardResponsePayload<{
+    articlesProcessed: number;
+    predictorsCreated: number;
+    targetsAnalyzed: number;
+    errors: number;
+    message: string;
+  }>> {
+    return this.executeDashboardRequest<{
+      articlesProcessed: number;
+      predictorsCreated: number;
+      targetsAnalyzed: number;
+      errors: number;
+      message: string;
+    }>('articles.process', params);
+  }
+
+  /**
+   * @deprecated Use processArticles instead. Signals have been removed;
+   * predictors are now created directly from articles.
+   *
+   * This method is kept for backward compatibility but may not work
+   * as the backend signal processing has been removed.
    */
   async processSignals(params: {
     targetId?: string;
@@ -3101,13 +3129,16 @@ class PredictionDashboardService {
 
   /**
    * Run the full prediction pipeline for a universe
-   * Executes all three steps in sequence:
-   * 1. Crawl sources -> Create signals
-   * 2. Process signals -> Create predictors
-   * 3. Generate predictions -> Create predictions
+   * Executes all steps in sequence:
+   * 1. Crawl sources -> Create articles in crawler schema
+   * 2. Process articles -> Create predictors directly (unified flow)
+   * 3. Generate predictions -> Create predictions from predictors
+   *
+   * NOTE: The signals intermediate layer has been removed. Articles
+   * are now processed directly into predictors via ArticleProcessorService.
    *
    * @param params.universeId - Universe to run the pipeline for
-   * @param params.batchSize - Max signals to process per target (default: 50)
+   * @param params.batchSize - Max articles to process per target (default: 50)
    * @param params.includeTest - Include test data (default: false)
    */
   async runFullPipeline(params: {
@@ -3169,27 +3200,26 @@ class PredictionDashboardService {
       };
     }
 
-    // Step 2: Process signals
+    // Step 2: Process articles directly into predictors (unified flow)
     let processResult = {
       targetsProcessed: 0,
-      signalsProcessed: 0,
+      signalsProcessed: 0, // Kept for compatibility, now represents articles processed
       predictorsCreated: 0,
       errors: 0,
       message: 'Not started',
     };
 
     try {
-      const processResponse = await this.processSignals({
+      const processResponse = await this.processArticles({
         universeId: params.universeId,
         batchSize,
-        includeTest,
       });
       if (processResponse.content) {
         processResult = {
-          targetsProcessed: processResponse.content.targetsProcessed ?? 0,
-          signalsProcessed: processResponse.content.totalProcessed ?? processResponse.content.processed ?? 0,
-          predictorsCreated: processResponse.content.totalPredictorsCreated ?? processResponse.content.predictorsCreated ?? 0,
-          errors: processResponse.content.totalErrors ?? processResponse.content.errors ?? 0,
+          targetsProcessed: processResponse.content.targetsAnalyzed ?? 0,
+          signalsProcessed: processResponse.content.articlesProcessed ?? 0,
+          predictorsCreated: processResponse.content.predictorsCreated ?? 0,
+          errors: processResponse.content.errors ?? 0,
           message: processResponse.content.message,
         };
       }
@@ -3199,7 +3229,7 @@ class PredictionDashboardService {
         signalsProcessed: 0,
         predictorsCreated: 0,
         errors: 1,
-        message: error instanceof Error ? error.message : 'Signal processing failed',
+        message: error instanceof Error ? error.message : 'Article processing failed',
       };
     }
 
@@ -3236,7 +3266,7 @@ class PredictionDashboardService {
     // Build summary
     const totalErrors = crawlResult.errors + processResult.errors + generateResult.errors;
     const success = totalErrors === 0;
-    const summary = `Pipeline complete: ${crawlResult.signalsCreated} signals created, ${processResult.predictorsCreated} predictors created, ${generateResult.predictionsGenerated} predictions generated${totalErrors > 0 ? ` (${totalErrors} errors)` : ''}`;
+    const summary = `Pipeline complete: ${crawlResult.signalsCreated} articles crawled, ${processResult.predictorsCreated} predictors created, ${generateResult.predictionsGenerated} predictions generated${totalErrors > 0 ? ` (${totalErrors} errors)` : ''}`;
 
     return {
       success,

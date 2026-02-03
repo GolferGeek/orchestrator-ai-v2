@@ -113,7 +113,7 @@ import {
 // Phase 7 Runners
 import {
   SignalGeneratorRunner,
-  BatchSignalProcessorRunner,
+  // BatchSignalProcessorRunner removed - predictors now created directly from articles
   BatchPredictionGeneratorRunner,
   OutcomeTrackingRunner,
   EvaluationRunner,
@@ -268,8 +268,8 @@ const services = [
 
 // Phase 7 Runners
 const runners = [
-  SignalGeneratorRunner, // Pulls articles from crawler.articles and creates signals
-  BatchSignalProcessorRunner,
+  SignalGeneratorRunner, // Pulls articles from crawler.articles and creates predictors directly
+  // BatchSignalProcessorRunner removed - predictors now created directly from articles
   BatchPredictionGeneratorRunner,
   OutcomeTrackingRunner,
   EvaluationRunner,

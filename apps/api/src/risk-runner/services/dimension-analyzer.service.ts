@@ -11,6 +11,7 @@ import {
   AssessmentSignal,
 } from '../interfaces/assessment.interface';
 import { DimensionContextRepository } from '../repositories/dimension-context.repository';
+import { PredictorForRisk } from '../repositories/predictor-reader.repository';
 
 /**
  * Article data for dimension analysis
@@ -34,6 +35,8 @@ export interface DimensionAnalysisInput {
   marketData?: Record<string, unknown>;
   /** Relevant articles for this subject/dimension (from article classifier) */
   articles?: RelevantArticle[];
+  /** Predictors from prediction system (processed articles with analyst assessments) */
+  predictors?: PredictorForRisk[];
 }
 
 export interface DimensionAnalysisOutput {
@@ -62,7 +65,7 @@ export class DimensionAnalyzerService {
     input: DimensionAnalysisInput,
   ): Promise<CreateRiskAssessmentData> {
     const { subject, dimension, context, marketData } = input;
-    const { articles } = input;
+    const { articles, predictors } = input;
 
     this.logger.debug(
       `Analyzing dimension ${dimension.slug} for subject ${subject.identifier}`,
@@ -79,13 +82,14 @@ export class DimensionAnalyzerService {
     }
 
     try {
-      // Build the analysis prompt (now includes articles)
+      // Build the analysis prompt (now includes articles and predictors)
       const prompt = this.buildAnalysisPrompt(
         subject,
         dimension,
         dimensionContext,
         marketData,
         articles,
+        predictors,
       );
 
       // Call LLM for analysis
@@ -139,7 +143,7 @@ export class DimensionAnalyzerService {
 
   /**
    * Build the analysis prompt for the LLM
-   * Now includes relevant articles for evidence-based analysis
+   * Now includes relevant articles and predictors for evidence-based analysis
    */
   private buildAnalysisPrompt(
     subject: RiskSubject,
@@ -147,6 +151,7 @@ export class DimensionAnalyzerService {
     dimensionContext: RiskDimensionContext,
     marketData?: Record<string, unknown>,
     articles?: RelevantArticle[],
+    predictors?: PredictorForRisk[],
   ): string {
     let prompt = `Analyze the ${dimension.name} risk for ${subject.identifier}`;
 
@@ -188,6 +193,37 @@ export class DimensionAnalyzerService {
 
       prompt += `\n\n=== END OF ARTICLES ===\n`;
       prompt += `\nUse these articles as evidence for your risk assessment. Reference specific articles in your reasoning and evidence.`;
+    }
+
+    // Include predictors from the prediction system if available
+    if (predictors && predictors.length > 0) {
+      prompt += `\n\n=== ANALYST PREDICTIONS (${predictors.length} predictors) ===`;
+      prompt += `\nThese are pre-analyzed predictions from our analyst ensemble for ${subject.identifier}.\n`;
+
+      for (const predictor of predictors.slice(0, 10)) {
+        prompt += `\n--- Predictor ---`;
+        prompt += `\nDirection: ${predictor.direction.toUpperCase()}`;
+        prompt += `\nStrength: ${predictor.strength}`;
+        prompt += `\nConfidence: ${(predictor.confidence * 100).toFixed(0)}%`;
+        prompt += `\nAnalyst: ${predictor.analyst_slug}`;
+        prompt += `\nReasoning: ${predictor.reasoning}`;
+        if (predictor.analyst_assessment) {
+          const assessment = predictor.analyst_assessment;
+          if (assessment.key_factors && assessment.key_factors.length > 0) {
+            prompt += `\nKey Factors: ${assessment.key_factors.join(', ')}`;
+          }
+          if (assessment.risks && assessment.risks.length > 0) {
+            prompt += `\nIdentified Risks: ${assessment.risks.join(', ')}`;
+          }
+        }
+        if (predictor.article_title) {
+          prompt += `\nSource Article: ${predictor.article_title}`;
+        }
+        prompt += `\nCreated: ${predictor.created_at}`;
+      }
+
+      prompt += `\n\n=== END OF PREDICTORS ===\n`;
+      prompt += `\nIncorporate these analyst predictions into your risk assessment. Consider the direction and confidence of each predictor.`;
     }
 
     prompt += `\n\nProvide your analysis in the following JSON format:

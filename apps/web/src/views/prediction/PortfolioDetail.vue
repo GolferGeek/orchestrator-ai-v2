@@ -219,11 +219,11 @@
               <button
                 class="btn btn-action"
                 :disabled="pipelineInProgress !== null"
-                @click="handleProcessAllSignals"
+                @click="handleProcessAllArticles"
               >
-                <span v-if="pipelineInProgress === 'signals'" class="spinner-small"></span>
+                <span v-if="pipelineInProgress === 'articles'" class="spinner-small"></span>
                 <span v-else class="action-icon">2</span>
-                {{ pipelineInProgress === 'signals' ? 'Processing...' : 'Process Signals' }}
+                {{ pipelineInProgress === 'articles' ? 'Processing...' : 'Process Articles' }}
               </button>
 
               <button
@@ -1420,29 +1420,28 @@ async function handleCrawlAllSources() {
   }
 }
 
-async function handleProcessAllSignals() {
+async function handleProcessAllArticles() {
   if (!portfolioId.value) return;
 
-  pipelineInProgress.value = 'signals';
+  pipelineInProgress.value = 'articles';
   pipelineResult.value = null;
 
   try {
-    const response = await predictionDashboardService.processSignals({
+    const response = await predictionDashboardService.processArticles({
       universeId: portfolioId.value,
       batchSize: 50,
     });
 
     if (response.content) {
-      const totalErrors = response.content.totalErrors ?? response.content.errors ?? 0;
+      const totalErrors = response.content.errors ?? 0;
       pipelineResult.value = {
         isError: totalErrors > 0,
-        title: 'Signal Processing Complete',
+        title: 'Article Processing Complete',
         message: response.content.message,
         details: [
-          `Targets processed: ${response.content.targetsProcessed ?? 1}`,
-          `Signals processed: ${response.content.totalProcessed ?? response.content.processed ?? 0}`,
-          `Predictors created: ${response.content.totalPredictorsCreated ?? response.content.predictorsCreated ?? 0}`,
-          `Rejected: ${response.content.totalRejected ?? response.content.rejected ?? 0}`,
+          `Targets analyzed: ${response.content.targetsAnalyzed ?? 0}`,
+          `Articles processed: ${response.content.articlesProcessed ?? 0}`,
+          `Predictors created: ${response.content.predictorsCreated ?? 0}`,
           `Errors: ${totalErrors}`,
         ],
       };
@@ -1450,7 +1449,7 @@ async function handleProcessAllSignals() {
   } catch (err) {
     pipelineResult.value = {
       isError: true,
-      title: 'Signal Processing Failed',
+      title: 'Article Processing Failed',
       message: err instanceof Error ? err.message : 'Unknown error',
     };
   } finally {

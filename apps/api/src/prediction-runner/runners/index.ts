@@ -1,10 +1,10 @@
 // Phase 7: Batch Processing Runners
 
-// Signal generation from crawler articles
+// Predictor generation from crawler articles (formerly signal generation)
 export { SignalGeneratorRunner } from './signal-generator.runner';
 
 // Other runners
-export { BatchSignalProcessorRunner } from './batch-signal-processor.runner';
+// BatchSignalProcessorRunner removed - predictors now created directly from articles
 export { BatchPredictionGeneratorRunner } from './batch-prediction-generator.runner';
 export { OutcomeTrackingRunner } from './outcome-tracking.runner';
 export { EvaluationRunner } from './evaluation.runner';

@@ -78,7 +78,8 @@ export type DashboardEntity =
   | 'test-price-data'
   | 'test-target-mirrors'
   | 'analytics'
-  | 'signals'
+  | 'signals' // DEPRECATED - signals have been removed
+  | 'articles' // New: unified article → predictor flow
   | 'agent-activity'
   | 'learning-session'
   | 'runner';
@@ -312,10 +313,17 @@ export class PredictionDashboardRouter {
       case 'analytics':
         return this.analyticsHandler.execute(operation, payload, context);
 
-      // Sprint 4 - Signals Dashboard
+      // Sprint 4 - Signals Dashboard (DEPRECATED - signals have been removed)
+      // The signalsHandler is kept for backward compatibility but may not work
       case 'signals':
       case 'signal':
         return this.signalsHandler.execute(operation, payload, context);
+
+      // Article Processing - New unified flow (articles → predictors directly)
+      case 'articles':
+      case 'article':
+        // Route to runnerHandler with 'processArticles' as the operation
+        return this.runnerHandler.execute('processArticles', payload, context);
 
       // Phase 3 - Agent Activity (HITL Notifications)
       case 'agent-activity':

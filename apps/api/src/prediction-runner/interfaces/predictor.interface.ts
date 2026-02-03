@@ -1,6 +1,10 @@
 /**
- * Predictor entity interface - represents an assessed signal ready to contribute to a prediction
+ * Predictor entity interface - represents an assessed article/signal ready to contribute to a prediction
  * Based on prediction.predictors table
+ *
+ * Predictors can be created from:
+ * - Articles directly (new flow): article_id is set, signal_id is null
+ * - Signals (legacy flow): signal_id is set, article_id may be null
  */
 
 /**
@@ -22,7 +26,8 @@ export type PredictorDirection = 'bullish' | 'bearish' | 'neutral';
 
 export interface Predictor {
   id: string;
-  signal_id: string;
+  signal_id: string | null; // Legacy: nullable after signal removal
+  article_id: string | null; // New: reference to crawler.articles
   target_id: string;
   direction: PredictorDirection;
   strength: number; // 1-10
@@ -51,7 +56,8 @@ export interface AnalystAssessment {
 }
 
 export interface CreatePredictorData {
-  signal_id: string;
+  signal_id?: string | null; // Legacy: optional after signal removal
+  article_id?: string | null; // New: reference to crawler.articles
   target_id: string;
   direction: PredictorDirection;
   strength: number;
@@ -62,7 +68,7 @@ export interface CreatePredictorData {
   llm_usage_id?: string;
   expires_at: string;
   status?: PredictorStatus;
-  // INV-03: Must match is_test from source signal
+  // INV-03: Must match is_test from source article/signal
   is_test?: boolean;
 }
 

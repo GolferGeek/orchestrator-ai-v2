@@ -18,6 +18,8 @@ import {
   EvaluationRepository,
   // Central Crawler Integration
   RiskSourceSubscriptionRepository,
+  // Predictor Integration (reads from prediction schema)
+  PredictorReaderRepository,
 } from './repositories';
 
 // Services
@@ -83,6 +85,8 @@ const repositories = [
   EvaluationRepository,
   // Central Crawler Integration
   RiskSourceSubscriptionRepository,
+  // Predictor Integration (reads from prediction schema)
+  PredictorReaderRepository,
 ];
 
 const services = [
