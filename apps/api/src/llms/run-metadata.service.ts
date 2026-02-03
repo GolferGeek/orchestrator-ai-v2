@@ -305,12 +305,29 @@ export class RunMetadataService {
       // Validate conversation_id is a valid UUID (or null)
       // Invalid UUIDs like 'unknown' or 'test-conversation-id' should be set to null
       // Also treat NIL_UUID as null since it won't exist in the conversations table
-      const conversationId =
+      let conversationId =
         params.conversationId &&
         isValidUUID(params.conversationId) &&
         !isNilUuid(params.conversationId)
           ? params.conversationId
           : null;
+
+      // Verify conversation exists in conversations table before inserting
+      // If conversation doesn't exist, set conversation_id to null to avoid foreign key constraint violation
+      if (conversationId) {
+        const { data: conversation, error: conversationError } = await client
+          .from(getTableName('conversations'))
+          .select('id')
+          .eq('id', conversationId)
+          .single();
+
+        if (conversationError || !conversation) {
+          this.logger.warn(
+            `Conversation ${conversationId} not found in conversations table. Setting conversation_id to null for usage tracking.`,
+          );
+          conversationId = null;
+        }
+      }
 
       const insertData: Record<string, unknown> = {
         run_id: runId,
