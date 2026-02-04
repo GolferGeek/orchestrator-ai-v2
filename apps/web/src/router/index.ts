@@ -57,7 +57,7 @@ const routes: Array<RouteRecordRaw> = [
       },
       {
         path: 'chat',
-        name: 'Chat', 
+        name: 'Chat',
         component: () => import('../views/HomePage.vue'),
         meta: { requiresAuth: true }
       },
@@ -568,7 +568,7 @@ const routes: Array<RouteRecordRaw> = [
     meta: { requiresAuth: false, public: true }
   },
   {
-    path: '/login', 
+    path: '/login',
     name: 'Login',
     component: () => import('../views/LoginPage.vue')
   },
@@ -632,11 +632,8 @@ router.beforeEach(async (to, from, next) => {
 
     // If navigating to /app or /app/welcome and user is admin, redirect to admin dashboard
     if ((to.path === '/app' || to.path === '/app/welcome' || to.name === 'Welcome') && authStore.isAdmin) {
-      // Only redirect if not explicitly coming from admin area
-      if (!from.path.startsWith('/app/admin')) {
-        next({ path: '/app/admin/settings' });
-        return;
-      }
+      next({ path: '/app/admin/settings' });
+      return;
     }
 
     // If navigating to /app/home and user is admin, prefer the admin dashboard
@@ -644,10 +641,10 @@ router.beforeEach(async (to, from, next) => {
     if ((to.name === 'Home' || to.path === '/app/home') && authStore.isAdmin) {
       // Check if there's an active conversation or if coming from agent selection
       const hasActiveConversation = from?.path?.includes('/app/home') ||
-                                   to.query?.conversationId ||
-                                   to.query?.agentId ||
-                                   to.query.forceHome ||
-                                   sessionStorage.getItem('activeConversation');
+        to.query?.conversationId ||
+        to.query?.agentId ||
+        to.query.forceHome ||
+        sessionStorage.getItem('activeConversation');
 
       if (!hasActiveConversation && from.path !== '/app') {
         next({ path: '/app/admin/settings' });

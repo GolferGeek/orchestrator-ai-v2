@@ -135,6 +135,16 @@
                           <ion-label>
                             <h4>{{ formatAgentDisplayName(agent, false) }}</h4>
                           </ion-label>
+                          
+                          <ion-badge
+                            v-if="agentShowsConversation(agent) && !shouldHideConversationCount(agent)"
+                            :color="(agent.totalConversations || 0) > 0 ? 'secondary' : 'light'"
+                            class="agent-badge"
+                            slot="end"
+                          >
+                            {{ agent.totalConversations || 0 }}
+                          </ion-badge>
+
                           <!-- Chat and Dashboard buttons stay inside the item -->
                           <ion-button
                             v-if="agentShowsConversation(agent)"
@@ -158,18 +168,10 @@
                           >
                             <ion-icon :icon="icons.gridOutline" color="tertiary" />
                           </ion-button>
-                        </ion-item>
-                        <!-- Badge and Arrow outside the item box -->
-                        <div class="agent-meta">
-                          <ion-badge
-                            v-if="agentShowsConversation(agent) && !shouldHideConversationCount(agent)"
-                            :color="(agent.totalConversations || 0) > 0 ? 'secondary' : 'light'"
-                            class="agent-badge"
-                          >
-                            {{ agent.totalConversations || 0 }}
-                          </ion-badge>
+                          <!-- Chevron button moved inside item -->
                           <ion-button
                             v-if="agentShowsConversation(agent) && agent.conversations && agent.conversations.length > 0"
+                            slot="end"
                             fill="clear"
                             size="small"
                             @click.stop="toggleConversationList(agent.name)"
@@ -178,7 +180,7 @@
                           >
                             <ion-icon :icon="isConversationListExpanded(agent.name) ? icons.chevronDownOutline : icons.chevronForwardOutline" />
                           </ion-button>
-                        </div>
+                        </ion-item>
                       </div>
 
                       <!-- Agent's Conversations (collapsed by default) - only for agents that support conversations -->
@@ -313,6 +315,16 @@
                           <ion-label>
                             <h4>{{ formatAgentDisplayName(agent, false) }}</h4>
                           </ion-label>
+                          
+                          <ion-badge
+                            v-if="agentShowsConversation(agent) && !shouldHideConversationCount(agent)"
+                            :color="(agent.totalConversations || 0) > 0 ? 'secondary' : 'light'"
+                            class="agent-badge"
+                            slot="end"
+                          >
+                            {{ agent.totalConversations || 0 }}
+                          </ion-badge>
+
                           <!-- Chat and Dashboard buttons stay inside the item -->
                           <ion-button
                             v-if="agentShowsConversation(agent)"
@@ -336,18 +348,10 @@
                           >
                             <ion-icon :icon="icons.gridOutline" color="tertiary" />
                           </ion-button>
-                        </ion-item>
-                        <!-- Badge and Arrow outside the item box -->
-                        <div class="agent-meta">
-                          <ion-badge
-                            v-if="agentShowsConversation(agent) && !shouldHideConversationCount(agent)"
-                            :color="(agent.totalConversations || 0) > 0 ? 'secondary' : 'light'"
-                            class="agent-badge"
-                          >
-                            {{ agent.totalConversations || 0 }}
-                          </ion-badge>
+                          <!-- Chevron button moved inside item -->
                           <ion-button
                             v-if="agentShowsConversation(agent) && agent.conversations && agent.conversations.length > 0"
+                            slot="end"
                             fill="clear"
                             size="small"
                             @click.stop="toggleConversationList(agent.name)"
@@ -356,7 +360,7 @@
                           >
                             <ion-icon :icon="isConversationListExpanded(agent.name) ? icons.chevronDownOutline : icons.chevronForwardOutline" />
                           </ion-button>
-                        </div>
+                        </ion-item>
                       </div>
 
                       <!-- Agent's Conversations (collapsed by default) - only for agents that support conversations -->
@@ -413,6 +417,16 @@
                   <ion-label>
                     <h3>{{ formatAgentDisplayName(agent, true) }}</h3>
                   </ion-label>
+                  
+                  <ion-badge
+                    v-if="agentShowsConversation(agent) && !shouldHideConversationCount(agent)"
+                    :color="(agent.totalConversations || 0) > 0 ? 'primary' : 'medium'"
+                    class="agent-badge"
+                    slot="end"
+                  >
+                    {{ agent.totalConversations || 0 }}
+                  </ion-badge>
+
                   <!-- Chat and Dashboard buttons stay inside the item -->
                   <ion-button
                     v-if="agentShowsConversation(agent)"
@@ -436,18 +450,10 @@
                   >
                     <ion-icon :icon="icons.gridOutline" color="tertiary" />
                   </ion-button>
-                </ion-item>
-                <!-- Badge and Arrow outside the item box -->
-                <div class="agent-meta">
-                  <ion-badge
-                    v-if="agentShowsConversation(agent) && !shouldHideConversationCount(agent)"
-                    :color="(agent.totalConversations || 0) > 0 ? 'primary' : 'medium'"
-                    class="agent-badge"
-                  >
-                    {{ agent.totalConversations || 0 }}
-                  </ion-badge>
+                  <!-- Chevron button moved inside item -->
                   <ion-button
                     v-if="agentShowsConversation(agent) && agent.conversations && agent.conversations.length > 0"
+                    slot="end"
                     fill="clear"
                     size="small"
                     @click.stop="toggleConversationList(agent.name)"
@@ -456,7 +462,7 @@
                   >
                     <ion-icon :icon="isConversationListExpanded(agent.name) ? icons.chevronDownOutline : icons.chevronForwardOutline" />
                   </ion-button>
-                </div>
+                </ion-item>
               </div>
 
               <!-- Agent's Conversations (collapsed by default) - only for agents that support conversations -->
@@ -615,18 +621,19 @@
                       >
                         <ion-icon :icon="icons.gridOutline" color="tertiary" />
                       </ion-button>
-                    </ion-item>
-                    <!-- Badge and Arrow outside the item box -->
-                    <div class="agent-meta">
+                      
                       <ion-badge
                         v-if="agentShowsConversation(agent) && !shouldHideConversationCount(agent)"
                         :color="(agent.totalConversations || 0) > 0 ? 'secondary' : 'light'"
                         class="agent-badge"
+                        slot="end"
                       >
                         {{ agent.totalConversations || 0 }}
                       </ion-badge>
+
                       <ion-button
                         v-if="agentShowsConversation(agent) && agent.conversations && agent.conversations.length > 0"
+                        slot="end"
                         fill="clear"
                         size="small"
                         @click.stop="toggleConversationList(agent.name)"
@@ -635,7 +642,7 @@
                       >
                         <ion-icon :icon="isConversationListExpanded(agent.name) ? icons.chevronDownOutline : icons.chevronForwardOutline" />
                       </ion-button>
-                    </div>
+                    </ion-item>
                   </div>
 
                   <!-- Agent's Conversations (collapsed by default) - only for agents that support conversations -->
@@ -794,18 +801,19 @@
                       >
                         <ion-icon :icon="icons.gridOutline" color="tertiary" />
                       </ion-button>
-                    </ion-item>
-                    <!-- Badge and Arrow outside the item box -->
-                    <div class="agent-meta">
+                      
                       <ion-badge
                         v-if="agentShowsConversation(agent) && !shouldHideConversationCount(agent)"
                         :color="(agent.totalConversations || 0) > 0 ? 'secondary' : 'light'"
                         class="agent-badge"
+                        slot="end"
                       >
                         {{ agent.totalConversations || 0 }}
                       </ion-badge>
+
                       <ion-button
                         v-if="agentShowsConversation(agent) && agent.conversations && agent.conversations.length > 0"
+                        slot="end"
                         fill="clear"
                         size="small"
                         @click.stop="toggleConversationList(agent.name)"
@@ -814,7 +822,7 @@
                       >
                         <ion-icon :icon="isConversationListExpanded(agent.name) ? icons.chevronDownOutline : icons.chevronForwardOutline" />
                       </ion-button>
-                    </div>
+                    </ion-item>
                   </div>
 
                 <!-- Agent's Conversations (collapsed by default) - only for agents that support conversations -->
@@ -871,6 +879,16 @@
               <ion-label>
                 <h3>{{ formatAgentDisplayName(agent, true) }}</h3>
               </ion-label>
+              
+              <ion-badge
+                v-if="agentShowsConversation(agent) && !shouldHideConversationCount(agent)"
+                :color="(agent.totalConversations || 0) > 0 ? 'primary' : 'medium'"
+                class="agent-badge"
+                slot="end"
+              >
+                {{ agent.totalConversations || 0 }}
+              </ion-badge>
+
               <!-- Chat and Dashboard buttons stay inside the item -->
               <ion-button
                 v-if="agentShowsConversation(agent)"
@@ -894,18 +912,10 @@
               >
                 <ion-icon :icon="icons.gridOutline" color="tertiary" />
               </ion-button>
-            </ion-item>
-            <!-- Badge and Arrow outside the item box -->
-            <div class="agent-meta">
-              <ion-badge
-                v-if="agentShowsConversation(agent) && !shouldHideConversationCount(agent)"
-                :color="(agent.totalConversations || 0) > 0 ? 'primary' : 'medium'"
-                class="agent-badge"
-              >
-                {{ agent.totalConversations || 0 }}
-              </ion-badge>
+              <!-- Chevron button moved inside item -->
               <ion-button
                 v-if="agentShowsConversation(agent) && agent.conversations && agent.conversations.length > 0"
+                slot="end"
                 fill="clear"
                 size="small"
                 @click.stop="toggleConversationList(agent.name)"
@@ -914,7 +924,7 @@
               >
                 <ion-icon :icon="isConversationListExpanded(agent.name) ? icons.chevronDownOutline : icons.chevronForwardOutline" />
               </ion-button>
-            </div>
+            </ion-item>
           </div>
 
           <!-- Agent's Conversations (collapsed by default) - only for agents that support conversations -->
@@ -2225,10 +2235,6 @@ watch(
   --padding-start: 12px;
   --background: var(--ion-color-step-100, #e7e7e7);
   border-radius: 8px 0 0 8px;
-}
-
-.specialist-item ion-icon {
-  margin-right: 8px;
 }
 
 /* Nested agent item styling */

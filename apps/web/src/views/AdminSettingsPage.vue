@@ -707,7 +707,7 @@ onMounted(async () => {
 }
 
 .health-status-bar.warning {
-  background: linear-gradient(135deg, #e74c3c, #c0392b);
+  background: var(--ion-color-danger);
 }
 
 .health-status-content {
@@ -773,10 +773,9 @@ onMounted(async () => {
 .issue-alert {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
+  gap: 0.75rem;
+  padding: 0.5rem 1rem;
   background: var(--ion-color-danger);
-  border-left: 3px solid rgba(255, 255, 255, 0.3);
   border-radius: 6px;
   margin-bottom: 0.25rem;
   font-size: 0.85rem;
@@ -785,7 +784,7 @@ onMounted(async () => {
 }
 
 .issue-alert ion-icon {
-  font-size: 1rem;
+  font-size: 1.5rem;
   color: white;
 }
 
