@@ -1666,11 +1666,12 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
           throw new Error('HttpService not available');
         }
         // Use agent's configured timeout, falling back to execution.timeoutSeconds (from metadata), then default
+        // Default 10 minutes (600000ms) to accommodate slow local models (Ollama/sovereign mode)
         const timeoutMs =
           this.ensureNumber(apiConfig.timeout) ??
           (definition.execution.timeoutSeconds
             ? definition.execution.timeoutSeconds * 1000
-            : 60000);
+            : 600000);
         const observable = this.httpService.request({
           url,
           method: method,
@@ -2075,10 +2076,10 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
           const timeout = setTimeout(
             () => {
               this.eventEmitter.removeAllListeners(`task.completion.${taskId}`);
-              reject(new Error('Task completion timeout after 5 minutes'));
+              reject(new Error('Task completion timeout after 15 minutes'));
             },
-            5 * 60 * 1000,
-          ); // 5 minute timeout
+            15 * 60 * 1000,
+          ); // 15 minute timeout to accommodate slow local models (Ollama/sovereign mode)
 
           this.eventEmitter.once(
             `task.completion.${taskId}`,
@@ -2513,11 +2514,12 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
           throw new Error('HttpService not available');
         }
         // Use agent's configured timeout, falling back to execution.timeoutSeconds (from metadata), then default
+        // Default 10 minutes (600000ms) to accommodate slow local models (Ollama/sovereign mode)
         const timeoutMs =
           this.ensureNumber(apiConfig.timeout) ??
           (definition.execution.timeoutSeconds
             ? definition.execution.timeoutSeconds * 1000
-            : 120000);
+            : 600000);
         const observable = this.httpService.request({
           url,
           method: method,
@@ -3452,11 +3454,12 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
         throw new Error('HttpService not available');
       }
       // Use agent's configured timeout, falling back to execution.timeoutSeconds (from metadata), then default
+      // Default 10 minutes (600000ms) to accommodate slow local models (Ollama/sovereign mode)
       const timeoutMs =
         this.ensureNumber(apiConfig.timeout) ??
         (definition.execution.timeoutSeconds
           ? definition.execution.timeoutSeconds * 1000
-          : 60000);
+          : 600000);
       const observable = this.httpService.request({
         url,
         method: method,
