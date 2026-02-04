@@ -83,6 +83,13 @@ export class ExtendedPostWriterService implements OnModuleInit {
       const state = await this.graph.getState(config);
       const isInterrupted = state.next && state.next.length > 0;
 
+      // Debug logging for HITL detection
+      console.log(
+        `🔍 [HITL-DEBUG] Graph result: status=${result.status}, hitlPending=${result.hitlPending}`,
+      );
+      console.log(
+        `🔍 [HITL-DEBUG] Graph state: next=${JSON.stringify(state.next)}, tasks=${JSON.stringify(state.tasks)}`,
+      );
       this.logger.log(
         `Content generation result: taskId=${taskId}, interrupted=${isInterrupted}, status=${result.status}`,
       );

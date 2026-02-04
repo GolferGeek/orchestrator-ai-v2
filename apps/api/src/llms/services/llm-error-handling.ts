@@ -655,6 +655,30 @@ export class LLMErrorMapper {
       );
     }
 
+    // Service unavailable / overloaded errors (503)
+    if (
+      message.includes('503') ||
+      message.includes('overloaded') ||
+      message.includes('Service Unavailable')
+    ) {
+      return new LLMError(
+        'Google model is overloaded. Will retry.',
+        LLMErrorType.SERVICE_UNAVAILABLE,
+        provider,
+        { model, originalError: error, requestId, retryAfterMs: 5000 },
+      );
+    }
+
+    // Rate limiting (429)
+    if (message.includes('429') || message.includes('RATE_LIMIT')) {
+      return new LLMError(
+        'Google API rate limit exceeded',
+        LLMErrorType.RATE_LIMIT,
+        provider,
+        { model, originalError: error, requestId, retryAfterMs: 60000 },
+      );
+    }
+
     // Safety errors
     if (message.includes('SAFETY')) {
       return new LLMError(
@@ -671,6 +695,16 @@ export class LLMErrorMapper {
         LLMErrorType.CONTENT_FILTER,
         provider,
         { model, originalError: error, requestId },
+      );
+    }
+
+    // Server errors (5xx)
+    if (message.includes('500') || message.includes('502') || message.includes('504')) {
+      return new LLMError(
+        'Google server error',
+        LLMErrorType.SERVER_ERROR,
+        provider,
+        { model, originalError: error, requestId, retryable: true },
       );
     }
 

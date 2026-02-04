@@ -47,7 +47,7 @@
 
 ## Deliverables
 - Pane is consistent
-- Edit works
+- Edit works 
 - Version maintenance
 
 ## Admin Works 100%

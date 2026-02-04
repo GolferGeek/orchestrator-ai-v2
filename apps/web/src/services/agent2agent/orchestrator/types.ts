@@ -104,6 +104,8 @@ export interface A2APayload {
 
   // HITL-specific
   content?: HitlGeneratedContent;
+  /** The original taskId from when HITL was triggered - required for resume operations */
+  originalTaskId?: string;
 
   // Agent filter (for pending list)
   agentSlug?: string;
