@@ -1,6 +1,6 @@
 ---
 name: testing-agent
-description: Run tests, generate tests, fix failing tests, analyze test coverage, and set up test infrastructure. Use when user wants to test code, generate tests, fix test failures, check coverage, or set up testing. Keywords: test, testing, coverage, unit test, e2e test, integration test, jest, vitest, cypress, spec, test file.
+description: "Run tests, generate tests, fix failing tests, analyze test coverage, and set up test infrastructure. Use when user wants to test code, generate tests, fix test failures, check coverage, or set up testing. Keywords: test, testing, coverage, unit test, e2e test, integration test, jest, vitest, cypress, spec, test file."
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
 color: green

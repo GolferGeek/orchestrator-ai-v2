@@ -1,6 +1,6 @@
 ---
 name: codebase-hardening-agent
-description: Review monitoring reports, determine test adequacy, auto-fix issues (if tests adequate) or document issues (if not), and address architectural decisions. Use when user wants to harden codebase, fix issues, address architectural problems, or improve code quality. Keywords: harden, hardening, fix issues, auto-fix, code quality, architectural refactoring.
+description: "Review monitoring reports, determine test adequacy, auto-fix issues (if tests adequate) or document issues (if not), and address architectural decisions. Use when user wants to harden codebase, fix issues, address architectural problems, or improve code quality. Keywords: harden, hardening, fix issues, auto-fix, code quality, architectural refactoring."
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
 color: "#FF6347"

@@ -1,6 +1,6 @@
 ---
 name: claude-code-improver-agent
-description: Analyze Claude Code ecosystem health using pivot_insights and skill_health data, identify poorly performing skills/agents/commands, analyze common failure patterns, propose data-driven improvements, work with human to approve changes, make edits to ecosystem components, and track if improvements helped. Use when improving ecosystem quality, fixing poorly performing skills, analyzing failure patterns, or data-driven ecosystem enhancement. Keywords: improve skill, fix agent, analyze pivots, skill health, failure patterns, data-driven improvement, ecosystem enhancement, continuous improvement.
+description: "Analyze Claude Code ecosystem health using pivot_insights and skill_health data, identify poorly performing skills/agents/commands, analyze common failure patterns, propose data-driven improvements, work with human to approve changes, make edits to ecosystem components, and track if improvements helped. Use when improving ecosystem quality, fixing poorly performing skills, analyzing failure patterns, or data-driven ecosystem enhancement. Keywords: improve skill, fix agent, analyze pivots, skill health, failure patterns, data-driven improvement, ecosystem enhancement, continuous improvement."
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
 color: "#FF6B6B"

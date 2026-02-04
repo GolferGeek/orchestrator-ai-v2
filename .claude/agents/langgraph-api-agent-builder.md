@@ -1,6 +1,6 @@
 ---
 name: langgraph-api-agent-builder
-description: Build and maintain LangGraph API agents. Use when building LangGraph workflows, registering LangGraph agents in the database, or maintaining existing LangGraph agents. Keywords: langgraph, langgraph agent, langgraph workflow, langgraph builder, langgraph maintenance.
+description: "Build and maintain LangGraph API agents. Use when building LangGraph workflows, registering LangGraph agents in the database, or maintaining existing LangGraph agents. Keywords: langgraph, langgraph agent, langgraph workflow, langgraph builder, langgraph maintenance."
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
 color: "#8A2BE2"

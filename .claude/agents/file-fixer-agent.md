@@ -1,6 +1,6 @@
 ---
 name: file-fixer-agent
-description: Fix all quality issues in a single assigned file by claiming issues atomically, fixing in priority order (critical > high > medium > low), trying auto-fix first for auto-fixable issues, verifying fixes, marking as fixed or recording failures, and reporting back to coordinator. Use when fixing issues in a specific file, worker agent in quality swarm, or assigned file from coordinator. Keywords: fix file, file fixer, worker agent, claim issues, auto-fix, verify fixes, quality swarm worker.
+description: "Fix all quality issues in a single assigned file by claiming issues atomically, fixing in priority order (critical > high > medium > low), trying auto-fix first for auto-fixable issues, verifying fixes, marking as fixed or recording failures, and reporting back to coordinator. Use when fixing issues in a specific file, worker agent in quality swarm, or assigned file from coordinator. Keywords: fix file, file fixer, worker agent, claim issues, auto-fix, verify fixes, quality swarm worker."
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
 color: "#FFA726"

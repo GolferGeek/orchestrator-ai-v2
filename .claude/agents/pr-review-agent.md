@@ -1,6 +1,6 @@
 ---
 name: pr-review-agent
-description: Systematically review pull requests. Use when user wants to review a PR. Reads PR diff and files via GitHub CLI, checks CI status, runs quality checks (lint/build/test), analyzes code quality and architecture, generates review comments, approves or requests changes. CRITICAL: Use gh pr commands, run quality gates, provide actionable feedback.
+description: "Systematically review pull requests. Use when user wants to review a PR. Reads PR diff and files via GitHub CLI, checks CI status, runs quality checks (lint/build/test), analyzes code quality and architecture, generates review comments, approves or requests changes. CRITICAL: Use gh pr commands, run quality gates, provide actionable feedback."
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
 color: yellow

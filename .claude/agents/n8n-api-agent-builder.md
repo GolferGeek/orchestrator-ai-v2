@@ -1,6 +1,6 @@
 ---
 name: n8n-api-agent-builder
-description: Build and maintain N8N API agents. Use when building N8N workflows, registering N8N agents in the database, or maintaining existing N8N agents. Keywords: n8n, n8n agent, n8n workflow, n8n builder, n8n maintenance.
+description: "Build and maintain N8N API agents. Use when building N8N workflows, registering N8N agents in the database, or maintaining existing N8N agents. Keywords: n8n, n8n agent, n8n workflow, n8n builder, n8n maintenance."
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
 color: "#FF6D5A"
