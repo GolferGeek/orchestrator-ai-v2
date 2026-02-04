@@ -156,8 +156,8 @@ function isStale(subjectId: string): boolean {
 }
 
 .subject-item.selected {
-  background: var(--ion-color-primary-tint, #e0ecff);
-  border-left: 3px solid var(--ion-color-primary, #3880ff);
+  background: rgba(168, 124, 79, 0.15);
+  border-left: 3px solid var(--ion-color-primary, #a87c4f);
 }
 
 .subject-main {
