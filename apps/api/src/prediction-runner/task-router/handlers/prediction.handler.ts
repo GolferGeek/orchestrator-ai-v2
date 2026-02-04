@@ -768,9 +768,113 @@ export class PredictionHandler implements IDashboardHandler {
       // For deep-dive lineage, signal metadata may contain article info
 
       // Build reasoning chain from analyst assessments
-      const reasoningChain =
-        snapshot?.analyst_assessments?.map((assessment) => ({
+      // First, check if prediction has three-way fork data in analyst_ensemble
+      const analystEnsembleData = prediction.analyst_ensemble as {
+        assessments?: Array<{
+          analyst_slug?: string;
+          analyst_name?: string;
+          direction?: string;
+          confidence?: number;
+          reasoning?: string;
+          user_fork?: {
+            direction: string;
+            confidence: number;
+            reasoning?: string;
+          };
+          ai_fork?: {
+            direction: string;
+            confidence: number;
+            reasoning?: string;
+          };
+          arbitrator_fork?: {
+            direction: string;
+            confidence: number;
+            reasoning?: string;
+          };
+        }>;
+        fork_metadata?: {
+          totalAnalysts: number;
+          userVsAiAgreement: number;
+          arbitratorAgreesWithUser: number;
+          arbitratorAgreesWithAi: number;
+        };
+      } | null;
+
+      // Helper to convert analyst slug to display name
+      const slugToDisplayName = (slug: string): string => {
+        const nameMap: Record<string, string> = {
+          'fundamental-fred': 'Fundamental Fred',
+          'technical-tina': 'Technical Tina',
+          'sentiment-sally': 'Sentiment Sally',
+          'aggressive-alex': 'Aggressive Alex',
+          'cautious-carl': 'Cautious Carl',
+        };
+        return (
+          nameMap[slug] ||
+          slug
+            .split('-')
+            .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ')
+        );
+      };
+
+      // Use prediction's analyst_ensemble if it has three-way fork data (new format)
+      // Otherwise fall back to snapshot's analyst_assessments (legacy format)
+      let reasoningChain: Array<{
+        analystSlug: string;
+        analystName?: string;
+        tier?: string;
+        direction: string;
+        confidence: number;
+        reasoning?: string;
+        keyFactors?: string[];
+        risks?: string[];
+        learningsApplied?: string[];
+        userFork?: { direction: string; confidence: number; reasoning?: string };
+        aiFork?: { direction: string; confidence: number; reasoning?: string };
+        arbitratorFork?: { direction: string; confidence: number; reasoning?: string };
+      }> = [];
+
+      if (analystEnsembleData?.assessments && analystEnsembleData.assessments.length > 0) {
+        // Use prediction's analyst_ensemble with three-way fork data
+        reasoningChain = analystEnsembleData.assessments.map((a) => {
+          const slug = a.analyst_slug || 'unknown';
+          const name = a.analyst_name || slugToDisplayName(slug);
+          return {
+            analystSlug: slug,
+            analystName: name,
+            direction: a.direction || 'neutral',
+            confidence: a.confidence || 0,
+            reasoning: a.reasoning,
+            // Include all three fork reasonings for the UI
+            userFork: a.user_fork
+              ? {
+                  direction: a.user_fork.direction,
+                  confidence: a.user_fork.confidence,
+                  reasoning: a.user_fork.reasoning,
+                }
+              : undefined,
+            aiFork: a.ai_fork
+              ? {
+                  direction: a.ai_fork.direction,
+                  confidence: a.ai_fork.confidence,
+                  reasoning: a.ai_fork.reasoning,
+                }
+              : undefined,
+            arbitratorFork: a.arbitrator_fork
+              ? {
+                  direction: a.arbitrator_fork.direction,
+                  confidence: a.arbitrator_fork.confidence,
+                  reasoning: a.arbitrator_fork.reasoning,
+                }
+              : undefined,
+          };
+        });
+      } else if (snapshot?.analyst_assessments) {
+        // Fall back to snapshot's analyst_assessments (legacy format)
+        reasoningChain = snapshot.analyst_assessments.map((assessment) => ({
           analystSlug: assessment.analyst.slug,
+          analystName: assessment.analyst.name,
           tier: assessment.tier,
           direction: assessment.direction,
           confidence: assessment.confidence,
@@ -778,7 +882,8 @@ export class PredictionHandler implements IDashboardHandler {
           keyFactors: assessment.key_factors,
           risks: assessment.risks,
           learningsApplied: assessment.learnings_applied,
-        })) ?? [];
+        }));
+      }
 
       // Build complete lineage response
       return buildDashboardSuccess({

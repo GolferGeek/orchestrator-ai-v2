@@ -93,8 +93,12 @@
     <!-- Stats Summary -->
     <section class="stats-section">
       <div class="stat-card">
+        <span class="stat-value">{{ groupedPredictions.length }}</span>
+        <span class="stat-label">Prediction Groups</span>
+      </div>
+      <div class="stat-card">
         <span class="stat-value">{{ store.activePredictions.length }}</span>
-        <span class="stat-label">Active Predictions</span>
+        <span class="stat-label">Active Analyses</span>
       </div>
       <div class="stat-card">
         <span class="stat-value">{{ store.resolvedPredictions.length }}</span>
@@ -175,17 +179,22 @@
       </p>
     </div>
 
-    <!-- Predictions Grid -->
+    <!-- Predictions Grid (Grouped by Target) -->
     <section v-else class="predictions-grid">
-      <PredictionCard
-        v-for="prediction in store.filteredPredictions"
-        :key="prediction.id"
-        :prediction="prediction"
-        :is-selected="prediction.id === store.selectedPredictionId"
-        @select="onPredictionSelect"
-        @take-position="onTakePosition"
+      <PredictionGroupCard
+        v-for="group in groupedPredictions"
+        :key="group.key"
+        :predictions="group.predictions"
+        @click="onGroupClick(group)"
       />
     </section>
+
+    <!-- Analyst Cards Modal (Level 2) -->
+    <AnalystCardsModal
+      :is-open="isAnalystModalOpen"
+      :predictions="selectedGroupPredictions"
+      @dismiss="closeAnalystModal"
+    />
 
     <!-- Take Position Modal -->
     <TakePositionModal
@@ -228,7 +237,8 @@ import { usePredictionStore } from '@/stores/predictionStore';
 import { useAuthStore } from '@/stores/rbacStore';
 import { useAgentsStore } from '@/stores/agentsStore';
 import { predictionDashboardService } from '@/services/predictionDashboardService';
-import PredictionCard from '@/components/prediction/PredictionCard.vue';
+import PredictionGroupCard from '@/components/prediction/PredictionGroupCard.vue';
+import AnalystCardsModal from '@/components/prediction/AnalystCardsModal.vue';
 import PredictionActivityFeed from '@/components/prediction/PredictionActivityFeed.vue';
 import TakePositionModal from '@/components/prediction/TakePositionModal.vue';
 import type { Prediction } from '@/services/predictionDashboardService';
@@ -280,6 +290,62 @@ const selectedPredictionForPosition = ref<{
   magnitudePercent?: number;
   rationale?: string;
 } | null>(null);
+
+// Analyst Cards Modal state (Level 2)
+const isAnalystModalOpen = ref(false);
+const selectedGroupPredictions = ref<Prediction[]>([]);
+
+// Group predictions by target symbol + timeframe + generatedAt (unique prediction set)
+interface PredictionGroup {
+  key: string;
+  targetSymbol: string;
+  targetName: string;
+  timeframe: string;
+  generatedAt: string;
+  predictions: Prediction[];
+}
+
+const groupedPredictions = computed<PredictionGroup[]>(() => {
+  const groups = new Map<string, PredictionGroup>();
+
+  for (const prediction of store.filteredPredictions) {
+    // Create a unique key for each prediction group
+    // Use targetSymbol + timeframe + generatedAt (rounded to minute) to group predictions
+    const generatedAt = prediction.generatedAt || '';
+    const roundedTime = generatedAt ? new Date(generatedAt).toISOString().slice(0, 16) : '';
+    const key = `${prediction.targetSymbol || 'unknown'}-${prediction.timeframe || ''}-${roundedTime}`;
+
+    if (!groups.has(key)) {
+      groups.set(key, {
+        key,
+        targetSymbol: prediction.targetSymbol || 'N/A',
+        targetName: prediction.targetName || '',
+        timeframe: prediction.timeframe || '',
+        generatedAt: prediction.generatedAt || '',
+        predictions: [],
+      });
+    }
+
+    groups.get(key)!.predictions.push(prediction);
+  }
+
+  // Sort by generatedAt descending (newest first)
+  return Array.from(groups.values()).sort((a, b) => {
+    const dateA = new Date(a.generatedAt).getTime() || 0;
+    const dateB = new Date(b.generatedAt).getTime() || 0;
+    return dateB - dateA;
+  });
+});
+
+function onGroupClick(group: PredictionGroup) {
+  selectedGroupPredictions.value = group.predictions;
+  isAnalystModalOpen.value = true;
+}
+
+function closeAnalystModal() {
+  isAnalystModalOpen.value = false;
+  selectedGroupPredictions.value = [];
+}
 
 const hasFilters = computed(() => {
   return selectedUniverse.value !== null || statusFilter.value !== 'all' || domainFilter.value !== null || outcomeFilter.value !== null;
@@ -342,37 +408,8 @@ function onFilterChange() {
   });
 }
 
-function onPredictionSelect(id: string) {
-  store.selectPrediction(id);
-  router.push({ name: 'PredictionDetail', params: { id } });
-}
-
-// Map categorical magnitude to percentage
-function magnitudeToPercent(magnitude?: number | string): number | undefined {
-  if (!magnitude) return undefined;
-  const mag = String(magnitude).toLowerCase();
-  switch (mag) {
-    case 'small': return 2;
-    case 'medium': return 5;
-    case 'large': return 10;
-    default: return typeof magnitude === 'number' ? magnitude : undefined;
-  }
-}
-
-function onTakePosition(prediction: Prediction) {
-  // Only allow positions for directional predictions
-  if (prediction.direction !== 'up' && prediction.direction !== 'down') return;
-
-  selectedPredictionForPosition.value = {
-    id: prediction.id,
-    symbol: prediction.targetSymbol || '',
-    direction: prediction.direction === 'up' ? 'bullish' : 'bearish',
-    confidence: prediction.confidence || 0,
-    magnitudePercent: magnitudeToPercent(prediction.magnitude),
-    rationale: prediction.rationale || `${prediction.direction.toUpperCase()} prediction with ${Math.round((prediction.confidence || 0) * 100)}% confidence`,
-  };
-  isTakePositionModalOpen.value = true;
-}
+// Note: Individual prediction selection was replaced with group-based modal navigation
+// The flow is now: Group Card -> Analyst Cards Modal -> Fork Analysis Modal
 
 function closeTakePositionModal() {
   isTakePositionModalOpen.value = false;

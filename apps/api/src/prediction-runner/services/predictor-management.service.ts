@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PredictorRepository } from '../repositories/predictor.repository';
+import { TargetRepository } from '../repositories/target.repository';
 import {
   Predictor,
   PredictorDirection,
@@ -32,6 +33,7 @@ export class PredictorManagementService {
 
   constructor(
     private readonly predictorRepository: PredictorRepository,
+    private readonly targetRepository: TargetRepository,
     private readonly observabilityEventsService: ObservabilityEventsService,
   ) {}
 
@@ -207,21 +209,28 @@ export class PredictorManagementService {
 
     // Emit predictor.ready event when threshold is met
     if (meetsThreshold) {
+      // Get target symbol for display in activity feed
+      const target = await this.targetRepository.findById(targetId);
+      const targetSymbol = target?.symbol || 'Unknown';
+
       const ctx = this.createObservabilityContext(targetId);
       await this.observabilityEventsService.push({
         context: ctx,
         source_app: 'prediction-runner',
         hook_event_type: 'predictor.ready',
         status: 'ready',
-        message: `Predictor threshold met for target: ${activeCount} predictors, ${combinedStrength} combined strength, ${(directionConsensus * 100).toFixed(0)}% weighted consensus (${dominantDirection})`,
+        message: `Predictor threshold met for ${targetSymbol}: ${activeCount} predictors, ${combinedStrength} combined strength, ${(directionConsensus * 100).toFixed(0)}% weighted consensus (${dominantDirection})`,
         progress: null,
         step: 'predictor-ready',
         payload: {
           targetId,
+          targetSymbol,
           activeCount,
           combinedStrength,
           directionConsensus,
           dominantDirection,
+          direction: dominantDirection, // Also include as 'direction' for activity feed chip
+          confidence: avgConfidence, // Also include as 'confidence' for activity feed chip
           bullishCount,
           bearishCount,
           neutralCount,

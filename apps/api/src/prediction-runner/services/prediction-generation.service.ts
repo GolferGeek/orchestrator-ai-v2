@@ -76,19 +76,16 @@ export class PredictionGenerationService {
 
     this.logger.log(`Attempting prediction generation for target: ${targetId}`);
 
-    // Check for existing active arbitrator prediction (primary prediction)
+    // Check for existing active analyst predictions
     const existingPredictions = await this.predictionRepository.findByTarget(
       targetId,
       'active',
     );
 
-    // Find the arbitrator prediction if it exists (the primary prediction)
-    const existingArbitratorPrediction = existingPredictions.find(
-      (p) => p.is_arbitrator === true || p.analyst_slug === 'arbitrator',
-    );
-
-    if (existingArbitratorPrediction) {
-      const existingPrediction = existingArbitratorPrediction;
+    // If we have active predictions for this target, check if refresh is needed
+    // Use the first prediction as representative (all 5 are created together)
+    const existingPrediction = existingPredictions[0];
+    if (existingPrediction) {
 
       // Evaluate current predictors to see if refresh is needed
       const thresholdResult =
@@ -403,12 +400,27 @@ export class PredictionGenerationService {
     // Track all created predictions
     const createdPredictions: Prediction[] = [];
 
-    // Create per-analyst predictions
-    for (const assessment of ensembleResult.assessments) {
-      const analystPrediction = await this.createAnalystPrediction(
+    // Create per-analyst predictions using ONLY arbitrator fork assessments (one per analyst)
+    // The arbitrator fork has the combined context and is the "official" analyst assessment
+    // Note: ensembleResult.assessments contains ALL forks (15 total = 5 analysts × 3 forks)
+    // We only want 5 predictions (one per unique analyst), using their arbitrator fork assessment
+    const arbitratorForkAssessments = threeWayResult.arbitratorForkAssessments;
+
+    for (const assessment of arbitratorForkAssessments) {
+      // Find the corresponding user and ai fork assessments for this analyst
+      const userFork = threeWayResult.userForkAssessments.find(
+        (a) => a.analyst.slug === assessment.analyst.slug,
+      );
+      const aiFork = threeWayResult.aiForkAssessments.find(
+        (a) => a.analyst.slug === assessment.analyst.slug,
+      );
+
+      const analystPrediction = await this.createAnalystPredictionWithForks(
         ctx,
         target,
         assessment,
+        userFork,
+        aiFork,
         horizonHours,
         expiresAt,
         contextVersions,
@@ -416,39 +428,34 @@ export class PredictionGenerationService {
       createdPredictions.push(analystPrediction);
     }
 
-    // Create arbitrator prediction (synthesis of all analysts)
-    // Pass three-way result for storing all fork reasonings
-    const arbitratorPrediction = await this.createArbitratorPrediction(
-      ctx,
-      target,
-      thresholdResult,
-      ensembleResult,
-      predictors,
-      horizonHours,
-      expiresAt,
-      contextVersions,
-      threeWayResult,
-    );
-    createdPredictions.push(arbitratorPrediction);
+    // Note: No separate arbitrator prediction - the 5 analyst predictions each contain
+    // their 3 fork assessments (user, ai, arbitrator). Users view the analysts and
+    // draw their own conclusions rather than seeing a computed "consensus".
 
     this.logger.log(
       `Created ${createdPredictions.length} predictions for ${target.symbol}: ` +
-        `${ensembleResult.assessments.length} analyst + 1 arbitrator`,
+        `${arbitratorForkAssessments.length} analyst predictions`,
     );
 
-    // Consume predictors (link to arbitrator prediction as primary)
-    await this.predictorManagementService.consumePredictors(
-      targetId,
-      arbitratorPrediction.id,
-    );
+    // Use the first prediction as the "primary" for consuming predictors
+    // (all 5 are equally valid, this is just for the foreign key relationship)
+    const primaryPrediction = createdPredictions[0];
 
-    // Create snapshot for audit trail (linked to arbitrator)
-    await this.createPredictionSnapshot(
-      arbitratorPrediction,
-      predictors,
-      thresholdResult,
-      ensembleResult,
-    );
+    // Consume predictors (link to primary prediction)
+    if (primaryPrediction) {
+      await this.predictorManagementService.consumePredictors(
+        targetId,
+        primaryPrediction.id,
+      );
+
+      // Create snapshot for audit trail
+      await this.createPredictionSnapshot(
+        primaryPrediction,
+        predictors,
+        thresholdResult,
+        ensembleResult,
+      );
+    }
 
     // Emit prediction.created event for observability
     await this.observabilityEventsService.push({
@@ -456,43 +463,39 @@ export class PredictionGenerationService {
       source_app: 'prediction-runner',
       hook_event_type: 'prediction.created',
       status: 'created',
-      message: `Created ${createdPredictions.length} predictions for ${target.symbol}: ${ensembleResult.assessments.map((a) => a.analyst.slug).join(', ')} + arbitrator`,
+      message: `Created ${createdPredictions.length} predictions for ${target.symbol}: ${createdPredictions.map((p) => p.analyst_slug).join(', ')}`,
       progress: null,
       step: 'prediction-created',
       payload: {
-        predictionId: arbitratorPrediction.id,
         targetId,
         targetSymbol: target.symbol,
-        direction: arbitratorPrediction.direction,
-        magnitude: arbitratorPrediction.magnitude,
-        confidence: arbitratorPrediction.confidence,
         timeframeHours: horizonHours,
         expiresAt: expiresAt.toISOString(),
         predictorCount: predictors.length,
         combinedStrength: thresholdResult.combinedStrength,
         directionConsensus: thresholdResult.directionConsensus,
-        analystPredictions: createdPredictions
-          .filter((p) => !p.is_arbitrator)
-          .map((p) => ({
-            id: p.id,
-            analyst_slug: p.analyst_slug,
-            direction: p.direction,
-            confidence: p.confidence,
-          })),
+        analystPredictions: createdPredictions.map((p) => ({
+          id: p.id,
+          analyst_slug: p.analyst_slug,
+          direction: p.direction,
+          confidence: p.confidence,
+        })),
       },
       timestamp: Date.now(),
     });
 
     // Create positions for all three forks (user, ai, arbitrator)
-    await this.createThreeWayForkPositions(
-      ctx,
-      target,
-      threeWayResult,
-      arbitratorPrediction.id,
-    );
+    if (primaryPrediction) {
+      await this.createThreeWayForkPositions(
+        ctx,
+        target,
+        threeWayResult,
+        primaryPrediction.id,
+      );
+    }
 
-    // Return the arbitrator prediction as the primary prediction
-    return arbitratorPrediction;
+    // Return the first prediction (all 5 are equally valid)
+    return primaryPrediction!;
   }
 
   /**
@@ -566,6 +569,108 @@ export class PredictionGenerationService {
     this.logger.debug(
       `Created analyst prediction ${prediction.id} for ${assessment.analyst.slug}: ` +
         `${direction} (${(assessment.confidence * 100).toFixed(0)}% confidence)`,
+    );
+
+    return prediction;
+  }
+
+  /**
+   * Create a prediction for a specific analyst with all three fork assessments
+   * Uses the arbitrator fork as the main assessment, with user and ai forks as metadata
+   */
+  private async createAnalystPredictionWithForks(
+    ctx: ExecutionContext,
+    target: { id: string; symbol: string; universe_id: string },
+    arbitratorAssessment: AnalystAssessmentResult,
+    userAssessment: AnalystAssessmentResult | undefined,
+    aiAssessment: AnalystAssessmentResult | undefined,
+    horizonHours: number,
+    expiresAt: Date,
+    contextVersions: {
+      runnerContextVersionId?: string;
+      universeContextVersionId?: string;
+      targetContextVersionId?: string;
+      analystContextVersionIds?: Record<string, string>;
+    },
+  ): Promise<Prediction> {
+    // Use arbitrator assessment as the main assessment (it has combined context)
+    const assessment = arbitratorAssessment;
+
+    // Map analyst direction to prediction direction
+    const direction = this.mapAnalystDirection(assessment.direction);
+
+    // Estimate magnitude from assessment confidence
+    const magnitude = assessment.confidence * 5; // Scale to reasonable percentage
+    const magnitudeCategory = this.categorizeMagnitude(magnitude);
+
+    // Calculate position sizing for this analyst's prediction
+    const positionSizing = await this.calculateRecommendedPositionSize(
+      ctx,
+      target,
+      direction,
+      assessment.confidence,
+      magnitude,
+    );
+
+    const predictionData: CreatePredictionData = {
+      target_id: target.id,
+      direction,
+      magnitude: magnitudeCategory,
+      confidence: assessment.confidence,
+      timeframe_hours: horizonHours,
+      expires_at: expiresAt.toISOString(),
+      reasoning: assessment.reasoning,
+      analyst_ensemble: {
+        analyst_slug: assessment.analyst.slug,
+        analyst_name: assessment.analyst.name,
+        key_factors: assessment.key_factors,
+        risks: assessment.risks,
+        tier: assessment.tier,
+        // Include all three fork assessments for comparison in UI
+        user_fork: userAssessment
+          ? {
+              direction: userAssessment.direction,
+              confidence: userAssessment.confidence,
+              reasoning: userAssessment.reasoning,
+            }
+          : undefined,
+        ai_fork: aiAssessment
+          ? {
+              direction: aiAssessment.direction,
+              confidence: aiAssessment.confidence,
+              reasoning: aiAssessment.reasoning,
+            }
+          : undefined,
+        arbitrator_fork: {
+          direction: assessment.direction,
+          confidence: assessment.confidence,
+          reasoning: assessment.reasoning,
+        },
+      },
+      llm_ensemble: {
+        direction: assessment.direction,
+        confidence: assessment.confidence,
+        tier: assessment.tier,
+      },
+      status: 'active',
+      // Context version traceability
+      runner_context_version_id: contextVersions.runnerContextVersionId,
+      analyst_context_version_ids: contextVersions.analystContextVersionIds,
+      universe_context_version_id: contextVersions.universeContextVersionId,
+      target_context_version_id: contextVersions.targetContextVersionId,
+      // Position sizing recommendation
+      recommended_quantity: positionSizing.quantity,
+      quantity_reasoning: positionSizing.reasoning,
+      // Per-analyst identification
+      analyst_slug: assessment.analyst.slug,
+      is_arbitrator: false,
+    };
+
+    const prediction = await this.predictionRepository.create(predictionData);
+
+    this.logger.debug(
+      `Created analyst prediction ${prediction.id} for ${assessment.analyst.slug}: ` +
+        `${direction} (${(assessment.confidence * 100).toFixed(0)}% confidence) with 3-way forks`,
     );
 
     return prediction;

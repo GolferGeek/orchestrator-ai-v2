@@ -9,6 +9,10 @@
         <div class="target-header">
           <span v-if="prediction.isTest" class="test-badge">TEST</span>
           <span class="target-symbol">{{ prediction.targetSymbol || 'N/A' }}</span>
+          <span v-if="prediction.isArbitrator" class="analyst-badge arbitrator">Consensus</span>
+          <span v-else-if="prediction.analystSlug" class="analyst-badge" :class="getAnalystClass(prediction.analystSlug)">
+            {{ formatAnalystName(prediction.analystSlug) }}
+          </span>
         </div>
         <span class="target-name">{{ prediction.targetName }}</span>
       </div>
@@ -324,6 +328,31 @@ function truncateReasoning(reasoning: string, maxLength = 120): string {
   if (!reasoning || reasoning.length <= maxLength) return reasoning;
   return reasoning.substring(0, maxLength).trim() + '...';
 }
+
+// Format analyst slug to display name (full name shows personality/tone)
+function formatAnalystName(slug: string): string {
+  const nameMap: Record<string, string> = {
+    'fundamental-fred': 'Fundamental Fred',
+    'technical-tina': 'Technical Tina',
+    'sentiment-sally': 'Sentiment Sally',
+    'aggressive-alex': 'Aggressive Alex',
+    'cautious-carl': 'Cautious Carl',
+    'arbitrator': 'Consensus',
+  };
+  return nameMap[slug] || slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
+// Get CSS class for analyst badge color
+function getAnalystClass(slug: string): string {
+  const classMap: Record<string, string> = {
+    'fundamental-fred': 'analyst-fred',
+    'technical-tina': 'analyst-tina',
+    'sentiment-sally': 'analyst-sally',
+    'aggressive-alex': 'analyst-alex',
+    'cautious-carl': 'analyst-carl',
+  };
+  return classMap[slug] || '';
+}
 </script>
 
 <style scoped>
@@ -634,6 +663,45 @@ function truncateReasoning(reasoning: string, maxLength = 120): string {
   background-color: rgba(139, 92, 246, 0.15);
   color: #7c3aed;
   margin-right: 0.25rem;
+}
+
+.analyst-badge {
+  font-size: 0.625rem;
+  font-weight: 600;
+  padding: 0.125rem 0.5rem;
+  border-radius: 10px;
+  margin-left: 0.375rem;
+}
+
+.analyst-badge.arbitrator {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(59, 130, 246, 0.15));
+  color: #7c3aed;
+  border: 1px solid rgba(139, 92, 246, 0.3);
+}
+
+.analyst-badge.analyst-fred {
+  background-color: rgba(59, 130, 246, 0.12);
+  color: #2563eb;
+}
+
+.analyst-badge.analyst-tina {
+  background-color: rgba(236, 72, 153, 0.12);
+  color: #db2777;
+}
+
+.analyst-badge.analyst-sally {
+  background-color: rgba(34, 197, 94, 0.12);
+  color: #16a34a;
+}
+
+.analyst-badge.analyst-alex {
+  background-color: rgba(249, 115, 22, 0.12);
+  color: #ea580c;
+}
+
+.analyst-badge.analyst-carl {
+  background-color: rgba(107, 114, 128, 0.12);
+  color: #4b5563;
 }
 
 /* Analyst Opinions Expandable Section */
