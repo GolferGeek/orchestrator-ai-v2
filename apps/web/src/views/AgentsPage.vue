@@ -4,12 +4,10 @@
       <ion-menu content-id="agents-main-content" type="overlay" :disabled="!auth.isAuthenticated" @ionWillOpen="handleMenuOpen" @ionWillClose="handleMenuClose">
         <ion-header>
           <ion-toolbar>
-            <ion-title
-              class="clickable-title"
-              @click="navigateToLanding"
-            >
-              {{ menuTitle }}
-            </ion-title>
+            <div class="menu-logo" @click="navigateToApp">
+              <h1>Orchestrator AI</h1>
+              <span class="tagline">AI for Small Business</span>
+            </div>
           </ion-toolbar>
         </ion-header>
         <ion-content>
@@ -106,7 +104,7 @@
 <script lang="ts" setup>
 import { computed, ref, onMounted, nextTick } from 'vue';
 import {
-  IonPage, IonContent, IonIcon, IonItem, IonLabel, IonList, IonMenu, IonNote, IonRouterOutlet, IonSplitPane, IonHeader, IonToolbar, IonTitle, IonAccordion, IonAccordionGroup,
+  IonPage, IonContent, IonIcon, IonItem, IonLabel, IonList, IonMenu, IonNote, IonRouterOutlet, IonSplitPane, IonHeader, IonToolbar, IonAccordion, IonAccordionGroup,
   menuController
 } from '@ionic/vue';
 import { logOutOutline, starOutline, chatbubblesOutline, documentTextOutline, sunnyOutline, moonOutline } from 'ionicons/icons';
@@ -147,10 +145,6 @@ onMounted(() => {
   userPreferencesStore.initializePreferences();
 });
 
-// Dynamic titles based on current route
-const menuTitle = computed(() => {
-  return 'Orchestrator AI';
-});
 const handleMenuOpen = () => {
   // Blur active element to prevent aria-hidden accessibility warning
   // when Ionic sets aria-hidden on the main content behind the menu
@@ -172,8 +166,8 @@ const handleLogout = async () => {
   await auth.logout();
   router.push('/login');
 };
-const navigateToLanding = () => {
-  router.push('/');
+const navigateToApp = () => {
+  router.push('/app');
 };
 const handleConversationSelected = async (conversation: AgentConversation) => {
   try {
@@ -325,15 +319,36 @@ const handleOpenDashboard = async (agent: Agent, _componentName: string) => {
   align-items: center;
 }
 
-/* Clickable title styling */
-.clickable-title {
+/* Menu logo styling - matches landing page */
+.menu-logo {
   cursor: pointer;
   transition: all 0.2s ease;
   user-select: none;
+  padding: 8px 16px;
+  display: block;
 }
-.clickable-title:hover {
+
+.menu-logo:hover {
   opacity: 0.8;
-  transform: scale(1.02);
+}
+
+.menu-logo h1 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--landing-primary, #8B5A3C);
+  margin: 0;
+  line-height: 1;
+  letter-spacing: -0.025em;
+}
+
+.menu-logo .tagline {
+  font-size: 0.65rem;
+  color: var(--landing-secondary, #A67C5B);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.075em;
+  margin-top: 2px;
+  display: block;
 }
 /* Basic styling for user info in menu */
 ion-note {
@@ -656,5 +671,16 @@ html[data-theme="dark"] .main-nav-content ion-list {
 html.ion-palette-dark .main-nav-content,
 html[data-theme="dark"] .main-nav-content {
   background: var(--ion-color-step-50, #1f2937) !important;
+}
+
+/* Dark mode for menu logo */
+html.ion-palette-dark .menu-logo h1,
+html[data-theme="dark"] .menu-logo h1 {
+  color: var(--landing-primary-light, #C49A7B) !important;
+}
+
+html.ion-palette-dark .menu-logo .tagline,
+html[data-theme="dark"] .menu-logo .tagline {
+  color: var(--landing-secondary-light, #D4B896) !important;
 }
 </style>

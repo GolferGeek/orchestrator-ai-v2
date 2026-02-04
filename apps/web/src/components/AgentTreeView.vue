@@ -130,7 +130,7 @@
                           <ion-icon
                             :icon="agentShowsDashboard(agent) ? icons.analyticsOutline : icons.personOutline"
                             slot="start"
-                            :color="agentShowsDashboard(agent) ? 'tertiary' : 'medium'"
+                            color="tertiary"
                           />
                           <ion-label>
                             <h4>{{ formatAgentDisplayName(agent, false) }}</h4>
@@ -310,7 +310,7 @@
                           <ion-icon
                             :icon="agentShowsDashboard(agent) ? icons.analyticsOutline : icons.personOutline"
                             slot="start"
-                            :color="agentShowsDashboard(agent) ? 'tertiary' : 'medium'"
+                            color="tertiary"
                           />
                           <ion-label>
                             <h4>{{ formatAgentDisplayName(agent, false) }}</h4>
@@ -411,7 +411,7 @@
                 <ion-item class="specialist-item">
                   <ion-icon
                     :icon="agentShowsDashboard(agent) ? icons.analyticsOutline : icons.personOutline"
-                    :color="agentShowsDashboard(agent) ? 'tertiary' : 'medium'"
+                    color="tertiary"
                     slot="start"
                   />
                   <ion-label>
@@ -593,7 +593,7 @@
                       <ion-icon
                         :icon="agentShowsDashboard(agent) ? icons.analyticsOutline : icons.personOutline"
                         slot="start"
-                        :color="agentShowsDashboard(agent) ? 'tertiary' : 'medium'"
+                        color="tertiary"
                       />
                       <ion-label>
                         <h4>{{ formatAgentDisplayName(agent, false) }}</h4>
@@ -773,7 +773,7 @@
                       <ion-icon
                         :icon="agentShowsDashboard(agent) ? icons.analyticsOutline : icons.personOutline"
                         slot="start"
-                        :color="agentShowsDashboard(agent) ? 'tertiary' : 'medium'"
+                        color="tertiary"
                       />
                       <ion-label>
                         <h4>{{ formatAgentDisplayName(agent, false) }}</h4>
@@ -873,7 +873,7 @@
             <ion-item class="specialist-item">
               <ion-icon
                 :icon="agentShowsDashboard(agent) ? icons.analyticsOutline : icons.personOutline"
-                :color="agentShowsDashboard(agent) ? 'tertiary' : 'medium'"
+                color="tertiary"
                 slot="start"
               />
               <ion-label>
