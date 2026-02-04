@@ -17,8 +17,14 @@
         </div>
 
         <div class="llm-selector-content">
-          <!-- Agent Local Model Requirement Notice -->
-          <div v-if="llmStore.agentRequiresLocalModel" class="local-model-notice">
+          <!-- System-wide Sovereign Mode Notice -->
+          <div v-if="llmStore.sovereignPolicy?.enforced" class="sovereign-mode-notice">
+            <ion-icon :icon="shieldCheckmarkOutline" />
+            <span><strong>Sovereign Mode Active</strong> — Only local AI models are available system-wide</span>
+          </div>
+
+          <!-- Agent Local Model Requirement Notice (when not system-wide) -->
+          <div v-else-if="llmStore.agentRequiresLocalModel" class="local-model-notice">
             <ion-icon :icon="lockClosedOutline" />
             <span>This agent requires local AI models for data privacy</span>
           </div>
@@ -137,6 +143,7 @@ import {
   closeOutline,
   checkmarkOutline,
   lockClosedOutline,
+  shieldCheckmarkOutline,
 } from 'ionicons/icons';
 import { useLLMPreferencesStore } from '@/stores/llmPreferencesStore';
 import { useUserPreferencesStore } from '@/stores/userPreferencesStore';
@@ -330,6 +337,25 @@ const handleApplySelection = async () => {
 
 .toggle-advanced:hover {
   background: var(--ion-color-primary-shade);
+}
+
+.sovereign-mode-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--ion-color-warning-tint);
+  border: 1px solid var(--ion-color-warning);
+  border-radius: 8px;
+  color: var(--ion-color-warning-contrast);
+  font-size: 0.9rem;
+  margin-bottom: 12px;
+}
+
+.sovereign-mode-notice ion-icon {
+  font-size: 1.4rem;
+  flex-shrink: 0;
+  color: var(--ion-color-warning);
 }
 
 .local-model-notice {

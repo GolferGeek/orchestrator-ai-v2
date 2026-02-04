@@ -718,6 +718,7 @@ export const useLLMPreferencesStore = defineStore('llmPreferences', {
         this.fetchProviders(),
         this.fetchModels(),
         this.fetchCIDAFMCommands(),
+        this.initializeSovereignMode(),
       ]);
 
       // Set default selections if available
