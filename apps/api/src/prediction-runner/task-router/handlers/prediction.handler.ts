@@ -769,7 +769,11 @@ export class PredictionHandler implements IDashboardHandler {
 
       // Build reasoning chain from analyst assessments
       // First, check if prediction has three-way fork data in analyst_ensemble
+      // Two formats are supported:
+      // 1. Legacy/arbitrator format: { assessments: [...] }
+      // 2. Per-analyst format: { analyst_slug, analyst_name, user_fork, ai_fork, arbitrator_fork, ... }
       const analystEnsembleData = prediction.analyst_ensemble as {
+        // Legacy format with assessments array
         assessments?: Array<{
           analyst_slug?: string;
           analyst_name?: string;
@@ -797,6 +801,27 @@ export class PredictionHandler implements IDashboardHandler {
           userVsAiAgreement: number;
           arbitratorAgreesWithUser: number;
           arbitratorAgreesWithAi: number;
+        };
+        // Per-analyst format (forks at top level)
+        analyst_slug?: string;
+        analyst_name?: string;
+        key_factors?: string[];
+        risks?: string[];
+        tier?: string;
+        user_fork?: {
+          direction: string;
+          confidence: number;
+          reasoning?: string;
+        };
+        ai_fork?: {
+          direction: string;
+          confidence: number;
+          reasoning?: string;
+        };
+        arbitrator_fork?: {
+          direction: string;
+          confidence: number;
+          reasoning?: string;
         };
       } | null;
 
@@ -836,7 +861,7 @@ export class PredictionHandler implements IDashboardHandler {
       }> = [];
 
       if (analystEnsembleData?.assessments && analystEnsembleData.assessments.length > 0) {
-        // Use prediction's analyst_ensemble with three-way fork data
+        // Legacy/arbitrator format: Use prediction's analyst_ensemble.assessments array
         reasoningChain = analystEnsembleData.assessments.map((a) => {
           const slug = a.analyst_slug || 'unknown';
           const name = a.analyst_name || slugToDisplayName(slug);
@@ -870,6 +895,42 @@ export class PredictionHandler implements IDashboardHandler {
               : undefined,
           };
         });
+      } else if (analystEnsembleData?.analyst_slug && (analystEnsembleData.user_fork || analystEnsembleData.ai_fork || analystEnsembleData.arbitrator_fork)) {
+        // Per-analyst format: forks are at the top level of analyst_ensemble
+        // This is a single-analyst prediction with all three forks
+        const slug = analystEnsembleData.analyst_slug;
+        const name = analystEnsembleData.analyst_name || slugToDisplayName(slug);
+        reasoningChain = [{
+          analystSlug: slug,
+          analystName: name,
+          tier: analystEnsembleData.tier,
+          direction: analystEnsembleData.arbitrator_fork?.direction || prediction.direction,
+          confidence: analystEnsembleData.arbitrator_fork?.confidence || prediction.confidence,
+          reasoning: analystEnsembleData.arbitrator_fork?.reasoning || prediction.reasoning,
+          keyFactors: analystEnsembleData.key_factors,
+          risks: analystEnsembleData.risks,
+          userFork: analystEnsembleData.user_fork
+            ? {
+                direction: analystEnsembleData.user_fork.direction,
+                confidence: analystEnsembleData.user_fork.confidence,
+                reasoning: analystEnsembleData.user_fork.reasoning,
+              }
+            : undefined,
+          aiFork: analystEnsembleData.ai_fork
+            ? {
+                direction: analystEnsembleData.ai_fork.direction,
+                confidence: analystEnsembleData.ai_fork.confidence,
+                reasoning: analystEnsembleData.ai_fork.reasoning,
+              }
+            : undefined,
+          arbitratorFork: analystEnsembleData.arbitrator_fork
+            ? {
+                direction: analystEnsembleData.arbitrator_fork.direction,
+                confidence: analystEnsembleData.arbitrator_fork.confidence,
+                reasoning: analystEnsembleData.arbitrator_fork.reasoning,
+              }
+            : undefined,
+        }];
       } else if (snapshot?.analyst_assessments) {
         // Fall back to snapshot's analyst_assessments (legacy format)
         reasoningChain = snapshot.analyst_assessments.map((assessment) => ({

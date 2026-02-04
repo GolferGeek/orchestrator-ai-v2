@@ -24,7 +24,7 @@
         :class="[getDirectionClass(analyst.direction), getAnalystClass(analyst.slug)]"
         :title="`${analyst.name}: ${analyst.direction} (${Math.round(analyst.confidence * 100)}%)`"
       >
-        <span class="analyst-initial">{{ getInitial(analyst.slug) }}</span>
+        <span class="analyst-name">{{ getFullName(analyst.slug) }}</span>
         <span class="direction-arrow">{{ getDirectionArrow(analyst.direction) }}</span>
       </div>
     </div>
@@ -95,15 +95,15 @@ function formatAnalystName(slug: string): string {
   return nameMap[slug] || slug;
 }
 
-function getInitial(slug: string): string {
-  const initialMap: Record<string, string> = {
-    'fundamental-fred': 'F',
-    'technical-tina': 'T',
-    'sentiment-sally': 'S',
-    'aggressive-alex': 'A',
-    'cautious-carl': 'C',
+function getFullName(slug: string): string {
+  const nameMap: Record<string, string> = {
+    'fundamental-fred': 'Fundamental Fred',
+    'technical-tina': 'Technical Tina',
+    'sentiment-sally': 'Sentiment Sally',
+    'aggressive-alex': 'Aggressive Alex',
+    'cautious-carl': 'Cautious Carl',
   };
-  return initialMap[slug] || slug.charAt(0).toUpperCase();
+  return nameMap[slug] || slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
 
 function getDirectionClass(direction: string): string {
@@ -218,32 +218,36 @@ function formatDate(dateStr: string): string {
 
 .analyst-indicators {
   display: flex;
+  flex-direction: column;
   gap: 0.5rem;
-  justify-content: center;
   padding: 0.75rem 0;
 }
 
 .analyst-indicator {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
-  padding: 0.375rem 0.625rem;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  transition: transform 0.15s ease;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .analyst-indicator:hover {
-  transform: scale(1.05);
+  transform: translateX(4px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.analyst-initial {
-  font-weight: 700;
+.analyst-name {
+  font-weight: 600;
+  flex: 1;
 }
 
 .direction-arrow {
-  font-size: 0.875rem;
+  font-size: 1.125rem;
+  font-weight: 700;
 }
 
 /* Direction colors */

@@ -30,27 +30,19 @@
         <p>No analyst assessments available for this prediction.</p>
       </div>
 
-      <!-- Analyst Assessments List -->
+      <!-- Analyst Assessments - Direct Display -->
       <div v-else class="assessments-content">
-        <ion-accordion-group :multiple="true">
-          <ion-accordion
-            v-for="(analyst, index) in analysts"
-            :key="analyst.analystSlug"
-          >
-            <ion-item slot="header">
-              <ion-label>
-                <div class="analyst-header">
-                  <h3>{{ analyst.analystName || analyst.analystSlug }}</h3>
-                  <ion-chip v-if="analyst.tier" :color="getTierColor(analyst.tier)" outline size="small">
-                    <ion-label>{{ analyst.tier }}</ion-label>
-                  </ion-chip>
-                </div>
-              </ion-label>
-            </ion-item>
+        <div v-for="analyst in analysts" :key="analyst.analystSlug" class="analyst-section">
+          <!-- Analyst Header -->
+          <div class="analyst-header">
+            <h3>{{ analyst.analystName || analyst.analystSlug }}</h3>
+            <ion-chip v-if="analyst.tier" :color="getTierColor(analyst.tier)" outline size="small">
+              <ion-label>{{ analyst.tier }}</ion-label>
+            </ion-chip>
+          </div>
 
-            <div slot="content" class="analyst-content">
-              <!-- Three-Way Fork Assessments: Arbitrator → User → AI -->
-              <div class="fork-container">
+          <!-- Three-Way Fork Assessments -->
+          <div class="fork-container">
             <!-- Arbitrator Fork (shown first as final decision) -->
             <div v-if="analyst.arbitratorFork" class="fork-card arbitrator-fork">
               <div class="fork-header">
@@ -63,9 +55,7 @@
                   <span class="direction-text">{{ formatDirection(analyst.arbitratorFork.direction) }}</span>
                   <span class="confidence-badge">{{ Math.round(analyst.arbitratorFork.confidence * 100) }}%</span>
                 </div>
-                <p v-if="analyst.arbitratorFork.reasoning" class="fork-reasoning">
-                  {{ analyst.arbitratorFork.reasoning }}
-                </p>
+                <div v-if="analyst.arbitratorFork.reasoning" class="fork-reasoning" v-html="renderMarkdownWithDiff(analyst.arbitratorFork.reasoning, [analyst.userFork?.reasoning, analyst.aiFork?.reasoning], 'highlight-arbitrator')"></div>
               </div>
             </div>
 
@@ -81,9 +71,7 @@
                   <span class="direction-text">{{ formatDirection(analyst.userFork.direction) }}</span>
                   <span class="confidence-badge">{{ Math.round(analyst.userFork.confidence * 100) }}%</span>
                 </div>
-                <p v-if="analyst.userFork.reasoning" class="fork-reasoning">
-                  {{ analyst.userFork.reasoning }}
-                </p>
+                <div v-if="analyst.userFork.reasoning" class="fork-reasoning" v-html="renderMarkdownWithDiff(analyst.userFork.reasoning, [analyst.aiFork?.reasoning, analyst.arbitratorFork?.reasoning], 'highlight-user')"></div>
               </div>
             </div>
 
@@ -99,9 +87,7 @@
                   <span class="direction-text">{{ formatDirection(analyst.aiFork.direction) }}</span>
                   <span class="confidence-badge">{{ Math.round(analyst.aiFork.confidence * 100) }}%</span>
                 </div>
-                <p v-if="analyst.aiFork.reasoning" class="fork-reasoning">
-                  {{ analyst.aiFork.reasoning }}
-                </p>
+                <div v-if="analyst.aiFork.reasoning" class="fork-reasoning" v-html="renderMarkdownWithDiff(analyst.aiFork.reasoning, [analyst.userFork?.reasoning, analyst.arbitratorFork?.reasoning], 'highlight-ai')"></div>
               </div>
             </div>
 
@@ -117,16 +103,12 @@
                   <span class="direction-text">{{ formatDirection(analyst.direction) }}</span>
                   <span class="confidence-badge">{{ Math.round(analyst.confidence * 100) }}%</span>
                 </div>
-                <p v-if="analyst.reasoning" class="fork-reasoning">
-                  {{ analyst.reasoning }}
-                </p>
+                <div v-if="analyst.reasoning" class="fork-reasoning" v-html="renderMarkdown(analyst.reasoning)"></div>
               </div>
             </div>
           </div>
         </div>
-      </ion-accordion>
-    </ion-accordion-group>
-  </div>
+      </div>
     </ion-content>
   </ion-modal>
 </template>
@@ -144,9 +126,6 @@ import {
   IonChip,
   IonLabel,
   IonSpinner,
-  IonAccordionGroup,
-  IonAccordion,
-  IonItem,
 } from '@ionic/vue';
 import {
   closeOutline,
@@ -158,7 +137,97 @@ import {
   chatbubbleOutline,
 } from 'ionicons/icons';
 import { ref, watch } from 'vue';
+import { marked } from 'marked';
+import * as Diff from 'diff';
 import { predictionDashboardService } from '@/services/predictionDashboardService';
+
+// Configure marked for safe rendering
+marked.setOptions({
+  breaks: true,  // Convert \n to <br>
+  gfm: true,     // GitHub Flavored Markdown
+});
+
+/**
+ * Split text into sentences for comparison
+ */
+function splitIntoSentences(text: string): string[] {
+  if (!text) return [];
+  return text
+    .split(/(?<=[.!?])\s+/)
+    .map(s => s.trim())
+    .filter(s => s.length > 0);
+}
+
+/**
+ * Find key phrases unique to this text compared to others
+ */
+function findUniqueContent(thisText: string, otherTexts: string[]): Set<string> {
+  const thisSentences = splitIntoSentences(thisText);
+  const otherContent = otherTexts.join(' ').toLowerCase();
+
+  const uniquePhrases = new Set<string>();
+
+  for (const sentence of thisSentences) {
+    // Extract key phrases (3+ word chunks)
+    const words = sentence.split(/\s+/);
+    for (let i = 0; i < words.length - 2; i++) {
+      const phrase = words.slice(i, i + 3).join(' ').toLowerCase();
+      // Clean phrase for comparison
+      const cleanPhrase = phrase.replace(/[^\w\s]/g, '');
+      if (cleanPhrase.length > 10 && !otherContent.includes(cleanPhrase)) {
+        uniquePhrases.add(phrase);
+      }
+    }
+  }
+
+  return uniquePhrases;
+}
+
+/**
+ * Render markdown to HTML with optional diff highlighting
+ * Highlights content unique to this fork compared to others
+ */
+function renderMarkdownWithDiff(
+  text: string | undefined,
+  otherTexts: (string | undefined)[] = [],
+  highlightClass: string = 'highlight-unique'
+): string {
+  if (!text) return '';
+
+  // Check if text already has markdown structure
+  const hasMarkdownStructure = /^[\s]*[-*•]|\n[-*•]|^#+\s|^\d+\./m.test(text);
+  let processedText = text;
+
+  if (!hasMarkdownStructure) {
+    // Convert long paragraph into bullet points
+    const sentences = splitIntoSentences(text);
+    if (sentences.length > 2) {
+      processedText = sentences.map(s => `- ${s}`).join('\n');
+    }
+  }
+
+  // Find unique content if we have other texts to compare
+  const validOtherTexts = otherTexts.filter((t): t is string => !!t);
+  if (validOtherTexts.length > 0) {
+    const uniquePhrases = findUniqueContent(text, validOtherTexts);
+
+    // Highlight unique phrases (wrap in span)
+    for (const phrase of uniquePhrases) {
+      const escapedPhrase = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`(${escapedPhrase})`, 'gi');
+      processedText = processedText.replace(regex, `<mark class="${highlightClass}">$1</mark>`);
+    }
+  }
+
+  return marked.parse(processedText) as string;
+}
+
+/**
+ * Simple markdown render without diff (for legacy single assessments)
+ */
+function renderMarkdown(text: string | undefined): string {
+  return renderMarkdownWithDiff(text, []);
+}
 
 interface ForkAssessment {
   direction: string;
@@ -347,6 +416,13 @@ function getTierColor(tier: string): string {
 .assessments-content {
   display: flex;
   flex-direction: column;
+  gap: 1.5rem;
+}
+
+.analyst-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .analyst-header {
@@ -354,7 +430,8 @@ function getTierColor(tier: string): string {
   align-items: center;
   gap: 0.75rem;
   flex-wrap: wrap;
-  width: 100%;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--ion-color-light-shade);
 }
 
 .analyst-header h3 {
@@ -364,22 +441,10 @@ function getTierColor(tier: string): string {
   color: var(--ion-color-dark);
 }
 
-.analyst-content {
-  padding: 1rem;
-  background: var(--ion-color-light);
-}
-
 .fork-container {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-}
-
-@media (min-width: 768px) {
-  .fork-container {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-  }
 }
 
 .fork-card {
@@ -496,8 +561,9 @@ function getTierColor(tier: string): string {
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
   background: var(--ion-color-dark);
-  color: var(--ion-background-color);
+  color: #ffffff;
   font-size: 0.8rem;
+  font-weight: 600;
   font-weight: 600;
 }
 
@@ -533,12 +599,60 @@ function getTierColor(tier: string): string {
 
 .fork-reasoning {
   margin: 0;
-  line-height: 1.6;
+  line-height: 1.5;
   font-size: 0.85rem;
   color: var(--ion-color-medium-shade);
-  padding: 0.5rem;
+  padding: 0.75rem;
   background: var(--ion-color-light);
   border-radius: 4px;
+}
+
+/* Markdown content styling */
+.fork-reasoning :deep(p) {
+  margin: 0 0 0.5rem 0;
+}
+
+.fork-reasoning :deep(p:last-child) {
+  margin-bottom: 0;
+}
+
+.fork-reasoning :deep(ul),
+.fork-reasoning :deep(ol) {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.fork-reasoning :deep(li) {
+  margin-bottom: 0.375rem;
+  line-height: 1.4;
+}
+
+.fork-reasoning :deep(li:last-child) {
+  margin-bottom: 0;
+}
+
+.fork-reasoning :deep(strong) {
+  color: var(--ion-color-dark);
+  font-weight: 600;
+}
+
+/* Diff highlighting - unique content markers */
+.fork-reasoning :deep(.highlight-user) {
+  background: rgba(59, 130, 246, 0.15);
+  border-radius: 2px;
+  padding: 0 2px;
+}
+
+.fork-reasoning :deep(.highlight-ai) {
+  background: rgba(16, 185, 129, 0.15);
+  border-radius: 2px;
+  padding: 0 2px;
+}
+
+.fork-reasoning :deep(.highlight-arbitrator) {
+  background: rgba(139, 92, 246, 0.15);
+  border-radius: 2px;
+  padding: 0 2px;
 }
 
 /* Dark mode support */
