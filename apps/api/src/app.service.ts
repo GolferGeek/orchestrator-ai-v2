@@ -329,6 +329,8 @@ export class AppService implements OnModuleInit {
       status: (metadataObj.status as string) ?? 'active',
       registeredAt: new Date(record.created_at),
       lastHeartbeat: new Date(record.updated_at),
+      // Sovereign mode - when true, agent requires local LLM providers only
+      require_local_model: record.require_local_model ?? false,
     };
   }
 
