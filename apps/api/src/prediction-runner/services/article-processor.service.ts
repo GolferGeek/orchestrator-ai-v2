@@ -13,7 +13,10 @@ import { ExecutionContext, NIL_UUID } from '@orchestrator-ai/transport-types';
 import { Article as CrawlerServiceArticle } from '@/crawler/interfaces';
 import { Target } from '../interfaces/target.interface';
 import { EnsembleInput } from '../interfaces/ensemble.interface';
-import { CreatePredictorData, PredictorDirection } from '../interfaces/predictor.interface';
+import {
+  CreatePredictorData,
+  PredictorDirection,
+} from '../interfaces/predictor.interface';
 import {
   ThresholdConfig,
   DEFAULT_THRESHOLD_CONFIG,
@@ -124,7 +127,9 @@ export class ArticleProcessorService {
         // Skip test targets (T_ prefix)
         if (target.symbol.startsWith('T_')) continue;
 
-        const subscriptions = await this.subscriptionRepository.findByTarget(target.id);
+        const subscriptions = await this.subscriptionRepository.findByTarget(
+          target.id,
+        );
 
         for (const subscription of subscriptions) {
           if (!subscription.is_active) continue;
@@ -150,18 +155,28 @@ export class ArticleProcessorService {
                 result.targets_affected++;
               }
             } catch (error) {
-              const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-              result.errors.push(`Failed to process article ${article.id}: ${errorMessage}`);
-              this.logger.error(`Failed to process article ${article.id}: ${errorMessage}`);
+              const errorMessage =
+                error instanceof Error ? error.message : 'Unknown error';
+              result.errors.push(
+                `Failed to process article ${article.id}: ${errorMessage}`,
+              );
+              this.logger.error(
+                `Failed to process article ${article.id}: ${errorMessage}`,
+              );
             }
           }
 
           // Update watermark
           if (articles.length > 0) {
             const latestTime = new Date(
-              Math.max(...articles.map((a) => new Date(a.first_seen_at).getTime())),
+              Math.max(
+                ...articles.map((a) => new Date(a.first_seen_at).getTime()),
+              ),
             );
-            await this.subscriptionRepository.updateWatermark(subscription.id, latestTime);
+            await this.subscriptionRepository.updateWatermark(
+              subscription.id,
+              latestTime,
+            );
           }
         }
       }
@@ -173,7 +188,8 @@ export class ArticleProcessorService {
 
       return result;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       result.errors.push(`Processing failed: ${errorMessage}`);
       this.logger.error(`Failed to process articles: ${errorMessage}`);
       return result;
@@ -192,10 +208,16 @@ export class ArticleProcessorService {
     const ctx = this.createObservabilityContext(taskId);
 
     // Analyze which instruments this article is relevant to
-    const relevantTargets = await this.analyzeInstrumentRelevance(ctx, article, targets);
+    const relevantTargets = await this.analyzeInstrumentRelevance(
+      ctx,
+      article,
+      targets,
+    );
 
     if (relevantTargets.length === 0) {
-      this.logger.debug(`Article ${article.id} not relevant to any tracked instruments`);
+      this.logger.debug(
+        `Article ${article.id} not relevant to any tracked instruments`,
+      );
       return 0;
     }
 
@@ -214,7 +236,8 @@ export class ArticleProcessorService {
           predictorsCreated++;
         }
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        const errorMessage =
+          error instanceof Error ? error.message : 'Unknown error';
         this.logger.error(
           `Failed to create predictor for ${target.symbol} from article ${article.id}: ${errorMessage}`,
         );
@@ -251,9 +274,20 @@ export class ArticleProcessorService {
     ctx: ExecutionContext,
     article: CrawlerArticle,
     targets: Target[],
-  ): Promise<Array<{ target: Target; relevance_score: number; direction_hint: PredictorDirection }>> {
-    const text = `${article.title ?? ''} ${article.content ?? ''}`.toLowerCase();
-    const relevant: Array<{ target: Target; relevance_score: number; direction_hint: PredictorDirection }> = [];
+  ): Promise<
+    Array<{
+      target: Target;
+      relevance_score: number;
+      direction_hint: PredictorDirection;
+    }>
+  > {
+    const text =
+      `${article.title ?? ''} ${article.content ?? ''}`.toLowerCase();
+    const relevant: Array<{
+      target: Target;
+      relevance_score: number;
+      direction_hint: PredictorDirection;
+    }> = [];
 
     for (const target of targets) {
       // Skip test targets
@@ -312,18 +346,69 @@ export class ArticleProcessorService {
    */
   private inferDirection(text: string): PredictorDirection {
     const bullishKeywords = [
-      'surge', 'rally', 'soar', 'jump', 'spike', 'breakout', 'bullish',
-      'gain', 'rise', 'climb', 'advance', 'up', 'higher', 'increase',
-      'growth', 'positive', 'strong', 'beat', 'exceed', 'outperform',
-      'upgrade', 'buy', 'accumulate', 'overweight', 'optimistic',
-      'record high', 'all-time high', 'momentum', 'boost', 'expand',
+      'surge',
+      'rally',
+      'soar',
+      'jump',
+      'spike',
+      'breakout',
+      'bullish',
+      'gain',
+      'rise',
+      'climb',
+      'advance',
+      'up',
+      'higher',
+      'increase',
+      'growth',
+      'positive',
+      'strong',
+      'beat',
+      'exceed',
+      'outperform',
+      'upgrade',
+      'buy',
+      'accumulate',
+      'overweight',
+      'optimistic',
+      'record high',
+      'all-time high',
+      'momentum',
+      'boost',
+      'expand',
     ];
     const bearishKeywords = [
-      'crash', 'plunge', 'collapse', 'tumble', 'plummet', 'bearish',
-      'drop', 'fall', 'decline', 'slip', 'down', 'lower', 'decrease',
-      'loss', 'negative', 'weak', 'miss', 'below', 'underperform',
-      'downgrade', 'sell', 'reduce', 'underweight', 'concern',
-      'risk', 'warning', 'cut', 'layoff', 'slowdown', 'pressure', 'struggle',
+      'crash',
+      'plunge',
+      'collapse',
+      'tumble',
+      'plummet',
+      'bearish',
+      'drop',
+      'fall',
+      'decline',
+      'slip',
+      'down',
+      'lower',
+      'decrease',
+      'loss',
+      'negative',
+      'weak',
+      'miss',
+      'below',
+      'underperform',
+      'downgrade',
+      'sell',
+      'reduce',
+      'underweight',
+      'concern',
+      'risk',
+      'warning',
+      'cut',
+      'layoff',
+      'slowdown',
+      'pressure',
+      'struggle',
     ];
 
     let bullishScore = 0;
@@ -383,7 +468,8 @@ export class ArticleProcessorService {
 
     // Determine if we should create a predictor
     // Threshold: confidence >= 0.5 and consensus_strength >= 0.6
-    const shouldCreate = aggregated.confidence >= 0.5 && aggregated.consensus_strength >= 0.6;
+    const shouldCreate =
+      aggregated.confidence >= 0.5 && aggregated.consensus_strength >= 0.6;
 
     if (!shouldCreate) {
       this.logger.debug(
@@ -404,8 +490,12 @@ export class ArticleProcessorService {
     const direction = this.mapDirection(aggregated.direction);
 
     // Extract key factors and risks from ensemble
-    const keyFactors = ensembleResult.assessments.flatMap((a) => a.key_factors).slice(0, 5);
-    const risks = ensembleResult.assessments.flatMap((a) => a.risks).slice(0, 5);
+    const keyFactors = ensembleResult.assessments
+      .flatMap((a) => a.key_factors)
+      .slice(0, 5);
+    const risks = ensembleResult.assessments
+      .flatMap((a) => a.risks)
+      .slice(0, 5);
 
     const predictorData: CreatePredictorData = {
       article_id: article.id, // NEW: Link to article directly
@@ -512,7 +602,8 @@ export class ArticleProcessorService {
       }
 
       const allTargets = await this.targetRepository.findAllActive();
-      const subscriptions = await this.subscriptionRepository.findByTarget(targetId);
+      const subscriptions =
+        await this.subscriptionRepository.findByTarget(targetId);
 
       for (const subscription of subscriptions) {
         if (!subscription.is_active) continue;
@@ -524,29 +615,43 @@ export class ArticleProcessorService {
 
         for (const article of articles) {
           try {
-            const predictorCount = await this.processArticleForAllTargets(article, allTargets);
+            const predictorCount = await this.processArticleForAllTargets(
+              article,
+              allTargets,
+            );
             result.articles_processed++;
             result.predictors_created += predictorCount;
           } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            result.errors.push(`Failed to process article ${article.id}: ${errorMessage}`);
+            const errorMessage =
+              error instanceof Error ? error.message : 'Unknown error';
+            result.errors.push(
+              `Failed to process article ${article.id}: ${errorMessage}`,
+            );
           }
         }
 
         // Update watermark
         if (articles.length > 0) {
           const latestTime = new Date(
-            Math.max(...articles.map((a) => new Date(a.first_seen_at).getTime())),
+            Math.max(
+              ...articles.map((a) => new Date(a.first_seen_at).getTime()),
+            ),
           );
-          await this.subscriptionRepository.updateWatermark(subscription.id, latestTime);
+          await this.subscriptionRepository.updateWatermark(
+            subscription.id,
+            latestTime,
+          );
         }
       }
 
       return result;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       result.errors.push(`Target processing failed: ${errorMessage}`);
-      this.logger.error(`Failed to process target ${targetId}: ${errorMessage}`);
+      this.logger.error(
+        `Failed to process target ${targetId}: ${errorMessage}`,
+      );
       return result;
     }
   }
@@ -559,7 +664,8 @@ export class ArticleProcessorService {
     subscriptionId: string,
     limit: number = 100,
   ): Promise<ArticleProcessResult> {
-    const subscription = await this.subscriptionRepository.findById(subscriptionId);
+    const subscription =
+      await this.subscriptionRepository.findById(subscriptionId);
     if (!subscription) {
       throw new Error(`Subscription not found: ${subscriptionId}`);
     }

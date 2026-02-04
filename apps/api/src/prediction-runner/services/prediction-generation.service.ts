@@ -86,7 +86,6 @@ export class PredictionGenerationService {
     // Use the first prediction as representative (all 5 are created together)
     const existingPrediction = existingPredictions[0];
     if (existingPrediction) {
-
       // Evaluate current predictors to see if refresh is needed
       const thresholdResult =
         await this.predictorManagementService.evaluateThreshold(

@@ -98,7 +98,10 @@ export class PredictorReaderRepository {
         .filter((p) => p.article_id)
         .map((p) => p.article_id);
 
-      let articlesMap: Map<string, { title: string; url: string; content: string }> = new Map();
+      let articlesMap: Map<
+        string,
+        { title: string; url: string; content: string }
+      > = new Map();
 
       if (articleIds.length > 0) {
         const { data: articles, error: articlesError } = await this.getClient()
@@ -109,7 +112,10 @@ export class PredictorReaderRepository {
 
         if (!articlesError && articles) {
           articlesMap = new Map(
-            articles.map((a) => [a.id, { title: a.title, url: a.url, content: a.content }]),
+            articles.map((a) => [
+              a.id,
+              { title: a.title, url: a.url, content: a.content },
+            ]),
           );
         }
       }
@@ -132,7 +138,9 @@ export class PredictorReaderRepository {
 
       // Combine data
       return data.map((p) => {
-        const article = p.article_id ? articlesMap.get(p.article_id) : undefined;
+        const article = p.article_id
+          ? articlesMap.get(p.article_id)
+          : undefined;
         return {
           id: p.id,
           article_id: p.article_id,
@@ -217,8 +225,12 @@ export class PredictorReaderRepository {
         .limit(limit);
 
       if (error) {
-        this.logger.error(`Failed to fetch predictors for ${targetSymbol}: ${error.message}`);
-        throw new Error(`Failed to fetch predictors for ${targetSymbol}: ${error.message}`);
+        this.logger.error(
+          `Failed to fetch predictors for ${targetSymbol}: ${error.message}`,
+        );
+        throw new Error(
+          `Failed to fetch predictors for ${targetSymbol}: ${error.message}`,
+        );
       }
 
       if (!data || data.length === 0) {
@@ -226,8 +238,13 @@ export class PredictorReaderRepository {
       }
 
       // Fetch article data
-      const articleIds = data.filter((p) => p.article_id).map((p) => p.article_id);
-      let articlesMap: Map<string, { title: string; url: string; content: string }> = new Map();
+      const articleIds = data
+        .filter((p) => p.article_id)
+        .map((p) => p.article_id);
+      let articlesMap: Map<
+        string,
+        { title: string; url: string; content: string }
+      > = new Map();
 
       if (articleIds.length > 0) {
         const { data: articles, error: articlesError } = await this.getClient()
@@ -238,13 +255,18 @@ export class PredictorReaderRepository {
 
         if (!articlesError && articles) {
           articlesMap = new Map(
-            articles.map((a) => [a.id, { title: a.title, url: a.url, content: a.content }]),
+            articles.map((a) => [
+              a.id,
+              { title: a.title, url: a.url, content: a.content },
+            ]),
           );
         }
       }
 
       return data.map((p) => {
-        const article = p.article_id ? articlesMap.get(p.article_id) : undefined;
+        const article = p.article_id
+          ? articlesMap.get(p.article_id)
+          : undefined;
         return {
           id: p.id,
           article_id: p.article_id,
@@ -288,7 +310,11 @@ export class PredictorReaderRepository {
     // Fetch in parallel for efficiency
     await Promise.all(
       symbols.map(async (symbol) => {
-        const predictors = await this.findPredictorsBySymbol(symbol, since, limit);
+        const predictors = await this.findPredictorsBySymbol(
+          symbol,
+          since,
+          limit,
+        );
         result.set(symbol, predictors);
       }),
     );

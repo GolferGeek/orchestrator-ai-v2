@@ -855,12 +855,23 @@ export class PredictionHandler implements IDashboardHandler {
         keyFactors?: string[];
         risks?: string[];
         learningsApplied?: string[];
-        userFork?: { direction: string; confidence: number; reasoning?: string };
+        userFork?: {
+          direction: string;
+          confidence: number;
+          reasoning?: string;
+        };
         aiFork?: { direction: string; confidence: number; reasoning?: string };
-        arbitratorFork?: { direction: string; confidence: number; reasoning?: string };
+        arbitratorFork?: {
+          direction: string;
+          confidence: number;
+          reasoning?: string;
+        };
       }> = [];
 
-      if (analystEnsembleData?.assessments && analystEnsembleData.assessments.length > 0) {
+      if (
+        analystEnsembleData?.assessments &&
+        analystEnsembleData.assessments.length > 0
+      ) {
         // Legacy/arbitrator format: Use prediction's analyst_ensemble.assessments array
         reasoningChain = analystEnsembleData.assessments.map((a) => {
           const slug = a.analyst_slug || 'unknown';
@@ -895,42 +906,56 @@ export class PredictionHandler implements IDashboardHandler {
               : undefined,
           };
         });
-      } else if (analystEnsembleData?.analyst_slug && (analystEnsembleData.user_fork || analystEnsembleData.ai_fork || analystEnsembleData.arbitrator_fork)) {
+      } else if (
+        analystEnsembleData?.analyst_slug &&
+        (analystEnsembleData.user_fork ||
+          analystEnsembleData.ai_fork ||
+          analystEnsembleData.arbitrator_fork)
+      ) {
         // Per-analyst format: forks are at the top level of analyst_ensemble
         // This is a single-analyst prediction with all three forks
         const slug = analystEnsembleData.analyst_slug;
-        const name = analystEnsembleData.analyst_name || slugToDisplayName(slug);
-        reasoningChain = [{
-          analystSlug: slug,
-          analystName: name,
-          tier: analystEnsembleData.tier,
-          direction: analystEnsembleData.arbitrator_fork?.direction || prediction.direction,
-          confidence: analystEnsembleData.arbitrator_fork?.confidence || prediction.confidence,
-          reasoning: analystEnsembleData.arbitrator_fork?.reasoning || prediction.reasoning,
-          keyFactors: analystEnsembleData.key_factors,
-          risks: analystEnsembleData.risks,
-          userFork: analystEnsembleData.user_fork
-            ? {
-                direction: analystEnsembleData.user_fork.direction,
-                confidence: analystEnsembleData.user_fork.confidence,
-                reasoning: analystEnsembleData.user_fork.reasoning,
-              }
-            : undefined,
-          aiFork: analystEnsembleData.ai_fork
-            ? {
-                direction: analystEnsembleData.ai_fork.direction,
-                confidence: analystEnsembleData.ai_fork.confidence,
-                reasoning: analystEnsembleData.ai_fork.reasoning,
-              }
-            : undefined,
-          arbitratorFork: analystEnsembleData.arbitrator_fork
-            ? {
-                direction: analystEnsembleData.arbitrator_fork.direction,
-                confidence: analystEnsembleData.arbitrator_fork.confidence,
-                reasoning: analystEnsembleData.arbitrator_fork.reasoning,
-              }
-            : undefined,
-        }];
+        const name =
+          analystEnsembleData.analyst_name || slugToDisplayName(slug);
+        reasoningChain = [
+          {
+            analystSlug: slug,
+            analystName: name,
+            tier: analystEnsembleData.tier,
+            direction:
+              analystEnsembleData.arbitrator_fork?.direction ||
+              prediction.direction,
+            confidence:
+              analystEnsembleData.arbitrator_fork?.confidence ||
+              prediction.confidence,
+            reasoning:
+              analystEnsembleData.arbitrator_fork?.reasoning ||
+              prediction.reasoning,
+            keyFactors: analystEnsembleData.key_factors,
+            risks: analystEnsembleData.risks,
+            userFork: analystEnsembleData.user_fork
+              ? {
+                  direction: analystEnsembleData.user_fork.direction,
+                  confidence: analystEnsembleData.user_fork.confidence,
+                  reasoning: analystEnsembleData.user_fork.reasoning,
+                }
+              : undefined,
+            aiFork: analystEnsembleData.ai_fork
+              ? {
+                  direction: analystEnsembleData.ai_fork.direction,
+                  confidence: analystEnsembleData.ai_fork.confidence,
+                  reasoning: analystEnsembleData.ai_fork.reasoning,
+                }
+              : undefined,
+            arbitratorFork: analystEnsembleData.arbitrator_fork
+              ? {
+                  direction: analystEnsembleData.arbitrator_fork.direction,
+                  confidence: analystEnsembleData.arbitrator_fork.confidence,
+                  reasoning: analystEnsembleData.arbitrator_fork.reasoning,
+                }
+              : undefined,
+          },
+        ];
       } else if (snapshot?.analyst_assessments) {
         // Fall back to snapshot's analyst_assessments (legacy format)
         reasoningChain = snapshot.analyst_assessments.map((assessment) => ({

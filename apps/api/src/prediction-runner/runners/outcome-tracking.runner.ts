@@ -231,7 +231,7 @@ export class OutcomeTrackingRunner {
 
           // Rate limiting: wait 15 seconds between API calls to avoid Polygon 429 errors
           if (i < targetIds.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 15000));
+            await new Promise((resolve) => setTimeout(resolve, 15000));
           }
         } catch (error) {
           errors++;
