@@ -15,6 +15,7 @@ interface DepartmentAgent {
   tags: string[];
   capabilities: string[];
   execution_modes: string[];
+  require_local_model: boolean;
   metadata: Record<string, unknown>;
 }
 
@@ -151,6 +152,7 @@ export class HierarchyController {
         tags: agent.tags || [],
         capabilities: agent.capabilities || [],
         execution_modes: executionModes,
+        require_local_model: agent.require_local_model ?? false,
         metadata: metadataObj,
       };
 

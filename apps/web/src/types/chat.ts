@@ -75,6 +75,8 @@ export interface AgentInfo {
   // Custom UI fields (for agents like Marketing Swarm that have their own UI)
   hasCustomUI?: boolean;
   customUIComponent?: string | null;
+  // Sovereign mode - when true, only local LLM providers (Ollama) allowed
+  requireLocalModel?: boolean;
   // Media agent configuration (for image/video generation agents)
   metadata?: {
     agent_type?: string;

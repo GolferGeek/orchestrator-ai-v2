@@ -166,11 +166,15 @@ export const useAgentsStore = defineStore('agents', () => {
       const orgSlugRaw = rawAgent.organizationSlug ?? rawAgent.organization_slug;
       const organizationSlug = Array.isArray(orgSlugRaw) ? orgSlugRaw[0] : orgSlugRaw;
 
+      // Extract require_local_model from API response (snake_case) to requireLocalModel (camelCase)
+      const requireLocalModel = rawAgent.require_local_model ?? metadata?.require_local_model ?? false;
+
       return {
         ...agent,
         organizationSlug: organizationSlug as string | null,
         hasCustomUI: agent.hasCustomUI ?? metadata?.hasCustomUI ?? false,
         customUIComponent: agent.customUIComponent ?? metadata?.customUIComponent ?? null,
+        requireLocalModel: requireLocalModel as boolean,
       } as AgentInfo;
     });
   }
