@@ -1340,12 +1340,12 @@ watch(
 }
 
 .analyze-btn {
-  background: var(--ion-color-primary, #3880ff);
+  background: color-mix(in srgb, var(--ion-color-primary, #a87c4f) 70%, transparent);
   color: white;
 }
 
 .analyze-btn:hover:not(:disabled) {
-  background: var(--ion-color-primary-shade, #3171e0);
+  background: var(--ion-color-primary, #a87c4f);
 }
 
 .refresh-btn {
