@@ -156,7 +156,7 @@ function isStale(subjectId: string): boolean {
 }
 
 .subject-item.selected {
-  background: rgba(168, 124, 79, 0.15);
+  background: color-mix(in srgb, var(--ion-color-primary, #a87c4f) 15%, transparent);
   border-left: 3px solid var(--ion-color-primary, #a87c4f);
 }
 
