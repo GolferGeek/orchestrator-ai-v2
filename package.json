@@ -24,6 +24,7 @@
     "kill:all": "./scripts/kill-all-apps.sh",
     "dev:start": "./start-dev-local.sh",
     "dev:ports": "./scripts/dev-ports.sh",
+    "port-setup": "./scripts/configure-ports.sh",
     "dev:supabase": "cd apps/api && supabase status",
     "dev:supabase:start": "cd apps/api && supabase start",
     "dev:supabase:stop": "cd apps/api && supabase stop",
