@@ -218,6 +218,27 @@ export class SubjectHandler implements IDashboardHandler {
         context,
       );
 
+      // Check if analysis was skipped due to no data
+      if (result.noDataAvailable) {
+        this.logger.log(
+          `No data available for ${subject.identifier}: ${result.noDataReason}`,
+        );
+
+        return buildDashboardSuccess(
+          {
+            subjectId: subject.id,
+            identifier: subject.identifier,
+            status: 'no_data',
+            taskId,
+            noDataAvailable: true,
+            noDataReason: result.noDataReason,
+          },
+          {
+            message: `No recent analysis data available for ${subject.identifier}`,
+          },
+        );
+      }
+
       this.logger.log(
         `Analysis complete for ${subject.identifier}: score=${result.compositeScore.overall_score}`,
       );

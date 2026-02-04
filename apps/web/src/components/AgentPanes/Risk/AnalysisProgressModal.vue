@@ -86,6 +86,14 @@
               <span>{{ error }}</span>
             </div>
 
+            <!-- No Data Message -->
+            <div v-if="isNoData" class="no-data-message">
+              <div class="no-data-icon">📭</div>
+              <div class="no-data-title">No Analysis Data Available</div>
+              <div class="no-data-text">{{ noDataMessage }}</div>
+              <div class="no-data-hint">Analysis requires recent market data from processed articles. Try again after new articles are processed.</div>
+            </div>
+
             <!-- Result Summary (when complete) - Analysis Mode -->
             <div v-if="isComplete && result && mode === 'analysis'" class="result-summary">
               <div class="result-row">
@@ -137,7 +145,7 @@
 
           <div class="modal-footer">
             <button
-              v-if="!isComplete"
+              v-if="!isComplete && !isNoData"
               class="btn-cancel"
               @click="handleCancel"
               :disabled="progress > 80"
@@ -145,7 +153,7 @@
               Cancel
             </button>
             <button
-              v-if="isComplete"
+              v-if="isComplete || isNoData"
               class="btn-close"
               @click="handleClose"
             >
@@ -227,6 +235,8 @@ const currentMessage = ref('Initializing analysis...');
 const dimensionProgress = ref<DimensionProgress[]>([]);
 const error = ref<string | null>(null);
 const isComplete = ref(false);
+const isNoData = ref(false);
+const noDataMessage = ref<string | null>(null);
 const result = ref<AnalysisResult | null>(null);
 
 // SSE connection
@@ -243,18 +253,21 @@ const modalTitle = computed(() => {
 
 const statusClass = computed(() => {
   if (error.value) return 'status-error';
+  if (isNoData.value) return 'status-no-data';
   if (isComplete.value) return 'status-complete';
   return 'status-running';
 });
 
 const statusLabel = computed(() => {
   if (error.value) return 'Error';
+  if (isNoData.value) return 'No Data';
   if (isComplete.value) return 'Complete';
   return 'Running';
 });
 
 const stepIcon = computed(() => {
   if (error.value) return '⚠';
+  if (isNoData.value) return 'ℹ️';
   if (isComplete.value) return '✔';
   if (currentStep.value.startsWith('analyzing-')) return '🔍';
   // Debate-specific icons
@@ -271,6 +284,7 @@ const stepIcon = computed(() => {
 
 const stepIconClass = computed(() => {
   if (error.value) return 'icon-error';
+  if (isNoData.value) return 'icon-no-data';
   if (isComplete.value) return 'icon-complete';
   return 'icon-running';
 });
@@ -465,6 +479,8 @@ watch([() => props.isVisible, () => props.taskId], ([visible, taskId]) => {
     dimensionProgress.value = [];
     error.value = null;
     isComplete.value = false;
+    isNoData.value = false;
+    noDataMessage.value = null;
     result.value = null;
 
     // connectToSSE is async but we don't need to await it
@@ -483,6 +499,15 @@ onUnmounted(() => {
 defineExpose({
   handleProgressEvent,
   setError: (msg: string) => { error.value = msg; },
+  setNoData: (msg: string) => {
+    console.log('[AnalysisProgressModal] setNoData called with:', msg);
+    isNoData.value = true;
+    noDataMessage.value = msg;
+    progress.value = 100;
+    currentStep.value = 'no-data';
+    currentMessage.value = msg;
+    console.log('[AnalysisProgressModal] No data state set');
+  },
   setComplete: (res: AnalysisResult) => {
     console.log('[AnalysisProgressModal] setComplete called with:', res);
     isComplete.value = true;
@@ -564,6 +589,11 @@ defineExpose({
 
 .status-error {
   background: #ef4444;
+  color: white;
+}
+
+.status-no-data {
+  background: #6b7280;
   color: white;
 }
 
@@ -649,6 +679,10 @@ defineExpose({
   color: #ef4444;
 }
 
+.icon-no-data {
+  color: #6b7280;
+}
+
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
@@ -730,6 +764,38 @@ defineExpose({
 
 .error-icon {
   font-size: 1.25rem;
+}
+
+.no-data-message {
+  text-align: center;
+  padding: 1.5rem;
+  background: var(--ion-color-light, #f4f5f8);
+  border-radius: 12px;
+  margin-bottom: 1rem;
+}
+
+.no-data-icon {
+  font-size: 3rem;
+  margin-bottom: 0.75rem;
+}
+
+.no-data-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--ion-text-color, #333);
+  margin-bottom: 0.5rem;
+}
+
+.no-data-text {
+  font-size: 0.875rem;
+  color: var(--ion-color-medium, #666);
+  margin-bottom: 0.75rem;
+}
+
+.no-data-hint {
+  font-size: 0.75rem;
+  color: var(--ion-color-medium-shade, #999);
+  font-style: italic;
 }
 
 .result-summary {

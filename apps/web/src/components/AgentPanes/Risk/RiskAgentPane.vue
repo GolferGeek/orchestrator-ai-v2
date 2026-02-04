@@ -678,6 +678,19 @@ async function handleAnalyzeSubject(subjectId: string) {
         return;
       }
 
+      // Check if no data was available for analysis
+      const noDataAvailable = (content.noDataAvailable ?? content.no_data_available ?? false) as boolean;
+      const noDataReason = (content.noDataReason ?? content.no_data_reason ?? '') as string;
+
+      if (noDataAvailable) {
+        console.log('[RiskAgentPane] No data available for analysis:', noDataReason);
+        if (analysisProgressRef.value) {
+          analysisProgressRef.value.setNoData(noDataReason || `No recent market data available for ${analysisSubjectIdentifier.value}`);
+        }
+        // Don't set error - this is an expected state, not an error
+        return;
+      }
+
       // Handle both camelCase and snake_case field names from API
       const overallScore = (content.overallScore ?? content.overall_score ?? 0) as number;
       const confidence = (content.confidence ?? 0) as number;

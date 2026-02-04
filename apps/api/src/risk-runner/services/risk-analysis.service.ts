@@ -30,6 +30,10 @@ export interface AnalysisResult {
   assessmentCount: number;
   debate?: RiskDebate;
   debateTriggered: boolean;
+  /** True when no predictors were available for analysis */
+  noDataAvailable?: boolean;
+  /** Message explaining why analysis couldn't be performed */
+  noDataReason?: string;
 }
 
 @Injectable()
@@ -175,6 +179,53 @@ export class RiskAnalysisService {
         `Failed to fetch predictors for ${subject.identifier}: ${error instanceof Error ? error.message : String(error)}`,
       );
       // Continue without predictors - don't fail analysis
+    }
+
+    // Check if we have any predictors to analyze
+    // Without predictors, the analysis would be based on no real data
+    if (predictors.length === 0) {
+      this.logger.log(
+        `No predictors available for ${subject.identifier} - skipping analysis`,
+      );
+
+      this.emitProgress(
+        context,
+        'no-data',
+        `No recent market data available for ${subject.identifier}`,
+        100,
+        {
+          subjectId: subject.id,
+          subjectIdentifier: subject.identifier,
+          noDataAvailable: true,
+          sequence: 3,
+        },
+      );
+
+      // Return a placeholder result indicating no data
+      // We don't create a composite score with fake 50% values
+      return {
+        subject,
+        compositeScore: {
+          id: '',
+          subject_id: subject.id,
+          task_id: context.taskId,
+          overall_score: 0,
+          dimension_scores: {},
+          debate_id: null,
+          debate_adjustment: 0,
+          pre_debate_score: null,
+          confidence: 0,
+          status: 'active',
+          valid_until: null,
+          is_test: false,
+          test_scenario_id: null,
+          created_at: new Date().toISOString(),
+        },
+        assessmentCount: 0,
+        debateTriggered: false,
+        noDataAvailable: true,
+        noDataReason: `No recent predictors available for ${subject.identifier}. Analysis requires market data from processed articles.`,
+      };
     }
 
     // 2. Run dimension analysis with individual progress updates
