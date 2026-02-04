@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ForbiddenException } from '@nestjs/common';
 import {
   ExecutionContext,
   createMockExecutionContext,
@@ -543,6 +544,112 @@ describe('LLMService', () => {
           mockExecutionContext,
         ),
       ).not.toThrow();
+    });
+  });
+
+  describe('Sovereign Mode Enforcement', () => {
+    it('should throw ForbiddenException when sovereignMode=true and provider is not ollama in generateResponse', async () => {
+      const sovereignContext = createMockExecutionContext({
+        provider: 'openai',
+        model: 'gpt-4',
+        sovereignMode: true,
+      });
+
+      await expect(
+        service.generateResponse('System prompt', 'User message', {
+          executionContext: sovereignContext,
+        }),
+      ).rejects.toThrow(ForbiddenException);
+
+      await expect(
+        service.generateResponse('System prompt', 'User message', {
+          executionContext: sovereignContext,
+        }),
+      ).rejects.toThrow('Sovereign mode is active');
+    });
+
+    it('should allow execution when sovereignMode=true and provider is ollama in generateResponse', async () => {
+      const sovereignContext = createMockExecutionContext({
+        provider: 'ollama',
+        model: 'llama3.2:1b',
+        sovereignMode: true,
+      });
+
+      const result = await service.generateResponse(
+        'System prompt',
+        'User message',
+        { executionContext: sovereignContext },
+      );
+
+      expect(result).toEqual(mockLLMResponse);
+    });
+
+    it('should allow any provider when sovereignMode=false in generateResponse', async () => {
+      const context = createMockExecutionContext({
+        provider: 'anthropic',
+        model: 'claude-sonnet-4-20250514',
+        sovereignMode: false,
+      });
+
+      const result = await service.generateResponse(
+        'System prompt',
+        'User message',
+        { executionContext: context },
+      );
+
+      expect(result).toEqual(mockLLMResponse);
+    });
+
+    it('should allow any provider when sovereignMode is undefined', async () => {
+      const context = createMockExecutionContext({
+        provider: 'google',
+        model: 'gemini-pro',
+        // sovereignMode not set (undefined)
+      });
+
+      const result = await service.generateResponse(
+        'System prompt',
+        'User message',
+        { executionContext: context },
+      );
+
+      expect(result).toEqual(mockLLMResponse);
+    });
+
+    it('should throw ForbiddenException when sovereignMode=true in generateUnifiedResponse', async () => {
+      const sovereignContext = createMockExecutionContext({
+        provider: 'openai',
+        model: 'gpt-4',
+        sovereignMode: true,
+      });
+
+      await expect(
+        service.generateUnifiedResponse({
+          provider: 'openai',
+          model: 'gpt-4',
+          systemPrompt: 'System',
+          userMessage: 'User',
+          options: { executionContext: sovereignContext },
+        }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should allow ollama provider in generateUnifiedResponse with sovereignMode=true', async () => {
+      const sovereignContext = createMockExecutionContext({
+        provider: 'ollama',
+        model: 'llama3.2:1b',
+        sovereignMode: true,
+      });
+
+      const result = await service.generateUnifiedResponse({
+        provider: 'ollama',
+        model: 'llama3.2:1b',
+        systemPrompt: 'System',
+        userMessage: 'User',
+        options: { executionContext: sovereignContext },
+      });
+
+      expect(result).toEqual(mockLLMResponse);
     });
   });
 });

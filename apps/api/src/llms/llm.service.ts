@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ForbiddenException } from '@nestjs/common';
 import { ExecutionContext, NIL_UUID } from '@orchestrator-ai/transport-types';
 import OpenAI from 'openai';
 import {
@@ -115,6 +115,9 @@ export class LLMService {
       );
     }
 
+    // Defense-in-depth: Validate sovereign mode compliance
+    this.validateSovereignModeProvider(executionContext);
+
     // Emit LLM started event
     this.emitLlmObservabilityEvent('agent.llm.started', executionContext, {
       provider: executionContext.provider,
@@ -185,6 +188,9 @@ export class LLMService {
           'ExecutionContext is required in options for generateUnifiedResponse',
         );
       }
+
+      // Defense-in-depth: Validate sovereign mode compliance
+      this.validateSovereignModeProvider(executionContext);
 
       const result = await this.llmGenerationService.generateUnifiedResponse(
         executionContext,
@@ -558,6 +564,35 @@ export class LLMService {
       // Silently ignore observability errors to avoid disrupting main flow
       this.logger.debug(
         `Failed to emit LLM observability event: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  /**
+   * Defense-in-depth validation for sovereign mode.
+   * When sovereignMode is active in the ExecutionContext, only local providers (Ollama) are allowed.
+   *
+   * @param context - The execution context containing provider and sovereignMode flag
+   * @throws ForbiddenException if a non-local provider is used in sovereign mode
+   */
+  private validateSovereignModeProvider(context: ExecutionContext): void {
+    const sovereignMode = context.sovereignMode;
+    const provider = context.provider?.toLowerCase();
+
+    // If sovereign mode is not active, allow any provider
+    if (!sovereignMode) {
+      return;
+    }
+
+    // In sovereign mode, only Ollama (local) provider is allowed
+    if (provider && provider !== 'ollama') {
+      this.logger.warn(
+        `Sovereign mode violation in LLM Service: Provider "${provider}" is not allowed. ` +
+          `Only local providers (ollama) are permitted when sovereignMode is active.`,
+      );
+      throw new ForbiddenException(
+        `Sovereign mode is active. Provider "${provider}" is not allowed. ` +
+          `Only local providers (ollama) are permitted.`,
       );
     }
   }

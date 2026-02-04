@@ -38,6 +38,7 @@ export interface Agent {
   endpoint: Record<string, unknown> | null;
   llm_config: Record<string, unknown> | null;
   metadata: Record<string, unknown>;
+  require_local_model: boolean;
   created_at: Date;
   updated_at: Date;
 }
@@ -186,6 +187,7 @@ export class MockFactories {
         parameters: { temperature: 0.7 },
       },
       metadata: {},
+      require_local_model: false,
       created_at: timestamp,
       updated_at: timestamp,
       ...overrides,

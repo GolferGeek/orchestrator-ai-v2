@@ -197,6 +197,18 @@ export const useExecutionContextStore = defineStore('executionContext', () => {
   }
 
   /**
+   * Set sovereign mode flag for the current execution context.
+   * When true, only local providers (Ollama) are allowed.
+   *
+   * @param enabled - Whether sovereign mode is active
+   */
+  function setSovereignMode(enabled: boolean): void {
+    if (context.value) {
+      context.value = { ...context.value, sovereignMode: enabled };
+    }
+  }
+
+  /**
    * Clear when leaving conversation or logging out
    */
   function clear(): void {
@@ -225,6 +237,7 @@ export const useExecutionContextStore = defineStore('executionContext', () => {
     setLLM,
     setAgent,
     setConversation,
+    setSovereignMode,
     newTaskId,
     clear,
   };

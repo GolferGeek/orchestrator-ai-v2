@@ -183,6 +183,7 @@ export interface Agent {
   capabilities?: AgentCapability[];
   configuration?: AgentConfiguration;
   metadata?: AgentNodeMetadata;
+  requireLocalModel?: boolean; // When true, only local LLM providers (Ollama) allowed
   createdAt: string;
   updatedAt: string;
 }

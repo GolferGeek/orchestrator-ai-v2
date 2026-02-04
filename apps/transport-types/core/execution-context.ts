@@ -62,6 +62,9 @@ export interface ExecutionContext {
 
   /** LLM model identifier (e.g., 'gpt-4', 'claude-sonnet-4-20250514') - use NIL_UUID if API agent with fixed model */
   model: string;
+
+  /** Sovereign mode - when true, only local providers (e.g., Ollama) are allowed */
+  sovereignMode?: boolean;
 }
 
 

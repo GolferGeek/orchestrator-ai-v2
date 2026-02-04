@@ -164,6 +164,8 @@ export interface LLMPreferencesState {
   sovereignPolicy: SovereignPolicy | null;
   sovereignLoading: boolean;
   sovereignError: string | null;
+  // Agent-level local model requirement
+  agentRequiresLocalModel: boolean;
   // Sanitization stats state
   sanitizationStats: {
     activePatterns: number;

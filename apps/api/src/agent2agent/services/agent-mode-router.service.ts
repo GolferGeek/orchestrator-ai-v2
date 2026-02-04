@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { TaskRequestDto, AgentTaskMode } from '../dto/task-request.dto';
 import { TaskResponseDto } from '../dto/task-response.dto';
 import { AgentRecord } from '@agent-platform/interfaces/agent.interface';
@@ -70,6 +70,9 @@ export class AgentModeRouterService {
       );
     }
     console.log(`🔍 [MODE-ROUTER] hydrateContext returned successfully`);
+
+    // Validate sovereign mode compliance before routing
+    this.validateSovereignModeCompliance(hydrated.definition, request);
 
     // Route to the appropriate runner based on agent type
     const agentType = hydrated.definition.agentType;
@@ -238,5 +241,40 @@ export class AgentModeRouterService {
       agent: agentRecord,
       definition,
     };
+  }
+
+  /**
+   * Validate that the request complies with sovereign mode requirements.
+   * If the agent requires local model execution, only Ollama provider is allowed.
+   *
+   * @param definition - The agent runtime definition
+   * @param request - The task request containing provider info
+   * @throws BadRequestException if provider is not allowed for sovereign agent
+   */
+  private validateSovereignModeCompliance(
+    definition: AgentRuntimeDefinition,
+    request: TaskRequestDto,
+  ): void {
+    const requiresLocal =
+      definition.require_local_model || definition.record?.require_local_model;
+
+    if (!requiresLocal) {
+      return; // Agent doesn't require local model, any provider is allowed
+    }
+
+    // Extract provider from request context (ExecutionContext type)
+    const provider = request.context?.provider?.toLowerCase();
+
+    // If provider is specified and not Ollama, reject the request
+    if (provider && provider !== 'ollama') {
+      this.logger.warn(
+        `Sovereign mode violation: Agent "${definition.slug}" requires local model, ` +
+          `but provider "${provider}" was requested`,
+      );
+      throw new BadRequestException(
+        `Agent "${definition.slug}" requires local model execution. ` +
+          `Provider "${provider}" is not allowed. Use "ollama" provider.`,
+      );
+    }
   }
 }

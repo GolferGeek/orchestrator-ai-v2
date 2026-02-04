@@ -17,6 +17,12 @@
         </div>
 
         <div class="llm-selector-content">
+          <!-- Agent Local Model Requirement Notice -->
+          <div v-if="llmStore.agentRequiresLocalModel" class="local-model-notice">
+            <ion-icon :icon="lockClosedOutline" />
+            <span>This agent requires local AI models for data privacy</span>
+          </div>
+
           <!-- Provider Selection -->
           <div class="selection-group">
             <label class="selection-label">AI Provider</label>
@@ -130,6 +136,7 @@ import {
 import {
   closeOutline,
   checkmarkOutline,
+  lockClosedOutline,
 } from 'ionicons/icons';
 import { useLLMPreferencesStore } from '@/stores/llmPreferencesStore';
 import { useUserPreferencesStore } from '@/stores/userPreferencesStore';
@@ -323,6 +330,25 @@ const handleApplySelection = async () => {
 
 .toggle-advanced:hover {
   background: var(--ion-color-primary-shade);
+}
+
+.local-model-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--ion-color-warning-tint);
+  border: 1px solid var(--ion-color-warning);
+  border-radius: 8px;
+  color: var(--ion-color-warning-contrast);
+  font-size: 0.9rem;
+  margin-bottom: 8px;
+}
+
+.local-model-notice ion-icon {
+  font-size: 1.2rem;
+  flex-shrink: 0;
+  color: var(--ion-color-warning-shade);
 }
 
 .modal-footer {

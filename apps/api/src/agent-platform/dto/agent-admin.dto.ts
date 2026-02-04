@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsArray,
+  IsBoolean,
   IsEnum,
   IsObject,
   IsOptional,
@@ -126,6 +127,16 @@ export class CreateAgentDto {
   @IsOptional()
   @IsObject()
   metadata?: Record<string, unknown>;
+
+  @ApiProperty({
+    description:
+      'Require local model - when true, only local LLM providers (e.g., Ollama) are allowed',
+    required: false,
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  require_local_model?: boolean;
 }
 
 export class UpdateAgentDto {
@@ -156,4 +167,14 @@ export class UpdateAgentDto {
   @IsOptional()
   @IsObject()
   config?: Record<string, unknown> | null;
+
+  @ApiProperty({
+    description:
+      'Require local model - when true, only local LLM providers (e.g., Ollama) are allowed',
+    required: false,
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  require_local_model?: boolean;
 }

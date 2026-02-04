@@ -365,6 +365,7 @@ import HitlReviewModal from '@/components/hitl/HitlReviewModal.vue';
 import DeliverablesModal from '@/components/deliverables/DeliverablesModal.vue';
 import { usePrivacyStore } from '@/stores/privacyStore';
 import { useLLMPreferencesStore } from '@/stores/llmPreferencesStore';
+import { useExecutionContextStore } from '@/stores/executionContextStore';
 import { useUiStore } from '@/stores/uiStore';
 // import { useUserPreferencesStore } from '@/stores/userPreferencesStore';
 import type {
@@ -424,6 +425,7 @@ const planStore = usePlanStore();
 const authStore = useAuthStore();
 const sovereignPolicyStore = usePrivacyStore();
 const llmStore = useLLMPreferencesStore();
+const executionContextStore = useExecutionContextStore();
 const uiStore = useUiStore();
 const agentsStore = useAgentsStore();
 // Reactive state
@@ -1305,14 +1307,35 @@ watch(
 );
 
 // Watch for media agent selection and update model type filter accordingly
+// Also handles agent-level local model requirements
 watch(
   () => currentAgent.value,
   async (agent) => {
-    if (!agent) return;
+    if (!agent) {
+      // Reset agent-specific settings when no agent
+      llmStore.setAgentRequiresLocalModel(false);
+      return;
+    }
 
     // Check if this is a media agent (type: 'media')
     const agentMetadata = (agent as { metadata?: Record<string, unknown> }).metadata;
     const agentType = agent.type || agentMetadata?.agent_type;
+
+    // Check for require_local_model flag (agent-level sovereign mode)
+    const requireLocalModel = (agent as { requireLocalModel?: boolean }).requireLocalModel ||
+      (agentMetadata?.require_local_model as boolean) ||
+      (agentMetadata?.requireLocalModel as boolean) ||
+      false;
+
+    if (requireLocalModel) {
+      console.log(`🔒 [SOVEREIGN-AGENT] Agent "${agent.name}" requires local model`);
+      llmStore.setAgentRequiresLocalModel(true);
+      executionContextStore.setSovereignMode(true);
+    } else {
+      llmStore.setAgentRequiresLocalModel(false);
+      // Don't reset sovereignMode if it's enforced by policy or user preference
+      // The effectiveSovereignMode getter will handle the OR logic
+    }
 
     if (agentType === 'media') {
       // Get media type from agent metadata to determine model_type filter

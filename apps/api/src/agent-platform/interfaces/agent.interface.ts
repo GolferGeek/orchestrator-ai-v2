@@ -21,6 +21,7 @@ export interface AgentRecord {
   endpoint: JsonObject | null; // API/external only
   llm_config: JsonObject | null; // context only
   metadata: JsonObject;
+  require_local_model?: boolean; // When true, only local LLM providers (Ollama) allowed
   created_at: string;
   updated_at: string;
 }
@@ -40,6 +41,7 @@ export interface AgentUpsertInput {
   endpoint?: JsonObject | null; // API/external only
   llm_config?: JsonObject | null; // context only
   metadata?: JsonObject;
+  require_local_model?: boolean; // When true, only local LLM providers (Ollama) allowed
 }
 
 export interface AgentUpsertRow {
@@ -57,6 +59,7 @@ export interface AgentUpsertRow {
   endpoint: JsonObject | null;
   llm_config: JsonObject | null;
   metadata: JsonObject;
+  require_local_model: boolean;
   updated_at: string;
 }
 
@@ -250,5 +253,6 @@ export interface AgentRuntimeDefinition {
   ioSchema: JsonNullable<JsonObject>;
   planStructure?: string | JsonNullable<JsonObject>;
   deliverableStructure?: string | JsonNullable<JsonObject>;
+  require_local_model?: boolean; // When true, only local LLM providers (Ollama) allowed
   record: AgentRecord;
 }

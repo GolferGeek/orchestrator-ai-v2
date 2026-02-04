@@ -77,6 +77,8 @@ export const useLLMPreferencesStore = defineStore('llmPreferences', {
     sovereignPolicy: null,
     sovereignLoading: false,
     sovereignError: null,
+    // Agent-level local model requirement
+    agentRequiresLocalModel: false,
     // Model type filtering for media generation
     selectedModelType: 'text-generation' as ModelType,
     // Sanitization stats state
@@ -105,11 +107,11 @@ export const useLLMPreferencesStore = defineStore('llmPreferences', {
       return state.sovereignPolicy?.enforced || state.sovereignMode;
     },
 
-    // Get filtered providers based on sovereign mode
+    // Get filtered providers based on sovereign mode or agent requirement
     filteredProviders: (state) => {
-      const effectiveMode = state.sovereignPolicy?.enforced || state.sovereignMode;
+      const effectiveMode = state.sovereignPolicy?.enforced || state.sovereignMode || state.agentRequiresLocalModel;
       if (effectiveMode) {
-        // In sovereign mode, only show Ollama providers
+        // In sovereign mode or agent requires local, only show Ollama providers
         return state.providers.filter(provider =>
           provider.name.toLowerCase() === 'ollama'
         );
@@ -117,11 +119,11 @@ export const useLLMPreferencesStore = defineStore('llmPreferences', {
       return state.providers;
     },
 
-    // Get filtered models based on sovereign mode
+    // Get filtered models based on sovereign mode or agent requirement
     filteredModels: (state) => {
-      const effectiveMode = state.sovereignPolicy?.enforced || state.sovereignMode;
+      const effectiveMode = state.sovereignPolicy?.enforced || state.sovereignMode || state.agentRequiresLocalModel;
       if (effectiveMode) {
-        // In sovereign mode, only show Ollama models
+        // In sovereign mode or agent requires local, only show Ollama models
         return state.models.filter(model =>
           model.providerName.toLowerCase() === 'ollama'
         );
@@ -457,6 +459,42 @@ export const useLLMPreferencesStore = defineStore('llmPreferences', {
       } finally {
         this.sovereignLoading = false;
       }
+    },
+
+    // Set agent-level local model requirement
+    setAgentRequiresLocalModel(value: boolean) {
+      const wasRequired = this.agentRequiresLocalModel;
+      this.agentRequiresLocalModel = value;
+
+      // Handle provider/model selection changes SYNCHRONOUSLY when agent requirement changes
+      if (value && !wasRequired) {
+        // Agent now requires local model - immediately set Ollama provider
+        const ollamaProvider = this.filteredProviders.find(p =>
+          p.name.toLowerCase().includes('ollama')
+        );
+
+        if (ollamaProvider) {
+          this.selectedProvider = ollamaProvider;
+
+          // Find best Ollama model from the newly filtered models
+          const ollamaModels = this.filteredModels.filter(m =>
+            m.providerName === ollamaProvider.name
+          );
+
+          if (ollamaModels.length > 0) {
+            // Priority: llama3.2:1b > gpt-oss:20b > gpt-oss > llama3.2 > any available
+            const preferredModel =
+              ollamaModels.find(m => m.modelName.includes('llama3.2:1b')) ||
+              ollamaModels.find(m => m.modelName.includes('gpt-oss:20b')) ||
+              ollamaModels.find(m => m.modelName.includes('gpt-oss')) ||
+              ollamaModels.find(m => m.modelName.includes('llama3.2')) ||
+              ollamaModels[0];
+
+            this.selectedModel = preferredModel;
+          }
+        }
+      }
+      // When requirement is removed, keep current selection (user may have chosen intentionally)
     },
 
     // Update sovereign mode user preference
