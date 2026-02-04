@@ -428,15 +428,24 @@ function goToPage(page: number) {
 }
 
 function goToPortfolios() {
-  router.push({ name: 'PortfolioManagement' });
+  router.push({
+    name: 'PortfolioManagement',
+    query: agentSlug.value ? { agentSlug: agentSlug.value } : undefined,
+  });
 }
 
 function goToTradingDashboard() {
-  router.push({ name: 'TradingDashboard' });
+  router.push({
+    name: 'TradingDashboard',
+    query: agentSlug.value ? { agentSlug: agentSlug.value } : undefined,
+  });
 }
 
 function navigateToTraining(screenName: string) {
-  router.push({ name: screenName });
+  router.push({
+    name: screenName,
+    query: agentSlug.value ? { agentSlug: agentSlug.value } : undefined,
+  });
 }
 
 // Track previous agentSlug to detect agent switches
