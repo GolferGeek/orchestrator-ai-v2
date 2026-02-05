@@ -109,7 +109,7 @@ const shouldShow = computed(
   gap: 8px;
   font-size: 14px;
   font-weight: 500;
-  color: var(--ion-color-primary);
+  color: var(--ion-text-color);
 }
 
 .spin-icon {

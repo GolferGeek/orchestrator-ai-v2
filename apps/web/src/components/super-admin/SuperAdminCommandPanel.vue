@@ -688,6 +688,7 @@ watch(
 .entry-assistant {
   background: var(--ion-color-light);
   border-left: 3px solid var(--ion-color-success);
+  color: var(--dark-bg-primary, #1a1a1a);
 }
 
 .entry-system {
@@ -716,8 +717,8 @@ watch(
 }
 
 .entry-tool_use {
-  background: #2d2d44;
-  border-left: 3px solid #6366f1;
+  background: var(--ion-color-light-tint);
+  border-left: 3px solid var(--ion-color-primary);
   display: flex;
   align-items: flex-start;
   gap: 8px;
@@ -733,7 +734,7 @@ watch(
 .tool-name {
   font-weight: 600;
   font-size: 13px;
-  color: #a5b4fc;
+  color: var(--ion-color-primary);
   flex-shrink: 0;
   line-height: 1.5;
 }
@@ -742,7 +743,7 @@ watch(
   margin: 0;
   font-family: 'SF Mono', Monaco, Menlo, monospace;
   font-size: 12px;
-  color: #e2e8f0;
+  color: var(--ion-text-color);
   white-space: pre-wrap;
   word-break: break-all;
   line-height: 1.5;
@@ -936,7 +937,7 @@ watch(
 
 .action-btn.secondary {
   background: var(--ion-color-light);
-  color: var(--ion-text-color);
+  color: var(--dark-bg-primary, #1a1a1a);
 }
 
 .action-btn.secondary:hover:not(:disabled) {

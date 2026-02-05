@@ -19,7 +19,7 @@
 
     <ion-content :fullscreen="true">
       <!-- Health Status Bar - Always visible at top -->
-      <div class="health-status-bar" :class="overallHealthy ? 'healthy' : 'warning'">
+      <div class="health-status-bar" :class="overallHealthy ? 'healthy' : 'warning'" v-if="!overallHealthy">
         <div class="health-status-content">
           <ion-icon :icon="overallHealthy ? checkmarkCircleOutline : alertCircleOutline" />
           <span class="health-text">{{ overallHealthy ? 'All Systems Operational' : 'Issues Detected' }}</span>
@@ -794,8 +794,7 @@ onMounted(async () => {
 .master-detail-container {
   display: grid;
   grid-template-columns: 240px 1fr;
-  height: calc(100% - 80px);
-  margin: 0 0.5rem 0.5rem;
+  margin: 0.5rem;
   gap: 0.5rem;
 }
 
