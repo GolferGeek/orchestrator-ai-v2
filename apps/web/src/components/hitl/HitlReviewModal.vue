@@ -370,22 +370,26 @@ async function submitDecision(
 
   try {
     // Map decision to orchestrator trigger
+    // IMPORTANT: Pass the original taskId from props - this is the LangGraph thread_id
+    // that was checkpointed when HITL was first triggered
     let result: A2AResult;
     switch (decision) {
       case 'approve':
-        result = await a2aOrchestrator.execute('hitl.approve', {});
+        result = await a2aOrchestrator.execute('hitl.approve', { originalTaskId: props.taskId });
         break;
       case 'reject':
-        result = await a2aOrchestrator.execute('hitl.reject', {});
+        result = await a2aOrchestrator.execute('hitl.reject', { originalTaskId: props.taskId });
         break;
       case 'regenerate':
         result = await a2aOrchestrator.execute('hitl.regenerate', {
           feedback: options?.feedback,
+          originalTaskId: props.taskId,
         });
         break;
       case 'replace':
         result = await a2aOrchestrator.execute('hitl.replace', {
           content: options?.content,
+          originalTaskId: props.taskId,
         });
         break;
     }

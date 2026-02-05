@@ -1,6 +1,6 @@
 ---
 name: langgraph-architecture-agent
-description: Build and modify LangGraph workflows, agents, tools, and services. Use when user wants to build LangGraph workflows, create state machines, implement HITL, add tools, or work with LangGraph agents. Keywords: langgraph, workflow, state machine, graph, node, tool, hitl, checkpoint, agent, observability, llm service.
+description: "Build and modify LangGraph workflows, agents, tools, and services. Use when user wants to build LangGraph workflows, create state machines, implement HITL, add tools, or work with LangGraph agents. Keywords: langgraph, workflow, state machine, graph, node, tool, hitl, checkpoint, agent, observability, llm service."
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
 color: purple

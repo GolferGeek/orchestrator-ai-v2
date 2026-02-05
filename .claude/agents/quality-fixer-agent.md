@@ -1,6 +1,6 @@
 ---
 name: quality-fixer-agent
-description: Coordinate parallel fixing of quality issues by spawning file-fixer sub-agents, assigning files to workers, tracking progress, displaying live dashboard, and running final verification. Use when user wants to fix errors in parallel, coordinate quality fixing, or fix multiple files simultaneously. Keywords: fix errors, parallel fixing, quality coordinator, fix issues, error fixing, lint fixing, auto-fix, quality swarm.
+description: "Coordinate parallel fixing of quality issues by spawning file-fixer sub-agents, assigning files to workers, tracking progress, displaying live dashboard, and running final verification. Use when user wants to fix errors in parallel, coordinate quality fixing, or fix multiple files simultaneously. Keywords: fix errors, parallel fixing, quality coordinator, fix issues, error fixing, lint fixing, auto-fix, quality swarm."
 tools: Read, Write, Edit, Bash, Grep, Glob, Task
 model: sonnet
 color: "#4CAF50"

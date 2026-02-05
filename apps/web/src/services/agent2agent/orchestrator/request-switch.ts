@@ -192,38 +192,59 @@ export function buildA2ARequest(
 
     // =========================================================================
     // HITL TRIGGERS
+    // All HITL resume operations require originalTaskId (the checkpointed task)
     // =========================================================================
     case 'hitl.approve':
+      if (!payload.originalTaskId) {
+        throw new Error('originalTaskId is required for hitl.approve');
+      }
       return buildRequest.hitl.resume({
         decision: 'approve',
+        originalTaskId: payload.originalTaskId,
       });
 
     case 'hitl.reject':
+      if (!payload.originalTaskId) {
+        throw new Error('originalTaskId is required for hitl.reject');
+      }
       return buildRequest.hitl.resume({
         decision: 'reject',
+        originalTaskId: payload.originalTaskId,
       });
 
     case 'hitl.regenerate':
       if (!payload.feedback) {
         throw new Error('feedback is required for hitl.regenerate');
       }
+      if (!payload.originalTaskId) {
+        throw new Error('originalTaskId is required for hitl.regenerate');
+      }
       return buildRequest.hitl.resume({
         decision: 'regenerate',
         feedback: payload.feedback,
+        originalTaskId: payload.originalTaskId,
       });
 
     case 'hitl.replace':
       if (!payload.content) {
         throw new Error('content is required for hitl.replace');
       }
+      if (!payload.originalTaskId) {
+        throw new Error('originalTaskId is required for hitl.replace');
+      }
       return buildRequest.hitl.resume({
         decision: 'replace',
         content: payload.content as HitlGeneratedContent,
+        originalTaskId: payload.originalTaskId,
       });
 
     case 'hitl.skip':
+      if (!payload.originalTaskId) {
+        throw new Error('originalTaskId is required for hitl.skip');
+      }
       return buildRequest.hitl.resume({
         decision: 'skip',
+        originalTaskId: payload.originalTaskId,
       });
 
     case 'hitl.status':

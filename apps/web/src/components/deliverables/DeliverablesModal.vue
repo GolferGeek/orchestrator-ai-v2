@@ -68,14 +68,37 @@
         </div>
       </div>
 
-      <!-- Content Viewer (for text deliverables) -->
-      <ContentViewer
-        v-else
-        :blog-post="displayContent.blogPost"
-        :seo-description="displayContent.seoDescription"
-        :social-posts="displayContent.socialPosts"
-        :loading="isLoading"
-      />
+      <!-- Content Viewer/Editor (for text deliverables) -->
+      <template v-else>
+        <!-- Edit Mode -->
+        <div v-if="isEditing" class="edit-mode-container">
+          <div class="edit-mode-header">
+            <span class="edit-mode-label">Editing</span>
+            <div class="edit-mode-actions">
+              <ion-button fill="clear" size="small" @click="cancelEdit" :disabled="isSaving">
+                Cancel
+              </ion-button>
+              <ion-button fill="solid" size="small" color="primary" @click="saveEdit" :disabled="isSaving">
+                {{ isSaving ? 'Saving...' : 'Save' }}
+              </ion-button>
+            </div>
+          </div>
+          <ContentEditor
+            v-model:blog-post="editedContent.blogPost"
+            v-model:seo-description="editedContent.seoDescription"
+            v-model:social-posts="editedContent.socialPosts"
+            :disabled="isSaving"
+          />
+        </div>
+        <!-- View Mode -->
+        <ContentViewer
+          v-else
+          :blog-post="displayContent.blogPost"
+          :seo-description="displayContent.seoDescription"
+          :social-posts="displayContent.socialPosts"
+          :loading="isLoading"
+        />
+      </template>
 
       <!-- Evaluation Section -->
       <div class="evaluation-section" v-if="currentTaskId">
@@ -118,6 +141,7 @@ import {
 } from '@ionic/vue';
 import { closeOutline, cashOutline } from 'ionicons/icons';
 import ContentViewer from '@/components/shared/ContentViewer.vue';
+import ContentEditor from '@/components/shared/ContentEditor.vue';
 import VersionSelector from '@/components/shared/VersionSelector.vue';
 import VersionBadge from '@/components/shared/VersionBadge.vue';
 import DeliverableActionButtons from './DeliverableActionButtons.vue';
@@ -154,6 +178,8 @@ const isLoading = ref(false);
 const isLoadingVersions = ref(false);
 const isActionLoading = ref(false);
 const selectedVersionId = ref<string | undefined>();
+const isEditing = ref(false);
+const isSaving = ref(false);
 
 // Versions from store - reactive!
 const versions = computed(() => {
@@ -168,6 +194,25 @@ const displayContent = reactive<HitlGeneratedContent>({
   seoDescription: '',
   socialPosts: [],
 });
+
+// Edited content state (string format for editor)
+const editedContent = reactive<{
+  blogPost: string;
+  seoDescription: string;
+  socialPosts: string;
+}>({
+  blogPost: '',
+  seoDescription: '',
+  socialPosts: '',
+});
+
+/**
+ * Convert socialPosts array to newline-separated string for editing
+ */
+function socialPostsToString(posts: unknown[] | undefined): string {
+  if (!posts || !Array.isArray(posts)) return '';
+  return posts.map((p) => (typeof p === 'string' ? p : JSON.stringify(p))).join('\n');
+}
 
 // Computed
 const displayVersionNumber = computed(() => {
@@ -247,6 +292,10 @@ watch(
   () => props.isOpen,
   async (isOpen) => {
     if (isOpen) {
+      // Reset edit state
+      isEditing.value = false;
+      isSaving.value = false;
+
       // Set initial content if provided
       if (props.initialContent) {
         displayContent.blogPost = props.initialContent.blogPost || '';
@@ -265,6 +314,9 @@ watch(
           loadVersionContent(current);
         }
       }
+    } else {
+      // Modal closing - reset edit state
+      isEditing.value = false;
     }
   }
 );
@@ -338,8 +390,62 @@ function handleVersionSelect(version: DeliverableVersion) {
 
 // Action handlers
 function handleEdit() {
-  if (selectedVersionId.value) {
-    emit('edit', props.deliverableId, selectedVersionId.value);
+  // Enter edit mode instead of emitting
+  isEditing.value = true;
+  editedContent.blogPost = displayContent.blogPost || '';
+  editedContent.seoDescription = displayContent.seoDescription || '';
+  editedContent.socialPosts = socialPostsToString(displayContent.socialPosts);
+}
+
+function cancelEdit() {
+  isEditing.value = false;
+  // Reset edited content to display content
+  editedContent.blogPost = displayContent.blogPost || '';
+  editedContent.seoDescription = displayContent.seoDescription || '';
+  editedContent.socialPosts = socialPostsToString(displayContent.socialPosts);
+}
+
+async function saveEdit() {
+  if (isSaving.value) return;
+  isSaving.value = true;
+
+  try {
+    // Convert edited content back to display format
+    const newContent: HitlGeneratedContent = {
+      blogPost: editedContent.blogPost,
+      seoDescription: editedContent.seoDescription,
+      socialPosts: editedContent.socialPosts.split('\n').filter((p) => p.trim()),
+    };
+
+    // Create a new version with the edited content
+    const currentVersion = versions.value.find((v) => v.id === selectedVersionId.value);
+    if (!currentVersion) {
+      throw new Error('No version selected');
+    }
+
+    // Call API to create new version
+    const newVersion = await deliverablesService.createVersion(props.deliverableId, {
+      content: JSON.stringify(newContent),
+      format: currentVersion.format || 'json',
+      createdByType: 'manual_edit',
+      previousVersionId: currentVersion.id,
+    });
+
+    // Add to store
+    deliverablesStore.addVersion(props.deliverableId, newVersion);
+
+    // Update display
+    displayContent.blogPost = newContent.blogPost || '';
+    displayContent.seoDescription = newContent.seoDescription || '';
+    displayContent.socialPosts = newContent.socialPosts || [];
+    selectedVersionId.value = newVersion.id;
+
+    // Exit edit mode
+    isEditing.value = false;
+  } catch (error) {
+    console.error('Failed to save edit:', error);
+  } finally {
+    isSaving.value = false;
   }
 }
 
@@ -589,5 +695,29 @@ function handleClose() {
   background: var(--ion-color-light);
   border-radius: 8px;
   font-size: 0.9rem;
+}
+
+/* Edit mode styles */
+.edit-mode-container {
+  padding: 1rem;
+}
+
+.edit-mode-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--ion-color-light-shade);
+}
+
+.edit-mode-label {
+  font-weight: 600;
+  color: var(--ion-color-primary);
+}
+
+.edit-mode-actions {
+  display: flex;
+  gap: 0.5rem;
 }
 </style>

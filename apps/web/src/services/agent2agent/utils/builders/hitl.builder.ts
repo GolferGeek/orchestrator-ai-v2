@@ -30,6 +30,8 @@ export interface HitlResumePayload {
   content?: HitlGeneratedContent;
   userMessage?: string;
   messages?: StrictTaskMessage[];
+  /** The original taskId from when HITL was triggered - required for resume */
+  originalTaskId: string;
 }
 
 export interface HitlPendingPayload {
@@ -68,10 +70,15 @@ function validateRequired(value: unknown, fieldName: string): void {
 export const hitlBuilder = {
   /**
    * Resume HITL workflow with decision
+   *
+   * IMPORTANT: originalTaskId must be the taskId returned when HITL was first triggered.
+   * This is the thread_id used by LangGraph to checkpoint the workflow state.
+   * Using the wrong taskId will create a new execution instead of resuming.
    */
   resume: (payload: HitlResumePayload): StrictA2ARequest => {
     const ctx = getContext();
     validateRequired(payload.decision, 'decision');
+    validateRequired(payload.originalTaskId, 'originalTaskId');
 
     // Validate decision-specific requirements
     if (payload.decision === 'regenerate' && !payload.feedback) {
@@ -81,19 +88,22 @@ export const hitlBuilder = {
       throw new Error('content is required when decision is "replace"');
     }
 
+    // Use the ORIGINAL taskId for LangGraph resume, not the current context's taskId
+    const resumeTaskId = payload.originalTaskId;
+
     return {
       jsonrpc: '2.0',
       id: crypto.randomUUID(),
       method: 'hitl.resume',
       params: {
         mode: 'hitl' as AgentTaskMode,
-        taskId: ctx.taskId,
+        taskId: resumeTaskId,
         userMessage: payload.userMessage || `HITL decision: ${payload.decision}`,
         messages: payload.messages || [],
         payload: {
           action: 'resume',
           decision: payload.decision,
-          taskId: ctx.taskId,
+          taskId: resumeTaskId,
           ...(payload.feedback && { feedback: payload.feedback }),
           ...(payload.content && { content: payload.content }),
         },

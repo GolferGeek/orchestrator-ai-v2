@@ -1,6 +1,6 @@
 ---
 name: codebase-monitoring-agent
-description: Analyze codebase files hierarchically, evaluate health, identify issues, and generate monitoring reports. Use when user wants to monitor codebase health, analyze files, identify issues, or generate monitoring reports. Keywords: monitor, monitoring, codebase health, file analysis, issue detection, codebase audit, hierarchical analysis.
+description: "Analyze codebase files hierarchically, evaluate health, identify issues, and generate monitoring reports. Use when user wants to monitor codebase health, analyze files, identify issues, or generate monitoring reports. Keywords: monitor, monitoring, codebase health, file analysis, issue detection, codebase audit, hierarchical analysis."
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
 color: "#4169E1"

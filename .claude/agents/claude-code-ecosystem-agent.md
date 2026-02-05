@@ -1,6 +1,6 @@
 ---
 name: claude-code-ecosystem-agent
-description: Specialize in the Claude Code ecosystem itself (skills, agents, commands). Use when skills aren't being discovered, agents aren't triggering, components need improvement, patterns need updating, or the ecosystem needs maintenance. Keywords: fix skill, improve agent, update command, skill not found, agent not triggering, ecosystem maintenance, claude code, meta.
+description: "Specialize in the Claude Code ecosystem itself (skills, agents, commands). Use when skills aren't being discovered, agents aren't triggering, components need improvement, patterns need updating, or the ecosystem needs maintenance. Keywords: fix skill, improve agent, update command, skill not found, agent not triggering, ecosystem maintenance, claude code, meta."
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
 color: "#9B59B6"

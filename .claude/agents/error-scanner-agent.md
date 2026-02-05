@@ -1,6 +1,6 @@
 ---
 name: error-scanner-agent
-description: Scan codebase for build/lint/test errors, parse outputs into structured quality issues, compute fingerprints, UPSERT to quality_issues table, create scan_runs record, populate artifact inventory, log artifact_events, and display summary dashboard. Use when user wants to scan for errors, check quality, run build/lint/test, or populate error registry. Keywords: scan errors, quality scan, build errors, lint errors, test failures, error registry, quality issues.
+description: "Scan codebase for build/lint/test errors, parse outputs into structured quality issues, compute fingerprints, UPSERT to quality_issues table, create scan_runs record, populate artifact inventory, log artifact_events, and display summary dashboard. Use when user wants to scan for errors, check quality, run build/lint/test, or populate error registry. Keywords: scan errors, quality scan, build errors, lint errors, test failures, error registry, quality issues."
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
 color: "#FF6B6B"

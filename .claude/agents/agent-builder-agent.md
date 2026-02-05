@@ -1,6 +1,6 @@
 ---
 name: agent-builder-agent
-description: Build and register agents of all types (context, rag, media, api, external, orchestrator). Use when user wants to create a new agent, register an agent in the database, or determine which agent type and framework to use. Keywords: agent builder, create agent, register agent, agent type, context agent, rag agent, media agent, api agent, external agent, orchestrator agent, langgraph, n8n.
+description: "Build and register agents of all types (context, rag, media, api, external, orchestrator). Use when user wants to create a new agent, register an agent in the database, or determine which agent type and framework to use. Keywords: agent builder, create agent, register agent, agent type, context agent, rag agent, media agent, api agent, external agent, orchestrator agent, langgraph, n8n."
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
 color: blue
