@@ -103,5 +103,7 @@ login.json
 workflows_backup.json
 apps/api/supabase/backups/
 
-# Database backups (too large for git)
-storage/backups/
+# Database backups - include scripts/metadata but exclude large data files
+storage/backups/*/data/*.csv
+storage/backups/*/backup.sql
+# Keep only recent backups - exclude old ones manually if needed

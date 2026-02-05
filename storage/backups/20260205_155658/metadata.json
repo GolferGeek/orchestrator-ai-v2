@@ -1,0 +1,74 @@
+{
+  "version": "2.0",
+  "timestamp": "20260205_155658",
+  "created_at": "2026-02-05 21:57:05 UTC",
+  "database": {
+    "name": "postgres",
+    "container": "supabase_db_api-dev"
+  },
+  "backup": {
+    "file": "backup.sql.gz",
+    "size": " 39M",
+    "duration_seconds": 7,
+    "schemas": [
+  "public",
+  "prediction",
+  "crawler",
+  "rag_data",
+  "code_ops",
+  "orch_flow",
+  "orchestrator_ai",
+  "n8n_data",
+  "auth",
+  "storage"
+],
+    "include_auth": true,
+    "include_storage": true,
+    "include_transient": false,
+    "include_org_data": false,
+    "prod_mode": true
+  },
+  "critical_tables": [
+  "prediction.universes",
+  "prediction.targets",
+  "prediction.strategies",
+  "prediction.analysts",
+  "prediction.signals",
+  "prediction.predictions",
+  "prediction.predictors",
+  "prediction.source_subscriptions",
+  "public.organizations",
+  "public.rbac_roles",
+  "public.rbac_permissions",
+  "public.rbac_role_permissions",
+  "public.rbac_user_org_roles",
+  "public.llm_providers",
+  "public.llm_models",
+  "public.agents",
+  "crawler.sources",
+  "crawler.articles",
+  "crawler.source_crawls",
+  "crawler.agent_article_outputs",
+  "rag_data.rag_collections",
+  "rag_data.rag_documents"
+],
+  "transient_tables": [
+  "public.conversations",
+  "public.tasks",
+  "public.plans",
+  "public.deliverables",
+  "public.checkpoints",
+  "public.checkpoint_blobs",
+  "public.observability_events",
+  "public.llm_usage"
+],
+  "org_schemas": [
+  "marketing",
+  "engineering",
+  "law",
+  "leads",
+  "company_data",
+  "risk"
+],
+  "notes": "Use restore.sh or storage/scripts/restore-db-v2.sh for restoration"
+}
