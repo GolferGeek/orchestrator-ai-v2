@@ -351,7 +351,9 @@ Return the posts in JSON format:
   ): Promise<Partial<ExtendedPostWriterState>> {
     const ctx = state.executionContext;
 
-    console.log(`🔍 [HITL-NODE] Entering hitlInterruptNode for task ${ctx.taskId}`);
+    console.log(
+      `🔍 [HITL-NODE] Entering hitlInterruptNode for task ${ctx.taskId}`,
+    );
 
     // Only blog post is available at this point
     const content = {
@@ -368,7 +370,9 @@ Return the posts in JSON format:
       "Blog post ready for review",
     );
 
-    console.log(`🔍 [HITL-NODE] About to call interrupt() for task ${ctx.taskId}`);
+    console.log(
+      `🔍 [HITL-NODE] About to call interrupt() for task ${ctx.taskId}`,
+    );
 
     // interrupt() pauses the graph here
     // When resumed with Command({ resume: { decision, feedback, editedContent } }),
@@ -388,12 +392,16 @@ Return the posts in JSON format:
         }
       | undefined;
 
-    console.log(`🔍 [HITL-NODE] interrupt() returned: ${JSON.stringify(hitlResponse)}`);
+    console.log(
+      `🔍 [HITL-NODE] interrupt() returned: ${JSON.stringify(hitlResponse)}`,
+    );
 
     // If hitlResponse is undefined, we're still waiting (graph checkpointed)
     // In LangGraph 1.0+, interrupt() returns undefined on first call and pauses the graph
     if (!hitlResponse) {
-      console.log(`🔍 [HITL-NODE] No response from interrupt - returning hitl_waiting status`);
+      console.log(
+        `🔍 [HITL-NODE] No response from interrupt - returning hitl_waiting status`,
+      );
       return {
         hitlPending: true,
         status: "hitl_waiting",

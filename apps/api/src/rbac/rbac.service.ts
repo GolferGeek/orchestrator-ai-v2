@@ -70,10 +70,10 @@ interface RbacUserOrgRoleWithRoleRow {
   role_id: string;
   organization_slug: string;
   role:
-  | {
-    name: string;
-  }
-  | { name: string }[];
+    | {
+        name: string;
+      }
+    | { name: string }[];
 }
 
 export interface PermissionCheck {
@@ -138,7 +138,7 @@ export interface RbacPermission {
 export class RbacService {
   private readonly logger = new Logger(RbacService.name);
 
-  constructor(private readonly supabase: SupabaseService) { }
+  constructor(private readonly supabase: SupabaseService) {}
 
   /**
    * Check if user has permission in organization
@@ -206,9 +206,9 @@ export class RbacService {
         p_user_id: userId,
         p_organization_slug: organizationSlug,
       })) as {
-        data: RpcPermissionRow[] | null;
-        error: { message: string } | null;
-      };
+      data: RpcPermissionRow[] | null;
+      error: { message: string } | null;
+    };
 
     if (error) {
       this.logger.error(
@@ -238,9 +238,9 @@ export class RbacService {
         p_user_id: userId,
         p_organization_slug: organizationSlug,
       })) as {
-        data: RpcRoleRow[] | null;
-        error: { message: string } | null;
-      };
+      data: RpcRoleRow[] | null;
+      error: { message: string } | null;
+    };
 
     if (error) {
       this.logger.error(`Failed to get user roles: ${error.message}`, error);
@@ -266,9 +266,9 @@ export class RbacService {
       .rpc('rbac_get_user_organizations', {
         p_user_id: userId,
       })) as {
-        data: RpcOrganizationRow[] | null;
-        error: { message: string } | null;
-      };
+      data: RpcOrganizationRow[] | null;
+      error: { message: string } | null;
+    };
 
     if (error) {
       this.logger.error(
@@ -297,9 +297,9 @@ export class RbacService {
       .rpc('rbac_get_organization_users', {
         p_organization_slug: organizationSlug,
       })) as {
-        data: RpcOrganizationUserRow[] | null;
-        error: { message: string } | null;
-      };
+      data: RpcOrganizationUserRow[] | null;
+      error: { message: string } | null;
+    };
 
     if (error) {
       this.logger.error(

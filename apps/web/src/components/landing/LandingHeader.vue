@@ -11,8 +11,8 @@
       <!-- Main Navigation -->
       <nav class="header-nav">
         <OrganizationSwitcher v-if="authStore.isAuthenticated" />
-        <!-- View Toggle - only show in demo organization -->
-        <ViewToggle v-if="isDemoOrg" />
+        <!-- View Toggle - show on landing pages -->
+        <ViewToggle v-if="isLandingPage" />
         <ion-button
           v-if="!authStore.isAuthenticated"
           fill="clear"
@@ -60,7 +60,6 @@ import {
 import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores/rbacStore';
 import { useAgentIdeasStore } from '@/stores/agentIdeasStore';
-import { storeToRefs } from 'pinia';
 import OrganizationSwitcher from '@/components/common/OrganizationSwitcher.vue';
 import ViewToggle from '@/components/landing/ViewToggle.vue';
 import AgentIdeasModal from '@/components/landing/AgentIdeasModal.vue';
@@ -69,11 +68,10 @@ const router = useRouter();
 const route = useRoute();
 const authStore = useAuthStore();
 const agentIdeasStore = useAgentIdeasStore();
-const { currentOrganization } = storeToRefs(authStore);
 
-// Check if we're in the demo organization
-const isDemoOrg = computed(() => {
-  return (currentOrganization?.value || 'demo-org') === 'demo-org';
+// Check if we are on a landing page (show toggle)
+const isLandingPage = computed(() => {
+  return ['/', '/landing', '/technical'].includes(route.path);
 });
 
 // Check if we are on the videos page

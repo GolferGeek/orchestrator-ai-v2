@@ -747,21 +747,15 @@ export class PredictionHandler implements IDashboardHandler {
         );
       }
 
-      // Get signals for each predictor
-      const signalIds = validPredictors
-        .map((p) => p.signal_id)
+      // Get article IDs for predictors (new flow)
+      const articleIds = validPredictors
+        .map((p) => p.article_id)
         .filter((id): id is string => !!id);
-      const signals = await Promise.all(
-        signalIds.map((id) => this.signalRepository.findById(id)),
-      );
-      const validSignals = signals.filter((s) => s !== null);
 
-      // Get fingerprints for signals
-      const fingerprints = await Promise.all(
-        signalIds.map((id) =>
-          this.signalFingerprintRepository.findBySignalId(id),
-        ),
-      );
+      // Note: Legacy predictors may not have article_id
+      // For deep-dive lineage, we use article data when available
+      const validSignals: Array<unknown> = []; // Legacy - no longer used
+      const fingerprints: Array<unknown> = []; // Legacy - no longer used
 
       // Note: Source articles from legacy prediction.source_seen_items table were removed
       // Articles now come from crawler.articles via source_subscriptions
@@ -988,11 +982,10 @@ export class PredictionHandler implements IDashboardHandler {
           reasoning: prediction.reasoning,
         },
         lineage: {
-          // Contributing predictors with their signals
+          // Contributing predictors with their article sources
           predictors: validPredictors.map((predictor, idx) => {
-            const signal = validSignals.find(
-              (s) => s.id === predictor.signal_id,
-            );
+            // Note: signal_id removed - using article_id for new predictors
+            const signal = null; // Legacy field removed
             const fingerprint = fingerprints[idx];
 
             return {
@@ -1003,27 +996,11 @@ export class PredictionHandler implements IDashboardHandler {
               reasoning: predictor.reasoning,
               analystSlug: predictor.analyst_slug,
               createdAt: predictor.created_at,
-              signal: signal
-                ? {
-                    id: signal.id,
-                    content: signal.content,
-                    direction: signal.direction,
-                    urgency: signal.urgency,
-                    sourceId: signal.source_id,
-                    detectedAt: signal.detected_at,
-                    url: signal.url,
-                  }
-                : null,
-              fingerprint: fingerprint
-                ? {
-                    titleNormalized: fingerprint.title_normalized,
-                    keyPhrases: fingerprint.key_phrases,
-                    fingerprintHash: fingerprint.fingerprint_hash,
-                  }
-                : null,
-              // Note: sourceArticle was previously populated from legacy prediction.source_seen_items
-              // Now articles come from crawler.articles - signal metadata may contain article info
-              sourceArticle: null,
+              // Legacy signal/fingerprint fields removed - predictors now link directly to articles
+              signal: null,
+              fingerprint: null,
+              // Article ID for new predictors (links to crawler.articles)
+              articleId: predictor.article_id,
             };
           }),
           // Analyst reasoning chain

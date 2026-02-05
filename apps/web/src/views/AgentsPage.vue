@@ -167,7 +167,7 @@ const handleLogout = async () => {
   router.push('/login');
 };
 const navigateToApp = () => {
-  router.push('/app');
+  router.push('/');
 };
 const handleConversationSelected = async (conversation: AgentConversation) => {
   try {

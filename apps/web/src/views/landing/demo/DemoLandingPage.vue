@@ -58,7 +58,7 @@
               <h3>Speed of Implementation</h3>
               <p>
                 <strong>Big companies:</strong> 18-month AI rollouts, vendor lock-in, 
-                "we need to train 10,000 people"<br>
+                "we need to train thousands of people"<br>
                 <strong>Small companies:</strong> Deploy in days, customize in hours, 
                 "let's see what works"
               </p>
@@ -139,7 +139,7 @@
               </div>
               <h3>Exclusive Attention</h3>
               <p>
-                <strong>Big companies:</strong> "You're one of 10,000 clients competing for support"<br>
+                <strong>Big companies:</strong> "You're one of thousands of clients competing for support"<br>
                 <strong>Small companies:</strong> "You're one of 5-10 partners getting our full focus"
               </p>
               <div class="advantage-example">
@@ -153,78 +153,7 @@
 
 
       <!-- Pricing Section -->
-        <section id="pricing" class="pricing-section animate-on-scroll">
-          <div class="pricing-content">
-            <div class="section-header">
-              <h2>Pricing</h2>
-              <p class="section-subtitle">
-                Transparent, partnership-oriented pricing. No hidden fees, no long-term lock-ins.
-                We grow with you.
-              </p>
-            </div>
-            <div class="pricing-grid">
-            <!-- Setup Package -->
-            <div class="pricing-card highlight">
-              <div class="pricing-header">
-                <h3 class="package-title">Founding Partner Setup</h3>
-                <p class="best-for">Best for: Teams starting a long-term build</p>
-                <div class="pricing-info">
-                  <div class="package-price">$25,000</div>
-                  <div class="price-tag">one-time</div>
-                </div>
-              </div>
-              <ul class="package-features">
-                <li>Private fork deployed on your server</li>
-                <li>Security-hardened Docker container</li>
-                <li>80 hours customization credit</li>
-                <li>Priority roadmap influence</li>
-              </ul>
-            </div>
-            <!-- Ongoing Development -->
-            <div class="pricing-card">
-              <div class="pricing-header">
-                <h3 class="package-title">Ongoing Development</h3>
-                <p class="best-for">Best for: Active projects needing flexible support</p>
-                <div class="pricing-info">
-                  <div class="package-price">$100/hr</div>
-                  <div class="price-tag">Founder</div>
-                </div>
-                <div class="pricing-info secondary">
-                  <div class="package-price secondary">$40/hr</div>
-                  <div class="price-tag">Interns</div>
-                </div>
-              </div>
-              <ul class="package-features">
-                <li>Pay-as-you-go, billed weekly</li>
-                <li>Mix founder & intern hours as needed</li>
-                <li>Time-tracking transparency</li>
-                <li>10 hrs/mo included retainer</li>
-              </ul>
-            </div>
-            <!-- Updates & Separation -->
-            <div class="pricing-card">
-              <div class="pricing-header">
-                <h3 class="package-title">Updates & Separation</h3>
-                <p class="best-for">Best for: Companies wanting long-term independence</p>
-                <div class="pricing-info">
-                  <div class="package-price">Continuous Updates</div>
-                  <div class="price-tag">free while active</div>
-                </div>
-                <div class="pricing-info secondary">
-                  <div class="package-price secondary">$25,000</div>
-                  <div class="price-tag">separation fee*</div>
-                </div>
-              </div>
-              <ul class="package-features">
-                <li>Automated merges of core system</li>
-                <li>We avoid conflicts with your custom agents</li>
-                <li>You keep your code fork forever</li>
-                <li>*Waived after $50k development spend</li>
-              </ul>
-            </div>
-          </div>
-          </div>
-        </section>
+      <PricingSection @schedule-call="handleScheduleCall" />
 
 
       <!-- CTA Section -->
@@ -305,6 +234,7 @@ import LandingHeader from '@/components/landing/LandingHeader.vue';
 import VideoModal from '@/components/landing/VideoModal.vue';
 import VideoPlayer from '@/components/landing/VideoPlayer.vue';
 import HeroSection from '@/components/landing/HeroSection.vue';
+import PricingSection from '@/components/landing/PricingSection.vue';
 // Landing page store
 import { useLandingStore } from '@/stores/landingStore';
 // Video service
@@ -366,6 +296,10 @@ function _handleScrollToPricing() {
 }
 
 function _handleScheduleCall() {
+  openCalendly();
+}
+
+function handleScheduleCall() {
   openCalendly();
 }
 

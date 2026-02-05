@@ -39,7 +39,7 @@
                     <!-- Left Column: Challenges List -->
                     <div class="challenges-column">
                       <ul class="challenge-highlight-list">
-                        <li>Information overload from 10,000+ AI tools</li>
+                        <li>Information overload from countless AI tools</li>
                         <li>Decision paralysis from conflicting advice</li>
                         <li>Technical barriers requiring expertise you don't have</li>
                         <li>Security and privacy concerns about data</li>
@@ -89,7 +89,7 @@
                       <div class="challenge-column">
                     <h4>What You're Up Against</h4>
                         <ul class="challenge-list">
-                      <li><strong>10,000+ AI tools</strong> available today</li>
+                      <li><strong>Countless AI tools</strong> available today</li>
                       <li><strong>New tools launched daily</strong> - impossible to keep up</li>
                       <li><strong>Conflicting reviews</strong> - every tool claims to be "the best"</li>
                       <li><strong>Technical complexity</strong> - most require technical expertise</li>
@@ -242,7 +242,7 @@
                     <div class="package-includes-column">
                       <h4>Complete Solution</h4>
                       <ul class="package-includes-list">
-                        <li><strong>Forked codebase ($15k)</strong> - pre-built starter agents</li>
+                        <li><strong>Forked codebase ($20k)</strong> - pre-built starter agents</li>
                         <li><strong>Hardware consultation</strong> - help select and configure server</li>
                         <li><strong>Installation & setup</strong> - get your system running</li>
                         <li><strong>LLM API setup</strong> - help configure your API keys</li>
@@ -267,7 +267,7 @@
                   </div>
                   
                   <div class="offering-summary-footer">
-                    <p><strong>Forked code: $15k</strong> - consulting fees additional at $120/hr senior, $50/hr interns<br>
+                    <p><strong>Forked code: $20k</strong> - consulting fees additional at $120/hr senior, $50/hr interns<br>
                     <small>*You provide: hardware and LLM API keys (we help with setup)</small></p>
                   </div>
               
@@ -277,20 +277,23 @@
                     <h3 class="piloting-title">🖥️ Your Local AI Hardware Setup*</h3>
                     
                     <p class="piloting-intro">
-                      <strong>We help you configure powerful local hardware that eliminates cloud dependency and ensures complete data privacy.</strong>
+                      <strong>We help you configure powerful NVIDIA hardware that delivers exceptional AI performance while eliminating cloud dependency and ensuring complete data privacy.</strong>
                     </p>
                     
                     <div class="piloting-content-layout">
                       <div class="hardware-specs-column">
-                        <h4>Mac Studio 128GB Specifications</h4>
+                        <h4>NVIDIA DGX Spark - The Perfect Pilot Machine</h4>
                         <ul class="hardware-specs-list">
-                          <li><strong>M2 Ultra chip</strong> - 24-core CPU, 76-core GPU</li>
-                          <li><strong>128GB unified memory</strong> - handles large AI models</li>
-                          <li><strong>8TB SSD storage</strong> - fast model loading and data processing</li>
-                          <li><strong>Multiple ports</strong> - extensive connectivity options</li>
-                          <li><strong>Quiet operation</strong> - office-friendly design</li>
-                          <li><strong>Energy efficient</strong> - lower operating costs</li>
+                          <li><strong>NVIDIA GPU acceleration</strong> - industry-leading AI performance</li>
+                          <li><strong>Blazing fast inference</strong> - optimized for local LLM workloads</li>
+                          <li><strong>Scalable architecture</strong> - designed to grow with your needs</li>
+                          <li><strong>Enterprise-grade reliability</strong> - built for production AI workloads</li>
+                          <li><strong>Efficient power consumption</strong> - optimized for cost-effective operation</li>
+                          <li><strong>Future-proof design</strong> - ready for expanding AI capabilities</li>
                         </ul>
+                        <p class="hardware-note">
+                          <strong>The DGX Spark is an excellent pilot machine</strong> - fast enough to handle initial workloads and demonstrate real value, while designed to scale as your team grows and local LLM usage increases. As more users come onboard and your AI needs expand, additional capacity can be added seamlessly.
+                        </p>
                       </div>
                       
                       <div class="local-benefits-column">
@@ -302,12 +305,13 @@
                           <li><strong>Instant response</strong> - no network latency</li>
                           <li><strong>Full control</strong> - customize and configure as needed</li>
                           <li><strong>Compliance ready</strong> - meets enterprise security standards</li>
+                          <li><strong>Scalable growth</strong> - expand capacity as usage increases</li>
                         </ul>
                       </div>
                     </div>
                     
                     <div class="piloting-footnote">
-                      <p>* You provide the server hardware. We recommend Mac Studio 128GB, but any equivalent hardware is fine.</p>
+                      <p>* You provide the server hardware. We recommend the NVIDIA DGX Spark as an ideal pilot machine that can scale with your growing AI needs and local LLM usage requirements.</p>
                     </div>
                   
               </SubAccordion>
@@ -397,7 +401,7 @@
                     
                     <div class="pricing-structure-content-layout">
                       <div class="setup-cost-column">
-                        <h4>$15k Forked Code Package</h4>
+                        <h4>$20k Forked Code Package</h4>
                         <ul class="setup-cost-list">
                           <li><strong>Pre-built agent repository</strong> - battle-tested codebase</li>
                           <li><strong>Starter agent templates</strong> - ready-to-customize</li>
@@ -493,21 +497,23 @@
                       <h4>Agent Types</h4>
                       <ul class="agent-types-list">
                         <li><strong>Context agents</strong> - knowledge-based intelligence</li>
-                        <li><strong>Function agents</strong> - TypeScript/Python logic</li>
                         <li><strong>API agents</strong> - external service wrappers</li>
                         <li><strong>External agents</strong> - A2A communication with outside systems</li>
-                        <li><strong>Orchestrator agents</strong> - workflow coordination</li>
+                        <li><strong>RAG agents</strong> - retrieval-augmented generation</li>
+                        <li><strong>Prediction agents</strong> - forecasting and analytics</li>
+                        <li><strong>Risk agents</strong> - risk assessment and monitoring</li>
+                        <li><strong>Orchestrator agent</strong> - workflow coordination</li>
                       </ul>
                     </div>
                     
                     <div class="organization-column">
                       <h4>Organization Structure</h4>
                       <ul class="organization-list">
-                        <li><strong>demo/</strong> - example agents and templates</li>
-                        <li><strong>my-org/</strong> - your custom business agents</li>
-                        <li><strong>saas/</strong> - shared agents for small companies</li>
-                        <li><strong>A2A protocol</strong> - standardized communication</li>
-                        <li><strong>MCP integration</strong> - external tool connectivity</li>
+                        <li><strong>Legal</strong> - contract review, compliance, IP</li>
+                        <li><strong>Engineering</strong> - technical development and support</li>
+                        <li><strong>Marketing</strong> - content creation, campaigns, analytics</li>
+                        <li><strong>HR</strong> - talent management, employee resources</li>
+                        <li><strong>Finance</strong> - financial analysis, reporting, planning</li>
                       </ul>
                     </div>
                     
@@ -604,10 +610,10 @@
               
               <SubAccordion id="agent-types" title="Agent Types">
                 
-                    <h3 class="agent-types-title">🤖 Five Specialized AI Agent Types</h3>
+                    <h3 class="agent-types-title">🤖 Seven Specialized AI Agent Types</h3>
                     
                     <p class="agent-types-intro">
-                      <strong>Each agent type is designed for specific business tasks - from knowledge management to workflow coordination.</strong>
+                      <strong>Each agent type is designed for specific business tasks - from knowledge management to risk assessment and workflow coordination.</strong>
                     </p>
                     
                     <div class="agent-types-content-layout">
@@ -615,10 +621,12 @@
                         <h4>Agent Capabilities</h4>
                         <ul class="agent-descriptions-list">
                           <li><strong>Context agents</strong> - your business knowledge base and expertise</li>
-                          <li><strong>Function agents</strong> - custom business logic and calculations</li>
                           <li><strong>API agents</strong> - connect to external services and data</li>
                           <li><strong>External agents</strong> - communicate with other businesses' AI</li>
-                          <li><strong>Orchestrator agents</strong> - coordinate complex workflows</li>
+                          <li><strong>RAG agents</strong> - retrieval-augmented generation for enhanced knowledge</li>
+                          <li><strong>Prediction agents</strong> - forecasting, analytics, and trend analysis</li>
+                          <li><strong>Risk agents</strong> - risk assessment, monitoring, and mitigation</li>
+                          <li><strong>Orchestrator agent</strong> - coordinate complex workflows and multi-agent processes</li>
                         </ul>
                       </div>
                       
@@ -626,10 +634,12 @@
                         <h4>Business Applications</h4>
                         <ul class="agent-use-cases-list">
                           <li><strong>Knowledge management</strong> - instant access to company expertise</li>
-                          <li><strong>Process automation</strong> - handle routine business tasks</li>
                           <li><strong>Data integration</strong> - pull information from multiple sources</li>
                           <li><strong>Partner collaboration</strong> - work with client and vendor systems</li>
-                          <li><strong>Workflow management</strong> - orchestrate multi-step processes</li>
+                          <li><strong>Enhanced search</strong> - RAG-powered intelligent information retrieval</li>
+                          <li><strong>Business forecasting</strong> - predict trends and outcomes</li>
+                          <li><strong>Risk management</strong> - identify and mitigate business risks</li>
+                          <li><strong>Workflow orchestration</strong> - coordinate multi-step processes</li>
                         </ul>
                       </div>
                     </div>
@@ -885,14 +895,14 @@
             <template #content>
               <p class="section-summary">
                 Agents are specialized AI programs that perform specific tasks autonomously. We provide rules files for each 
-                agent type (Context, Function, API, Orchestrator) that guide AI-assisted development with Cursor, Claude, or 
+                agent type (Context, API, External, RAG, Prediction, Risk, Orchestrator) that guide AI-assisted development with Cursor, Claude, or 
                 Codex. Our process includes understanding what agents are, using standardized rules files for consistent 
                 development, leveraging AI tools for rapid creation, and building agents that communicate through A2A protocols 
                 for seamless integration.
               </p>
               
               <SubAccordion id="what-are-agents" title="What Are Agents?">
-                <p><strong>Single-responsibility programs that collaborate.</strong> Agents specialize—Context, Function, API, External, and Orchestrator—and communicate through A2A. Clear roles and typed interfaces make systems more reliable and adaptable.</p>
+                <p><strong>Single-responsibility programs that collaborate.</strong> Agents specialize—Context, API, External, RAG, Prediction, Risk, and Orchestrator—and communicate through A2A. Clear roles and typed interfaces make systems more reliable and adaptable.</p>
                 <ul class="mcp-benefits-list">
                   <li><strong>Composability</strong> - assemble complex workflows from small parts</li>
                   <li><strong>Clarity</strong> - explicit responsibilities and contracts</li>
@@ -1307,6 +1317,17 @@ onMounted(() => {
   margin: 0;
   text-align: center;
   font-style: italic;
+}
+
+.hardware-note {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: var(--landing-primary-50);
+  border-left: 3px solid var(--landing-secondary);
+  border-radius: var(--radius-lg);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: var(--landing-dark);
 }
 
 .piloting-footnote {

@@ -337,7 +337,7 @@ export class ReviewQueueService {
     expiresAt.setHours(expiresAt.getHours() + 24);
 
     const predictorData: CreatePredictorData = {
-      signal_id: signal.id,
+      // Legacy signal flow - no article_id available
       target_id: signal.target_id,
       direction: signal.direction as PredictorDirection,
       strength: clampedStrength,

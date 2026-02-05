@@ -498,8 +498,7 @@ export class ArticleProcessorService {
       .slice(0, 5);
 
     const predictorData: CreatePredictorData = {
-      article_id: article.id, // NEW: Link to article directly
-      signal_id: null, // Legacy field, no longer used
+      article_id: article.id,
       target_id: target.id,
       direction,
       strength,

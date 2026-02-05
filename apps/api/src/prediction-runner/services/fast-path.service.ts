@@ -295,7 +295,7 @@ export class FastPathService {
             event_type: 'predictor_created',
             details: {
               predictor_id: predictor.id,
-              signal_id: predictor.signal_id,
+              article_id: predictor.article_id,
             },
           },
           {

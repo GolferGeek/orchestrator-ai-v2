@@ -102,3 +102,6 @@ deployment/build-info.json
 login.json
 workflows_backup.json
 apps/api/supabase/backups/
+
+# Database backups (too large for git)
+storage/backups/

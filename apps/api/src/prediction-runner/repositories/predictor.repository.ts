@@ -263,7 +263,7 @@ export class PredictorRepository {
     // Create a copy without the id, timestamps, and with test markers
     // Use direct insert with test markers since CreatePredictorData doesn't include them
     const testPredictorData = {
-      signal_id: predictor.signal_id,
+      article_id: predictor.article_id,
       target_id: predictor.target_id,
       direction: predictor.direction,
       strength: predictor.strength,

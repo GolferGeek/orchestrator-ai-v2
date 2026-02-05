@@ -8,147 +8,124 @@ used-by-agents: []
 related-skills: ["database-backup-skill"]
 ---
 
-# Database Restore Skill
+# Database Restore Skill v2
 
-Provides scripts and patterns for restoring Supabase database from backups.
-
-## Finding Latest Backup
-
-Find the most recent backup by timestamp:
-
-```bash
-BACKUP_BASE_DIR="storage/backups"
-LATEST_BACKUP=$(ls -td "$BACKUP_BASE_DIR"/*/ 2>/dev/null | head -1)
-
-if [ -z "$LATEST_BACKUP" ]; then
-  echo "❌ Error: No backups found in $BACKUP_BASE_DIR"
-  exit 1
-fi
-
-echo "📦 Latest backup: $LATEST_BACKUP"
-```
-
-## Verifying Backup Files
-
-Check that backup directory contains required files:
-
-```bash
-if [ ! -f "${LATEST_BACKUP}backup.sql.gz" ] && [ ! -f "${LATEST_BACKUP}backup.sql" ]; then
-  echo "❌ Error: Backup SQL file not found in $LATEST_BACKUP"
-  exit 1
-fi
-
-if [ ! -f "${LATEST_BACKUP}restore.sh" ]; then
-  echo "❌ Error: Restore script not found in $LATEST_BACKUP"
-  exit 1
-fi
-```
+Provides scripts and patterns for restoring Supabase database from backups with proper FK dependency ordering.
 
 ## Restore Script
 
-The restore script is automatically created in each backup directory by the backup process. Here's the restore script template:
+The restore script is located at: `storage/scripts/restore-db-v2.sh`
 
+## Usage
+
+**Restore from latest backup:**
 ```bash
-#!/bin/bash
-
-# Restore Script for Supabase Database Backup
-# This script restores the database from the backup.sql.gz file in this directory
-
-set -e
-
-# Configuration
-DB_CONTAINER="supabase_db_api-dev"
-DB_USER="postgres"
-DB_NAME="postgres"
-BACKUP_FILE="backup.sql.gz"
-
-# Colors for output
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-RED='\033[0;31m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
-
-echo -e "${YELLOW}⚠️  WARNING: This will overwrite existing database data!${NC}"
-echo -e "${YELLOW}   Press Ctrl+C within 5 seconds to cancel...${NC}"
-sleep 5
-
-echo -e "${BLUE}🔄 Starting database restoration...${NC}"
-
-# Check if backup file exists
-if [ ! -f "$BACKUP_FILE" ]; then
-  echo -e "${RED}❌ Error: Backup file not found: $BACKUP_FILE${NC}"
-  exit 1
-fi
-
-# Check if container is running
-if ! docker ps | grep -q "$DB_CONTAINER"; then
-  echo -e "${RED}❌ Error: Database container '$DB_CONTAINER' is not running${NC}"
-  exit 1
-fi
-
-# Start time
-START_TIME=$(date +%s)
-
-# Extract and restore
-echo -e "${BLUE}📦 Extracting backup...${NC}"
-gunzip -c "$BACKUP_FILE" | docker exec -i "$DB_CONTAINER" psql \
-  -U "$DB_USER" \
-  -d "$DB_NAME" \
-  --quiet
-
-# End time
-END_TIME=$(date +%s)
-DURATION=$((END_TIME - START_TIME))
-
-# Verify restoration
-echo -e "${BLUE}✅ Verifying restoration...${NC}"
-if docker exec "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -c "SELECT 1;" > /dev/null 2>&1; then
-  echo -e "${GREEN}✅ Database restored successfully!${NC}"
-  echo -e "${GREEN}📊 Duration: ${DURATION} seconds${NC}"
-else
-  echo -e "${RED}❌ Error: Database restoration verification failed${NC}"
-  exit 1
-fi
+bash storage/scripts/restore-db-v2.sh
 ```
 
-## Executing Restore
-
-Execute the restore script from the backup directory:
-
+**Restore from specific backup:**
 ```bash
-cd "$LATEST_BACKUP"
-bash restore.sh
+bash storage/scripts/restore-db-v2.sh storage/backups/20260205_155658/
 ```
 
-## Complete Restore Process
+## What the v2 Restore Does
 
-Full restore workflow:
+1. **Finds backup and reads metadata:**
+   - Identifies what was included (transient, org data, etc.)
+   - Adjusts restore behavior based on metadata
+
+2. **Restores main database structure:**
+   - Runs pg_dump output through psql
+   - Ignores expected errors from `--clean` operations
+
+3. **Restores auth data:**
+   - Truncates auth tables with `session_replication_role = replica`
+   - Extracts and restores COPY statements for auth.users, auth.identities
+
+4. **Restores data in FK dependency order:**
+   - Essential tables first (prediction, crawler, RBAC)
+   - Org-specific tables if included
+   - Transient tables if included
+
+5. **Fixes permissions:**
+   - Grants USAGE on schemas to anon, authenticated, service_role
+   - Grants table/function/sequence permissions
+
+6. **Refreshes PostgREST schema cache:**
+   - Restarts supabase_rest_api-dev container
+
+7. **Verifies restoration:**
+   - Checks key tables for data
+   - Reports any issues
+
+## FK-Ordered Restore Tables
+
+**Essential (always restored):**
+
+```
+prediction.universes
+  → prediction.targets
+    → prediction.strategies
+    → prediction.analysts
+  → prediction.signals
+    → prediction.predictions
+    → prediction.predictors
+  → prediction.source_subscriptions
+
+public.organizations
+  → public.rbac_roles
+    → public.rbac_permissions
+    → public.rbac_role_permissions
+    → public.rbac_user_org_roles
+  → public.llm_providers
+    → public.llm_models
+  → public.agents
+
+crawler.sources
+  → crawler.articles
+    → crawler.source_crawls
+    → crawler.agent_article_outputs
+
+rag_data.rag_collections
+  → rag_data.rag_documents
+    → rag_data.rag_document_chunks
+```
+
+**Org-specific (if included in backup):**
+- marketing.agents, marketing.content_types
+- law.*, engineering.*, leads.*
+
+**Transient (if included in backup):**
+- public.llm_usage
+- public.conversations
+- public.tasks, public.plans, public.deliverables
+- public.checkpoints, public.checkpoint_blobs
+- public.observability_events
+
+## Backup Metadata
+
+The restore script reads `metadata.json` to understand what was backed up:
+
+```json
+{
+  "backup": {
+    "include_transient": false,
+    "include_org_data": false,
+    "prod_mode": true
+  }
+}
+```
+
+## Manual Table Restore
+
+If automatic restore fails for a specific table, extract and restore manually:
 
 ```bash
-# 1. Find latest backup
-BACKUP_BASE_DIR="storage/backups"
-LATEST_BACKUP=$(ls -td "$BACKUP_BASE_DIR"/*/ 2>/dev/null | head -1)
+BACKUP_FILE="storage/backups/20260205_155658/backup.sql.gz"
+TABLE="prediction.signals"
 
-if [ -z "$LATEST_BACKUP" ]; then
-  echo "❌ Error: No backups found"
-  exit 1
-fi
-
-# 2. Verify backup files exist
-if [ ! -f "${LATEST_BACKUP}backup.sql.gz" ]; then
-  echo "❌ Error: Backup file not found"
-  exit 1
-fi
-
-if [ ! -f "${LATEST_BACKUP}restore.sh" ]; then
-  echo "❌ Error: Restore script not found"
-  exit 1
-fi
-
-# 3. Execute restore
-cd "$LATEST_BACKUP"
-bash restore.sh
+gunzip -c "$BACKUP_FILE" | sed -n "/^COPY ${TABLE} /,/^\\\\.$/p" | \
+  docker exec -i supabase_db_api-dev psql -U postgres -d postgres --quiet
 ```
 
 ## Safety Warnings
@@ -159,6 +136,10 @@ bash restore.sh
 - Potentially cause data loss if backup is older than current data
 
 **Before restoring:**
-- Ensure you have a current backup
+- Ensure you have a current backup of any new data
 - Verify you're restoring to the correct environment
 - Confirm the backup timestamp is correct
+
+## Legacy Script
+
+The original v1 restore script is still available at `storage/scripts/restore-db.sh` but v2 is recommended for better reliability with FK ordering.

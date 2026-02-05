@@ -699,7 +699,11 @@ export class LLMErrorMapper {
     }
 
     // Server errors (5xx)
-    if (message.includes('500') || message.includes('502') || message.includes('504')) {
+    if (
+      message.includes('500') ||
+      message.includes('502') ||
+      message.includes('504')
+    ) {
       return new LLMError(
         'Google server error',
         LLMErrorType.SERVER_ERROR,

@@ -9,7 +9,7 @@ describe('PredictorRepository', () => {
 
   const mockPredictor: Predictor = {
     id: 'predictor-123',
-    signal_id: 'signal-123',
+    article_id: 'article-123',
     target_id: 'target-123',
     direction: 'bullish',
     strength: 7,
@@ -268,7 +268,7 @@ describe('PredictorRepository', () => {
   describe('create', () => {
     it('should create predictor successfully', async () => {
       const createData = {
-        signal_id: 'signal-123',
+        article_id: 'article-123',
         target_id: 'target-123',
         direction: 'bullish' as const,
         strength: 7,
@@ -300,7 +300,7 @@ describe('PredictorRepository', () => {
 
       await expect(
         repository.create({
-          signal_id: 'signal-123',
+          article_id: 'article-123',
           target_id: 'target-123',
           direction: 'bullish',
           strength: 7,
@@ -329,7 +329,7 @@ describe('PredictorRepository', () => {
 
       await expect(
         repository.create({
-          signal_id: 'signal-123',
+          article_id: 'article-123',
           target_id: 'target-123',
           direction: 'bullish',
           strength: 7,

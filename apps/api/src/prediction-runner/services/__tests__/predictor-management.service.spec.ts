@@ -12,7 +12,7 @@ describe('PredictorManagementService', () => {
     overrides: Partial<Predictor> = {},
   ): Predictor => ({
     id: `pred-${Math.random().toString(36).substr(2, 9)}`,
-    signal_id: 'signal-123',
+    article_id: 'article-123',
     target_id: 'target-456',
     direction: 'bullish',
     strength: 7,

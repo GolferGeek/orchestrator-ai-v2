@@ -629,7 +629,8 @@ export class SanitizationController {
       let totalUsage = 0;
       if (usageData) {
         totalUsage = usageData.reduce(
-          (sum, row) => sum + ((row as { usage_count: number }).usage_count || 0),
+          (sum, row) =>
+            sum + ((row as { usage_count: number }).usage_count || 0),
           0,
         );
       }
@@ -665,7 +666,8 @@ export class SanitizationController {
           totalMappings: totalMappings || 0,
           mappingsByType,
           totalUsage,
-          averageUsagePerMapping: Math.round(averageUsagePerMapping * 100) / 100,
+          averageUsagePerMapping:
+            Math.round(averageUsagePerMapping * 100) / 100,
           recentActivity: {
             last24h: last24hCount || 0,
             last7d: last7dCount || 0,

@@ -263,7 +263,7 @@ export class SignalDetectionService {
 
     const predictorData: CreatePredictorData = {
       target_id: signal.target_id,
-      signal_id: signal.id,
+      // Legacy signal flow - no article_id available
       direction: evaluation.direction,
       strength,
       confidence: evaluation.confidence,
