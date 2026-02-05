@@ -33,6 +33,7 @@ import { buildA2ARequest } from './request-switch';
 import { handleA2AResponse } from './response-switch';
 import { useExecutionContextStore } from '@/stores/executionContextStore';
 import { useRbacStore } from '@/stores/rbacStore';
+import { authenticatedFetch, triggerReLogin } from '@/services/utils/authenticatedFetch';
 
 // Get API base URL from environment
 const API_PORT = import.meta.env.VITE_API_PORT || '6100';
@@ -103,19 +104,16 @@ class A2AOrchestrator {
       };
 
       // 4. Get API configuration from stores
-      const rbacStore = useRbacStore();
-      const token = rbacStore.token;
       const orgSlug = ctx.orgSlug;
       const agentSlug = ctx.agentSlug;
 
-      // 5. Send to API
+      // 5. Send to API with automatic token refresh on 401
       const endpoint = `${API_BASE_URL}/agent-to-agent/${encodeURIComponent(orgSlug)}/${encodeURIComponent(agentSlug)}/tasks`;
 
-      const response = await fetch(endpoint, {
+      const response = await authenticatedFetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify(enrichedRequest),
       });
@@ -123,6 +121,12 @@ class A2AOrchestrator {
       if (!response.ok) {
         const errorData = await this.tryParseJson(response);
         const errorMessage = this.extractErrorMessage(errorData, response.statusText);
+
+        // If still 401 after auto-refresh, trigger re-login
+        if (response.status === 401) {
+          await triggerReLogin();
+        }
+
         return {
           type: 'error',
           error: errorMessage,
@@ -412,11 +416,10 @@ class A2AOrchestrator {
 
       console.log('[A2A Client] 📤 Sending POST request with taskId:', taskId);
 
-      const response = await fetch(endpoint, {
+      const response = await authenticatedFetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify(enrichedRequest),
       });
@@ -434,6 +437,12 @@ class A2AOrchestrator {
         const errorData = await this.tryParseJson(response);
         const errorMessage = this.extractErrorMessage(errorData, response.statusText);
         onError?.(errorMessage);
+
+        // If still 401 after auto-refresh, trigger re-login
+        if (response.status === 401) {
+          await triggerReLogin();
+        }
+
         return { type: 'error', error: errorMessage, code: response.status };
       }
 

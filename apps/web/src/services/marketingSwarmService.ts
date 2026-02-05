@@ -13,11 +13,13 @@
 
 import { apiService } from './apiService';
 import { useMarketingSwarmStore } from '@/stores/marketingSwarmStore';
+import { authenticatedFetch, triggerReLogin } from './utils/authenticatedFetch';
 
 /**
  * Get auth token from storage
  * TokenStorageService migrates tokens from localStorage to sessionStorage,
  * so we check sessionStorage first, then fall back to localStorage
+ * @deprecated Use authenticatedFetch instead for automatic token refresh
  */
 function getAuthToken(): string | null {
   return sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
@@ -421,13 +423,14 @@ class MarketingSwarmService {
     }
 
     try {
-      const response = await fetch(`${LANGGRAPH_BASE_URL}/marketing-swarm/status/${taskId}`, {
-        headers: {
-          Authorization: `Bearer ${getAuthToken()}`,
-        },
+      const response = await authenticatedFetch(`${LANGGRAPH_BASE_URL}/marketing-swarm/status/${taskId}`, {
+        method: 'GET',
       });
 
       if (!response.ok) {
+        if (response.status === 401) {
+          await triggerReLogin();
+        }
         throw new Error(`Failed to get swarm status: HTTP ${response.status}`);
       }
 
@@ -459,16 +462,17 @@ class MarketingSwarmService {
     }
 
     try {
-      const response = await fetch(`${LANGGRAPH_BASE_URL}/marketing-swarm/by-conversation/${conversationId}`, {
-        headers: {
-          Authorization: `Bearer ${getAuthToken()}`,
-        },
+      const response = await authenticatedFetch(`${LANGGRAPH_BASE_URL}/marketing-swarm/by-conversation/${conversationId}`, {
+        method: 'GET',
       });
 
       if (!response.ok) {
         if (response.status === 404) {
           // No task found for this conversation - that's okay, it's a new conversation
           return null;
+        }
+        if (response.status === 401) {
+          await triggerReLogin();
         }
         throw new Error('Failed to get task by conversation');
       }
@@ -500,13 +504,14 @@ class MarketingSwarmService {
     }
 
     try {
-      const response = await fetch(`${LANGGRAPH_BASE_URL}/marketing-swarm/state/${taskId}`, {
-        headers: {
-          Authorization: `Bearer ${getAuthToken()}`,
-        },
+      const response = await authenticatedFetch(`${LANGGRAPH_BASE_URL}/marketing-swarm/state/${taskId}`, {
+        method: 'GET',
       });
 
       if (!response.ok) {
+        if (response.status === 401) {
+          await triggerReLogin();
+        }
         throw new Error(`Failed to get swarm state: HTTP ${response.status}`);
       }
 
@@ -979,13 +984,14 @@ class MarketingSwarmService {
     }
 
     try {
-      const response = await fetch(`${LANGGRAPH_BASE_URL}/marketing-swarm/output/${outputId}/versions`, {
-        headers: {
-          Authorization: `Bearer ${getAuthToken()}`,
-        },
+      const response = await authenticatedFetch(`${LANGGRAPH_BASE_URL}/marketing-swarm/output/${outputId}/versions`, {
+        method: 'GET',
       });
 
       if (!response.ok) {
+        if (response.status === 401) {
+          await triggerReLogin();
+        }
         throw new Error(`Failed to get output versions: HTTP ${response.status}`);
       }
 
