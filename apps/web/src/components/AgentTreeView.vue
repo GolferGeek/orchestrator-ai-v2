@@ -9,9 +9,7 @@
         show-clear-button="focus"
         @ionInput="filterAgents"
       />
-      <ion-button fill="clear" @click="refreshData" :disabled="isLoading">
-          <ion-icon :icon="icons.refreshOutline" />
-        </ion-button>
+
       </div>
 
     <!-- Loading State -->
@@ -2285,7 +2283,7 @@ watch(
   flex: 1;
   font-size: 1rem;
   font-weight: 600;
-  color: var(--ion-color-primary-shade);
+  color: var(--ion-color-primary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }

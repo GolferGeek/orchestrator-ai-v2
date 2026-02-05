@@ -595,6 +595,111 @@ export class SanitizationController {
   }
 
   /**
+   * Get pseudonym mapping statistics
+   */
+  @Get('pseudonym/stats')
+  async getPseudonymStats() {
+    try {
+      const client = this.supabaseService.getServiceClient();
+
+      // Get total mappings count
+      const { count: totalMappings } = await client
+        .from('pseudonym_mappings')
+        .select('id', { count: 'exact', head: true });
+
+      // Get mappings grouped by data type
+      const { data: mappingsByTypeData } = await client
+        .from('pseudonym_mappings')
+        .select('data_type');
+
+      // Count mappings by type
+      const mappingsByType: Record<string, number> = {};
+      if (mappingsByTypeData) {
+        for (const row of mappingsByTypeData) {
+          const dataType = (row as { data_type: string }).data_type || 'custom';
+          mappingsByType[dataType] = (mappingsByType[dataType] || 0) + 1;
+        }
+      }
+
+      // Get total usage count
+      const { data: usageData } = await client
+        .from('pseudonym_mappings')
+        .select('usage_count');
+
+      let totalUsage = 0;
+      if (usageData) {
+        totalUsage = usageData.reduce(
+          (sum, row) => sum + ((row as { usage_count: number }).usage_count || 0),
+          0,
+        );
+      }
+
+      // Calculate average usage per mapping
+      const averageUsagePerMapping =
+        totalMappings && totalMappings > 0 ? totalUsage / totalMappings : 0;
+
+      // Get recent activity (last 24h, 7d, 30d)
+      const now = new Date();
+      const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      const last7d = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const last30d = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+      const { count: last24hCount } = await client
+        .from('pseudonym_mappings')
+        .select('id', { count: 'exact', head: true })
+        .gte('last_used_at', last24h.toISOString());
+
+      const { count: last7dCount } = await client
+        .from('pseudonym_mappings')
+        .select('id', { count: 'exact', head: true })
+        .gte('last_used_at', last7d.toISOString());
+
+      const { count: last30dCount } = await client
+        .from('pseudonym_mappings')
+        .select('id', { count: 'exact', head: true })
+        .gte('last_used_at', last30d.toISOString());
+
+      return {
+        success: true,
+        stats: {
+          totalMappings: totalMappings || 0,
+          mappingsByType,
+          totalUsage,
+          averageUsagePerMapping: Math.round(averageUsagePerMapping * 100) / 100,
+          recentActivity: {
+            last24h: last24hCount || 0,
+            last7d: last7dCount || 0,
+            last30d: last30dCount || 0,
+          },
+        },
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      this.logger.error(
+        'Failed to get pseudonym stats',
+        error instanceof Error ? error : String(error),
+      );
+      // Return minimal safe structure
+      return {
+        success: false,
+        stats: {
+          totalMappings: 0,
+          mappingsByType: {},
+          totalUsage: 0,
+          averageUsagePerMapping: 0,
+          recentActivity: {
+            last24h: 0,
+            last7d: 0,
+            last30d: 0,
+          },
+        },
+        timestamp: new Date().toISOString(),
+        error: error instanceof Error ? error.message : 'Failed to get stats',
+      };
+    }
+  }
+
+  /**
    * Return pseudonym dictionaries grouped for the UI
    */
   @Get('pseudonym/dictionaries')

@@ -363,30 +363,41 @@ hr {
   border-top: 1px solid var(--ion-color-step-150, #e0e0e0);
   margin: 8px 0;
 }
-/* Accordion header styling - burnt orange theme with opacity */
+/* Accordion header styling - Minimalist theme */
 .accordion-header-custom {
-  /* Subtle primary-tinted background using theme color */
-  background-color: rgba(var(--ion-color-primary-rgb), var(--app-accent-opacity)) !important;
-  background: rgba(var(--ion-color-primary-rgb), var(--app-accent-opacity)) !important;
-  --background: rgba(var(--ion-color-primary-rgb), var(--app-accent-opacity)) !important;
-  --ion-background-color: rgba(var(--ion-color-primary-rgb), var(--app-accent-opacity)) !important;
-  border-radius: 6px !important;
-  margin: 4px 8px !important; /* Horizontal margin for breathing room from edges */
-  font-weight: 500 !important;
-  /* Use text color that adapts to theme - dark in light mode, removed !important so dark mode can override */
-  --color: var(--ion-color-dark);
-  color: var(--ion-color-dark);
+  background: transparent !important;
+  --background: transparent !important;
+  --ion-background-color: transparent !important;
+  margin: 4px 8px !important; /* Keep floating look */
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+  /* Primary color text */
+  --color: var(--ion-color-primary) !important;
+  color: var(--ion-color-primary) !important;
+  --padding-start: 16px; /* Align with other items */
+}
+
+.accordion-header-custom ion-icon {
+  color: var(--ion-color-primary) !important;
+  --color: var(--ion-color-primary) !important;
+  opacity: 1 !important;
+}
+
+/* Hover effect */
+.accordion-header-custom:hover {
+  --background: var(--ion-color-step-50) !important;
+  background: var(--ion-color-step-50) !important;
 }
 
 /* Try targeting the actual Ionic CSS variables */
 ion-accordion {
-  --background: var(--ion-color-primary);
-  --color: var(--ion-color-primary-contrast);
+  --background: transparent;
+  --color: var(--ion-color-primary);
 }
 
 ion-accordion ion-item {
-  --background: var(--ion-color-primary) !important;
-  --color: var(--ion-color-primary-contrast) !important;
+  --background: transparent !important;
+  --color: var(--ion-color-primary) !important;
 }
 
 /* Main navigation accordion content */
@@ -518,14 +529,14 @@ ion-split-pane {
 /* Dark theme accordion headers */
 :global(html.ion-palette-dark) ion-accordion-group ion-accordion ion-item[slot="header"],
 :global(html[data-theme="dark"]) ion-accordion-group ion-accordion ion-item[slot="header"] {
-  --background: var(--ion-color-primary-shade) !important;
-  --color: var(--ion-color-primary-contrast) !important;
+  --background: transparent !important;
+  --color: var(--ion-color-primary-tint) !important;
 }
 
 :global(html.ion-palette-dark) .accordion-header-custom,
 :global(html[data-theme="dark"]) .accordion-header-custom {
-  background-color: rgba(var(--ion-color-primary-rgb), 0.45) !important;
-  background: rgba(var(--ion-color-primary-rgb), 0.45) !important;
+  background-color: transparent !important;
+  background: transparent !important;
 }
 
 :global(html.ion-palette-dark) .main-nav-content,
@@ -588,59 +599,62 @@ html[data-theme="light"] .theme-toggle ion-icon {
   color: #333333 !important;
 }
 
-/* Dark mode accordion header text - must be white for legibility */
+/* Dark mode accordion header text - clean style */
 html.ion-palette-dark .accordion-header-custom,
 html[data-theme="dark"] .accordion-header-custom {
-  --color: #ffffff !important;
-  color: #ffffff !important;
+  --color: var(--ion-color-primary-tint) !important;
+  color: var(--ion-color-primary-tint) !important;
+  --background: transparent !important;
 }
 
 html.ion-palette-dark .accordion-header-custom ion-label,
 html[data-theme="dark"] .accordion-header-custom ion-label {
-  --color: #ffffff !important;
-  color: #ffffff !important;
+  --color: var(--ion-color-primary-tint) !important;
+  color: var(--ion-color-primary-tint) !important;
 }
 
 html.ion-palette-dark .accordion-header-custom ion-icon,
 html[data-theme="dark"] .accordion-header-custom ion-icon {
-  color: #ffffff !important;
+  color: var(--ion-color-primary-tint) !important;
 }
 
 html.ion-palette-dark ion-accordion ion-item[slot="header"],
 html[data-theme="dark"] ion-accordion ion-item[slot="header"] {
-  --color: #ffffff !important;
-  color: #ffffff !important;
+  --color: var(--ion-color-primary-tint) !important;
+  color: var(--ion-color-primary-tint) !important;
+  --background: transparent !important;
 }
 
 html.ion-palette-dark ion-accordion ion-item[slot="header"] ion-label,
 html[data-theme="dark"] ion-accordion ion-item[slot="header"] ion-label {
-  --color: #ffffff !important;
-  color: #ffffff !important;
+  --color: var(--ion-color-primary-tint) !important;
+  color: var(--ion-color-primary-tint) !important;
 }
 
 /* Also target via ion-menu context for higher specificity */
 html.ion-palette-dark ion-menu .accordion-header-custom,
 html[data-theme="dark"] ion-menu .accordion-header-custom {
-  --color: #ffffff !important;
-  color: #ffffff !important;
+  --color: var(--ion-color-primary-tint) !important;
+  color: var(--ion-color-primary-tint) !important;
 }
 
 html.ion-palette-dark ion-menu .accordion-header-custom ion-label,
 html[data-theme="dark"] ion-menu .accordion-header-custom ion-label {
-  --color: #ffffff !important;
-  color: #ffffff !important;
+  --color: var(--ion-color-primary-tint) !important;
+  color: var(--ion-color-primary-tint) !important;
 }
 
 html.ion-palette-dark ion-menu ion-accordion-group ion-accordion ion-item,
 html[data-theme="dark"] ion-menu ion-accordion-group ion-accordion ion-item {
-  --color: #ffffff !important;
-  color: #ffffff !important;
+  --color: var(--ion-color-primary-tint) !important;
+  color: var(--ion-color-primary-tint) !important;
+  --background: transparent !important;
 }
 
 html.ion-palette-dark ion-menu ion-accordion-group ion-accordion ion-item ion-label,
 html[data-theme="dark"] ion-menu ion-accordion-group ion-accordion ion-item ion-label {
-  --color: #ffffff !important;
-  color: #ffffff !important;
+  --color: var(--ion-color-primary-tint) !important;
+  color: var(--ion-color-primary-tint) !important;
 }
 
 /* Dark mode for Deliverables & Evaluations menu items */
