@@ -1,55 +1,69 @@
 <template>
   <section id="pricing" class="pricing-section landing-section animate-on-scroll">
     <div class="section-header">
-      <h2>Founding Partner Pricing</h2>
+      <h2>Partnership Pricing</h2>
       <p class="section-subtitle">
-        Transparent, partnership-oriented pricing. No hidden fees, no long-term lock-ins.
-        We grow with you.
+        Try before you commit. We build your first agents for free, then you decide.
       </p>
     </div>
     <div class="pricing-grid">
-      <!-- Setup Package -->
+      <!-- Trial Week -->
       <div class="pricing-card highlight">
-        <h3 class="package-title">Founding Partner Setup</h3>
-        <p class="package-price">$25,000 <span class="price-tag">one-time</span></p>
+        <h3 class="package-title">1 Week Free Trial</h3>
+        <p class="package-price">$0 <span class="price-tag">to start</span></p>
         <ul class="package-features">
-          <li>🚀 Private fork deployed on your server</li>
-          <li>🔐 Security-hardened Docker container</li>
-          <li>⚙️ 80 hours customization credit</li>
-          <li>📈 Priority roadmap influence</li>
+          <li>System setup on your infrastructure</li>
+          <li>Build your first agents/workflows</li>
+          <li>See real results before paying</li>
+          <li>No obligation to continue</li>
         </ul>
         <ion-button size="large" class="cta-button" @click="$emit('scheduleCall')">
-          Reserve Your Spot (5 left)
+          Start Free Trial
+        </ion-button>
+      </div>
+      <!-- After Trial -->
+      <div class="pricing-card">
+        <h3 class="package-title">After Trial</h3>
+        <p class="package-price">$5K <span class="price-tag">system</span> + $5K <span class="price-tag">consulting</span></p>
+        <ul class="package-features">
+          <li>Keep the system and agents we built</li>
+          <li>Or we return all code and documentation</li>
+          <li>Your choice - no pressure</li>
+          <li>Full ownership of everything</li>
+        </ul>
+        <ion-button size="large" fill="outline" class="cta-button secondary" @click="$emit('scheduleCall')">
+          Learn More
         </ion-button>
       </div>
       <!-- Ongoing Development -->
       <div class="pricing-card">
-        <h3 class="package-title">Ongoing Development</h3>
+        <h3 class="package-title">Development</h3>
         <p class="package-price">$100/hr <span class="price-tag">Founder</span></p>
-        <p class="sub-price">$40/hr <span class="price-tag">Interns</span></p>
+        <p class="sub-price">$40-50/hr <span class="price-tag">Interns</span></p>
         <ul class="package-features">
-          <li>🔧 Pay-as-you-go, billed weekly</li>
-          <li>🧰 Mix founder & intern hours as needed</li>
-          <li>📊 Time-tracking transparency</li>
-          <li>📅 10 hrs/mo included retainer</li>
+          <li>Pay-as-you-go development</li>
+          <li>Mix founder & intern hours</li>
+          <li>Happy to train your team anytime</li>
+          <li>Transition to subscription when ready</li>
         </ul>
         <ion-button size="large" fill="outline" class="cta-button secondary" @click="$emit('scheduleCall')">
           Discuss Your Project
         </ion-button>
       </div>
-      <!-- Updates & Separation -->
+      <!-- System Licensing -->
       <div class="pricing-card">
-        <h3 class="package-title">Updates & Separation</h3>
-        <p class="package-price">Continuous Updates <span class="price-tag">free while active</span></p>
-        <p class="sub-price">$25,000 <span class="price-tag">separation fee*</span></p>
+        <h3 class="package-title">System License</h3>
+        <p class="package-price">$10K <span class="price-tag">at 4 weeks</span></p>
+        <p class="sub-price">$10K <span class="price-tag">at 6 months</span></p>
+        <p class="sub-price">$20K/year <span class="price-tag">ongoing</span></p>
         <ul class="package-features">
-          <li>📦 Automated merges of core system</li>
-          <li>🔀 We avoid conflicts with your custom agents</li>
-          <li>🛡️ You keep your code fork forever</li>
-          <li>💡 *Waived after $50k development spend</li>
+          <li>Continuous system updates</li>
+          <li>New features and improvements</li>
+          <li>Switch to subscription anytime</li>
+          <li>Your code stays yours forever</li>
         </ul>
         <ion-button size="large" fill="outline" class="cta-button" @click="$emit('scheduleCall')">
-          Learn More
+          Schedule Call
         </ion-button>
       </div>
     </div>
