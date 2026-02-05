@@ -146,7 +146,7 @@ import VersionSelector from '@/components/shared/VersionSelector.vue';
 import VersionBadge from '@/components/shared/VersionBadge.vue';
 import DeliverableActionButtons from './DeliverableActionButtons.vue';
 import TaskRating from '@/components/TaskRating.vue';
-import { deliverablesService } from '@/services/deliverablesService';
+import { deliverablesService, DeliverableVersionCreationType, DeliverableFormat } from '@/services/deliverablesService';
 import { useDeliverablesStore } from '@/stores/deliverablesStore';
 import type { DeliverableVersion } from '@/services/deliverablesService';
 import type { VersionCreationType } from '@/components/shared/types';
@@ -426,9 +426,9 @@ async function saveEdit() {
     // Call API to create new version
     const newVersion = await deliverablesService.createVersion(props.deliverableId, {
       content: JSON.stringify(newContent),
-      format: currentVersion.format || 'json',
-      createdByType: 'manual_edit',
-      previousVersionId: currentVersion.id,
+      format: (currentVersion.format as DeliverableFormat) || DeliverableFormat.JSON,
+      createdByType: DeliverableVersionCreationType.MANUAL_EDIT,
+      metadata: { previousVersionId: currentVersion.id },
     });
 
     // Add to store

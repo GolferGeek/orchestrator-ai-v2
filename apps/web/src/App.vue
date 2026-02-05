@@ -19,8 +19,10 @@
   </ion-app>
 </template>
 <script lang="ts" setup>
-import { onMounted } from 'vue';
+import { onMounted, onUnmounted } from 'vue';
 import { IonApp, IonRouterOutlet } from '@ionic/vue';
+import { useRouter } from 'vue-router';
+import { useRbacStore } from '@/stores/rbacStore';
 import ErrorBoundary from '@/components/common/ErrorBoundary.vue';
 import GlobalErrorNotification from '@/components/common/GlobalErrorNotification.vue';
 import GlobalErrorBoundary from '@/components/ErrorHandling/GlobalErrorBoundary.vue';
@@ -72,9 +74,23 @@ const onErrorReport = (error: Error, errorInfo: ErrorInfo) => {
   // For example, showing a feedback form, etc.
 };
 
+// Router and auth store for session handling
+const router = useRouter();
+const rbacStore = useRbacStore();
+
+// Handle session-expired events from authenticatedFetch
+const handleSessionExpired = async () => {
+  console.log('[App] Session expired, logging out and redirecting to login');
+  await rbacStore.logout();
+  router.push('/login');
+};
+
 // Set up global Vue error handler
 onMounted(() => {
   // Log initial error summary
+
+  // Listen for session-expired events
+  window.addEventListener('auth:session-expired', handleSessionExpired);
 
   // Test error handling in development
   if (isDevelopment && import.meta.env.VITE_TEST_ERRORS === 'true') {
@@ -82,6 +98,11 @@ onMounted(() => {
       testErrorHandling();
     }, 5000);
   }
+});
+
+// Clean up event listener
+onUnmounted(() => {
+  window.removeEventListener('auth:session-expired', handleSessionExpired);
 });
 
 // Expose error handling for debugging
