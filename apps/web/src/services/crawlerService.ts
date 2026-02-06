@@ -38,13 +38,15 @@ export interface Source {
   updated_at: string;
 }
 
-export interface SignalSummary {
+export interface PredictorSummary {
+  id: string;
   symbol: string;
   target_id: string;
-  disposition: string;
-  direction: string | null;
-  urgency: string | null;
-  confidence: number | null;
+  direction: 'bullish' | 'bearish' | 'neutral';
+  strength: number;
+  confidence: number;
+  analyst_slug: string;
+  created_at: string;
 }
 
 export interface Article {
@@ -64,7 +66,7 @@ export interface Article {
   is_test: boolean;
   first_seen_at: string;
   metadata: Record<string, unknown>;
-  signals?: SignalSummary[];
+  predictors?: PredictorSummary[];
 }
 
 export interface SourceCrawl {
@@ -122,6 +124,17 @@ export interface DashboardStats {
     fuzzy_title: number;
     phrase_overlap: number;
   };
+}
+
+export interface SourceSummary {
+  source_id: string;
+  source_name: string;
+  total_articles: number;
+  total_predictors: number;
+  articles_with_predictors: number;
+  avg_predictors_per_article: number;
+  recent_articles_24h: number;
+  recent_predictors_24h: number;
 }
 
 export interface CreateSourceData {
@@ -243,15 +256,28 @@ class CrawlerService {
   async getSourceArticles(
     organizationSlug: string,
     sourceId: string,
-    options: { limit?: number; since?: string; includeSignals?: boolean } = {},
+    options: { limit?: number; since?: string; includePredictors?: boolean } = {},
   ): Promise<Article[]> {
     const params = new URLSearchParams();
     if (options.limit) params.append('limit', String(options.limit));
     if (options.since) params.append('since', options.since);
-    if (options.includeSignals) params.append('includeSignals', 'true');
+    if (options.includePredictors) params.append('includePredictors', 'true');
     const query = params.toString() ? `?${params.toString()}` : '';
     return apiService.get<Article[]>(
       `${API_BASE}/sources/${sourceId}/articles${query}`,
+      { headers: this.getOrgHeader(organizationSlug) },
+    );
+  }
+
+  /**
+   * Get summary statistics for a source
+   */
+  async getSourceSummary(
+    organizationSlug: string,
+    sourceId: string,
+  ): Promise<SourceSummary> {
+    return apiService.get<SourceSummary>(
+      `${API_BASE}/sources/${sourceId}/summary`,
       { headers: this.getOrgHeader(organizationSlug) },
     );
   }

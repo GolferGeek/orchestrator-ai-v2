@@ -32,22 +32,24 @@ import {
 import { CrawlerRunner } from './runners/crawler.runner';
 
 /**
- * Signal summary for article display
+ * Predictor summary for article display
  */
-interface SignalSummary {
+interface PredictorSummary {
+  id: string;
   symbol: string;
   target_id: string;
-  disposition: string;
-  direction: string | null;
-  urgency: string | null;
-  confidence: number | null;
+  direction: 'bullish' | 'bearish' | 'neutral';
+  strength: number;
+  confidence: number;
+  analyst_slug: string;
+  created_at: string;
 }
 
 /**
- * Article with associated signals
+ * Article with associated predictors
  */
-interface ArticleWithSignals extends Article {
-  signals: SignalSummary[];
+interface ArticleWithPredictors extends Article {
+  predictors: PredictorSummary[];
 }
 
 /**
@@ -149,63 +151,67 @@ export class CrawlerAdminController {
   ) {}
 
   /**
-   * Get signals for a list of article URLs
+   * Get predictors for a list of article IDs
    */
-  private async getSignalsForArticles(
-    urls: string[],
-  ): Promise<Map<string, SignalSummary[]>> {
-    if (urls.length === 0) return new Map();
+  private async getPredictorsForArticles(
+    articleIds: string[],
+  ): Promise<Map<string, PredictorSummary[]>> {
+    if (articleIds.length === 0) return new Map();
 
     const { data, error } = await this.supabaseService
       .getServiceClient()
       .schema('prediction')
-      .from('signals')
+      .from('predictors')
       .select(
         `
-        url,
+        id,
+        article_id,
         target_id,
-        disposition,
         direction,
-        urgency,
-        evaluation_result,
+        strength,
+        confidence,
+        analyst_slug,
+        created_at,
         targets:target_id (symbol)
       `,
       )
-      .in('url', urls);
+      .in('article_id', articleIds)
+      .eq('status', 'active');
 
     if (error) {
-      this.logger.error(`Failed to fetch signals: ${error.message}`);
+      this.logger.error(`Failed to fetch predictors: ${error.message}`);
       return new Map();
     }
 
-    const signalMap = new Map<string, SignalSummary[]>();
-    for (const signal of data || []) {
-      const url = signal.url as string;
-      if (!signalMap.has(url)) {
-        signalMap.set(url, []);
+    const predictorMap = new Map<string, PredictorSummary[]>();
+    for (const predictor of data || []) {
+      const articleId = predictor.article_id as string;
+      if (!articleId) continue;
+
+      if (!predictorMap.has(articleId)) {
+        predictorMap.set(articleId, []);
       }
       // Supabase join returns single object for singular FK relationship
-      const target = signal.targets as unknown as { symbol: string } | null;
-      const evalResult = signal.evaluation_result as {
-        confidence?: number;
-      } | null;
+      const target = predictor.targets as unknown as { symbol: string } | null;
 
-      signalMap.get(url)!.push({
+      predictorMap.get(articleId)!.push({
+        id: predictor.id as string,
         symbol: target?.symbol || 'Unknown',
-        target_id: signal.target_id as string,
-        disposition: signal.disposition as string,
-        direction: signal.direction as string | null,
-        urgency: signal.urgency as string | null,
-        confidence: evalResult?.confidence || null,
+        target_id: predictor.target_id as string,
+        direction: predictor.direction as 'bullish' | 'bearish' | 'neutral',
+        strength: predictor.strength as number,
+        confidence: predictor.confidence as number,
+        analyst_slug: predictor.analyst_slug as string,
+        created_at: predictor.created_at as string,
       });
     }
 
-    // Sort signals by symbol within each URL group
-    for (const signals of signalMap.values()) {
-      signals.sort((a, b) => a.symbol.localeCompare(b.symbol));
+    // Sort predictors by symbol within each article group
+    for (const predictors of predictorMap.values()) {
+      predictors.sort((a, b) => a.symbol.localeCompare(b.symbol));
     }
 
-    return signalMap;
+    return predictorMap;
   }
 
   /**
@@ -545,7 +551,7 @@ export class CrawlerAdminController {
   }
 
   /**
-   * Get recent articles for a source (basic, without signals)
+   * Get recent articles for a source (with optional predictors)
    */
   @Get('sources/:id/articles')
   async getSourceArticles(
@@ -553,8 +559,8 @@ export class CrawlerAdminController {
     @Param('id') id?: string,
     @Query('limit') limit?: string,
     @Query('since') since?: string,
-    @Query('includeSignals') includeSignals?: string,
-  ): Promise<Article[] | ArticleWithSignals[]> {
+    @Query('includePredictors') includePredictors?: string,
+  ): Promise<Article[] | ArticleWithPredictors[]> {
     const orgSlug = getOrgSlug(orgHeader);
 
     if (!id) {
@@ -575,14 +581,16 @@ export class CrawlerAdminController {
         limit ? parseInt(limit, 10) : 50,
       );
 
-      // If signals requested, enrich articles with signal data
-      if (includeSignals === 'true') {
-        const urls = articles.map((a) => a.url).filter((u): u is string => !!u);
-        const signalMap = await this.getSignalsForArticles(urls);
+      // If predictors requested, enrich articles with predictor data
+      if (includePredictors === 'true') {
+        const articleIds = articles
+          .map((a) => a.id)
+          .filter((id): id is string => !!id);
+        const predictorMap = await this.getPredictorsForArticles(articleIds);
 
         return articles.map((article) => ({
           ...article,
-          signals: signalMap.get(article.url) || [],
+          predictors: predictorMap.get(article.id) || [],
         }));
       }
 
@@ -637,6 +645,98 @@ export class CrawlerAdminController {
       this.logger.error(`Failed to trigger crawl: ${String(error)}`);
       throw new HttpException(
         'Failed to trigger crawl',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * Get summary statistics for a source
+   */
+  @Get('sources/:id/summary')
+  async getSourceSummary(
+    @Headers('x-organization-slug') orgHeader?: string,
+    @Param('id') id?: string,
+  ): Promise<{
+    source_id: string;
+    source_name: string;
+    total_articles: number;
+    total_predictors: number;
+    articles_with_predictors: number;
+    avg_predictors_per_article: number;
+    recent_articles_24h: number;
+    recent_predictors_24h: number;
+  }> {
+    const orgSlug = getOrgSlug(orgHeader);
+
+    if (!id) {
+      throw new BadRequestException('Source ID is required');
+    }
+
+    try {
+      // Verify ownership
+      const source = await this.sourceRepository.findById(id);
+      if (!source || source.organization_slug !== orgSlug) {
+        throw new HttpException('Source not found', HttpStatus.NOT_FOUND);
+      }
+
+      // Get total articles
+      const totalArticles = await this.articleRepository.countForSource(id);
+
+      // Get article IDs for this source
+      const articles = await this.articleRepository.findNewForSource(
+        id,
+        new Date(0),
+        10000, // Large limit to get all articles
+      );
+      const articleIds = articles
+        .map((a) => a.id)
+        .filter((id): id is string => !!id);
+
+      // Get predictors for these articles
+      const predictorMap = await this.getPredictorsForArticles(articleIds);
+      const totalPredictors = Array.from(predictorMap.values()).reduce(
+        (sum, predictors) => sum + predictors.length,
+        0,
+      );
+      const articlesWithPredictors = Array.from(predictorMap.keys()).length;
+      const avgPredictorsPerArticle =
+        articlesWithPredictors > 0
+          ? totalPredictors / articlesWithPredictors
+          : 0;
+
+      // Get recent articles (24h)
+      const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const recentArticles = await this.articleRepository.findNewForSource(
+        id,
+        since24h,
+        10000,
+      );
+      const recentArticleIds = recentArticles
+        .map((a) => a.id)
+        .filter((id): id is string => !!id);
+      const recentPredictorMap =
+        await this.getPredictorsForArticles(recentArticleIds);
+      const recentPredictors24h = Array.from(
+        recentPredictorMap.values(),
+      ).reduce((sum, predictors) => sum + predictors.length, 0);
+
+      return {
+        source_id: id,
+        source_name: source.name,
+        total_articles: totalArticles,
+        total_predictors: totalPredictors,
+        articles_with_predictors: articlesWithPredictors,
+        avg_predictors_per_article:
+          Math.round(avgPredictorsPerArticle * 10) / 10,
+        recent_articles_24h: recentArticles.length,
+        recent_predictors_24h: recentPredictors24h,
+      };
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      this.logger.error(`Failed to get source summary: ${String(error)}`);
+      throw new HttpException(
+        'Failed to get source summary',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

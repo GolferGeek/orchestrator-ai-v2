@@ -124,6 +124,73 @@ export class PredictorRepository {
     return data ?? [];
   }
 
+  /**
+   * Find all predictors for a specific article
+   * Used for displaying predictors created from an article
+   */
+  async findByArticleId(articleId: string): Promise<Predictor[]> {
+    const { data, error } = (await this.getClient()
+      .schema(this.schema)
+      .from(this.table)
+      .select('*')
+      .eq('article_id', articleId)
+      .order('created_at', {
+        ascending: false,
+      })) as SupabaseSelectListResponse<Predictor>;
+
+    if (error) {
+      this.logger.error(
+        `Failed to fetch predictors by article: ${error.message}`,
+      );
+      throw new Error(
+        `Failed to fetch predictors by article: ${error.message}`,
+      );
+    }
+
+    return data ?? [];
+  }
+
+  /**
+   * Find predictors for multiple articles
+   * Used for bulk fetching predictors for article lists
+   */
+  async findByArticleIds(
+    articleIds: string[],
+  ): Promise<Map<string, Predictor[]>> {
+    if (articleIds.length === 0) return new Map();
+
+    const { data, error } = (await this.getClient()
+      .schema(this.schema)
+      .from(this.table)
+      .select('*')
+      .in('article_id', articleIds)
+      .order('created_at', {
+        ascending: false,
+      })) as SupabaseSelectListResponse<Predictor>;
+
+    if (error) {
+      this.logger.error(
+        `Failed to fetch predictors by articles: ${error.message}`,
+      );
+      throw new Error(
+        `Failed to fetch predictors by articles: ${error.message}`,
+      );
+    }
+
+    // Group predictors by article_id
+    const predictorMap = new Map<string, Predictor[]>();
+    for (const predictor of data ?? []) {
+      if (predictor.article_id) {
+        if (!predictorMap.has(predictor.article_id)) {
+          predictorMap.set(predictor.article_id, []);
+        }
+        predictorMap.get(predictor.article_id)!.push(predictor);
+      }
+    }
+
+    return predictorMap;
+  }
+
   async create(predictorData: CreatePredictorData): Promise<Predictor> {
     const { data, error } = (await this.getClient()
       .schema(this.schema)

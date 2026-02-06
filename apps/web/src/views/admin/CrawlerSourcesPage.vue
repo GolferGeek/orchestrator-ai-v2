@@ -41,32 +41,53 @@
           </div>
         </div>
 
-        <!-- Article to Signal Conversion Diagnostic -->
-        <div class="diagnostic-section">
-          <ion-card class="diagnostic-card">
+        <!-- Source Summary Section -->
+        <div v-if="sources.length > 0" class="summary-section">
+          <ion-card class="summary-card">
             <ion-card-header>
-              <ion-card-title>Article &rarr; Signal Conversion</ion-card-title>
-              <ion-card-subtitle>Sample of recent articles</ion-card-subtitle>
+              <ion-card-title>Source Summary</ion-card-title>
+              <ion-card-subtitle>Overview of articles and predictors</ion-card-subtitle>
             </ion-card-header>
             <ion-card-content>
-              <div v-if="loadingSampleData" class="loading-inline">
+              <div v-if="loadingSummary" class="loading-inline">
                 <ion-spinner name="dots" />
-                <span>Loading sample...</span>
+                <span>Loading summary...</span>
               </div>
-              <div v-else-if="sampleArticles.length > 0" class="sample-stats">
-                <div class="sample-summary">
-                  <h3>{{ totalSignalsInSample }}</h3>
-                  <p>signals from {{ sampleArticles.length }} recent articles</p>
-                  <p class="ratio">Avg: {{ avgSignalsPerArticle }} signals/article</p>
+              <div v-else-if="sourceSummary" class="summary-stats">
+                <div class="summary-grid">
+                  <div class="summary-stat">
+                    <div class="summary-value">{{ sourceSummary.total_articles }}</div>
+                    <div class="summary-label">Total Articles</div>
+                  </div>
+                  <div class="summary-stat">
+                    <div class="summary-value">{{ sourceSummary.total_predictors }}</div>
+                    <div class="summary-label">Total Predictors</div>
+                  </div>
+                  <div class="summary-stat">
+                    <div class="summary-value">{{ sourceSummary.articles_with_predictors }}</div>
+                    <div class="summary-label">Articles with Predictors</div>
+                  </div>
+                  <div class="summary-stat">
+                    <div class="summary-value">{{ sourceSummary.avg_predictors_per_article }}</div>
+                    <div class="summary-label">Avg Predictors/Article</div>
+                  </div>
+                  <div class="summary-stat">
+                    <div class="summary-value">{{ sourceSummary.recent_articles_24h }}</div>
+                    <div class="summary-label">Articles (24h)</div>
+                  </div>
+                  <div class="summary-stat">
+                    <div class="summary-value">{{ sourceSummary.recent_predictors_24h }}</div>
+                    <div class="summary-label">Predictors (24h)</div>
+                  </div>
                 </div>
-                <ion-button size="small" fill="clear" @click="loadSampleData">
+                <ion-button size="small" fill="clear" @click="loadSourceSummary">
                   <ion-icon :icon="refreshOutline" slot="start" />
-                  Refresh Sample
+                  Refresh Summary
                 </ion-button>
               </div>
-              <div v-else class="empty-sample">
-                <p>No articles with signals found</p>
-                <ion-button size="small" @click="loadSampleData">Load Sample</ion-button>
+              <div v-else class="empty-summary">
+                <p>No summary data available</p>
+                <ion-button size="small" @click="loadSourceSummary">Load Summary</ion-button>
               </div>
             </ion-card-content>
           </ion-card>
@@ -113,7 +134,7 @@
             <ion-spinner name="dots" />
           </div>
           <div v-else-if="recentActivity.length === 0" class="empty-activity">
-            No recent articles with signals
+            No recent articles with predictors
           </div>
           <div v-else class="activity-list">
             <div
@@ -127,14 +148,14 @@
                   {{ formatArticleDate(article.first_seen_at) }}
                 </div>
               </div>
-              <div class="activity-signals">
+              <div class="activity-predictors">
                 <ion-chip
-                  v-for="signal in getUniqueSignals(article.signals)"
-                  :key="`${article.id}-${signal.target_id}`"
-                  :color="getSignalColor(signal.disposition)"
+                  v-for="predictor in getUniquePredictors(article.predictors)"
+                  :key="`${article.id}-${predictor.id}`"
+                  :color="getPredictorColor(predictor.direction)"
                   size="small"
                 >
-                  <span class="signal-symbol">{{ signal.symbol }}</span>
+                  <span class="predictor-symbol">{{ predictor.symbol }}</span>
                 </ion-chip>
               </div>
             </div>
@@ -385,26 +406,27 @@
               </p>
               <p v-else class="no-summary">No summary available</p>
 
-              <!-- Signals for this article -->
-              <div v-if="article.signals && article.signals.length > 0" class="article-signals">
-                <div class="signals-header">Signals:</div>
-                <div class="signals-list">
+              <!-- Predictors for this article -->
+              <div v-if="article.predictors && article.predictors.length > 0" class="article-predictors">
+                <div class="predictors-header">Predictors:</div>
+                <div class="predictors-list">
                   <ion-chip
-                    v-for="signal in article.signals"
-                    :key="signal.target_id"
-                    :color="getSignalColor(signal.disposition)"
+                    v-for="predictor in article.predictors"
+                    :key="predictor.id"
+                    :color="getPredictorColor(predictor.direction)"
                     size="small"
                   >
-                    <span class="signal-symbol">{{ signal.symbol }}</span>
-                    <span class="signal-disposition">{{ formatDisposition(signal.disposition) }}</span>
-                    <span v-if="signal.confidence" class="signal-confidence">
-                      {{ (signal.confidence * 100).toFixed(0) }}%
+                    <span class="predictor-symbol">{{ predictor.symbol }}</span>
+                    <span class="predictor-direction">{{ predictor.direction }}</span>
+                    <span class="predictor-strength">Strength: {{ predictor.strength }}/10</span>
+                    <span class="predictor-confidence">
+                      {{ (predictor.confidence * 100).toFixed(0) }}%
                     </span>
                   </ion-chip>
                 </div>
               </div>
-              <div v-else-if="article.signals" class="no-signals">
-                No signals generated
+              <div v-else-if="article.predictors" class="no-predictors">
+                No predictors generated
               </div>
             </div>
           </div>
@@ -554,7 +576,8 @@ import {
   type SourceType,
   type CrawlFrequency,
   type Article,
-  type SignalSummary,
+  type PredictorSummary,
+  type SourceSummary,
 } from '@/services/crawlerService';
 import { useAuthStore } from '@/stores/rbacStore';
 
@@ -577,7 +600,7 @@ const expandedSourceId = ref<string | null>(null);
 const sourceCrawls = ref<SourceCrawl[]>([]);
 const loadingCrawls = ref(false);
 
-// Sample data for signal analysis
+// Sample data for predictor analysis (deprecated - using summary instead)
 const loadingSampleData = ref(false);
 const sampleArticles = ref<Article[]>([]);
 
@@ -587,6 +610,10 @@ const articlesSource = ref<SourceWithStats | null>(null);
 const articles = ref<Article[]>([]);
 const loadingArticles = ref(false);
 const articleTimeFilter = ref<'today' | '3days' | 'week' | 'month' | 'all'>('3days');
+
+// Source summary state
+const sourceSummary = ref<SourceSummary | null>(null);
+const loadingSummary = ref(false);
 
 // Activity feed state
 const recentActivity = ref<Article[]>([]);
@@ -635,16 +662,6 @@ const totalDedup = computed(() => {
   return d.exact + d.cross_source + d.fuzzy_title + d.phrase_overlap;
 });
 
-const totalSignalsInSample = computed(() => {
-  return sampleArticles.value.reduce((total, article) => {
-    return total + (article.signals?.length || 0);
-  }, 0);
-});
-
-const avgSignalsPerArticle = computed(() => {
-  if (sampleArticles.value.length === 0) return '0.0';
-  return (totalSignalsInSample.value / sampleArticles.value.length).toFixed(1);
-});
 
 const isFormValid = computed(() => {
   return sourceForm.value.name.trim() !== '' && sourceForm.value.url.trim() !== '';
@@ -725,7 +742,7 @@ async function loadSampleData() {
 
     const result = await crawlerService.getSourceArticles(orgSlug, activeSource.id, {
       limit: 100,
-      includeSignals: true,
+      includePredictors: true,
     });
 
     sampleArticles.value = result;
@@ -733,6 +750,27 @@ async function loadSampleData() {
     console.error('Failed to load sample data:', e);
   } finally {
     loadingSampleData.value = false;
+  }
+}
+
+async function loadSourceSummary() {
+  if (!sources.value.length) return;
+  
+  loadingSummary.value = true;
+  try {
+    const orgSlug = getOrgSlug();
+    const activeSource = sources.value.find(s => s.is_active && s.article_count > 0);
+    if (!activeSource) {
+      sourceSummary.value = null;
+      return;
+    }
+
+    sourceSummary.value = await crawlerService.getSourceSummary(orgSlug, activeSource.id);
+  } catch (e) {
+    console.error('Failed to load source summary:', e);
+    sourceSummary.value = null;
+  } finally {
+    loadingSummary.value = false;
   }
 }
 
@@ -954,7 +992,7 @@ async function loadArticles() {
     const result = await crawlerService.getSourceArticles(
       orgSlug,
       articlesSource.value.id,
-      { limit: 500, since, includeSignals: true },
+      { limit: 500, since, includePredictors: true },
     );
     articles.value = result;
   } catch (e) {
@@ -984,52 +1022,27 @@ function formatArticleDate(dateStr: string): string {
   }
 }
 
-// Signal display helpers
-function getUniqueSignals(signals: SignalSummary[] | undefined): SignalSummary[] {
-  if (!signals || signals.length === 0) return [];
+// Predictor display helpers
+function getUniquePredictors(predictors: PredictorSummary[] | undefined): PredictorSummary[] {
+  if (!predictors || predictors.length === 0) return [];
   const seen = new Set<string>();
-  return signals.filter((signal) => {
-    if (seen.has(signal.target_id)) return false;
-    seen.add(signal.target_id);
+  return predictors.filter((predictor) => {
+    if (seen.has(predictor.id)) return false;
+    seen.add(predictor.id);
     return true;
   });
 }
 
-function getSignalColor(disposition: string): string {
-  switch (disposition) {
-    case 'predictor_created':
+function getPredictorColor(direction: 'bullish' | 'bearish' | 'neutral'): string {
+  switch (direction) {
+    case 'bullish':
       return 'success';
-    case 'processing':
-      return 'primary';
-    case 'pending':
-      return 'warning';
-    case 'rejected':
-      return 'medium';
-    case 'expired':
-      return 'dark';
-    case 'error':
+    case 'bearish':
       return 'danger';
+    case 'neutral':
+      return 'medium';
     default:
       return 'medium';
-  }
-}
-
-function formatDisposition(disposition: string): string {
-  switch (disposition) {
-    case 'predictor_created':
-      return 'Predictor';
-    case 'processing':
-      return 'Processing';
-    case 'pending':
-      return 'Pending';
-    case 'rejected':
-      return 'Rejected';
-    case 'expired':
-      return 'Expired';
-    case 'error':
-      return 'Error';
-    default:
-      return disposition;
   }
 }
 
@@ -1044,13 +1057,13 @@ async function loadRecentActivity() {
       const sourceArticles = await crawlerService.getSourceArticles(
         orgSlug,
         source.id,
-        { limit: 10, since, includeSignals: true },
+        { limit: 10, since, includePredictors: true },
       );
       allArticles.push(...sourceArticles);
     }
 
     recentActivity.value = allArticles
-      .filter((a) => a.signals && a.signals.length > 0)
+      .filter((a) => a.predictors && a.predictors.length > 0)
       .sort((a, b) => new Date(b.first_seen_at).getTime() - new Date(a.first_seen_at).getTime())
       .slice(0, 10);
   } catch (e) {
@@ -1070,6 +1083,7 @@ onMounted(async () => {
   await loadSources();
   if (sources.value.length > 0) {
     loadRecentActivity();
+    loadSourceSummary();
   }
 });
 </script>
@@ -1459,14 +1473,14 @@ onMounted(async () => {
   --height: 85%;
 }
 
-/* Signal display styles */
-.article-signals {
+/* Predictor display styles */
+.article-predictors {
   margin-top: 0.75rem;
   padding-top: 0.75rem;
   border-top: 1px solid var(--ion-border-color);
 }
 
-.signals-header {
+.predictors-header {
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--ion-color-medium);
@@ -1475,35 +1489,42 @@ onMounted(async () => {
   letter-spacing: 0.05em;
 }
 
-.signals-list {
+.predictors-list {
   display: flex;
   flex-wrap: wrap;
   gap: 0.375rem;
 }
 
-.signals-list ion-chip {
+.predictors-list ion-chip {
   margin: 0;
   height: auto;
   padding: 0.25rem 0.5rem;
 }
 
-.signal-symbol {
+.predictor-symbol {
   font-weight: 600;
   margin-right: 0.25rem;
 }
 
-.signal-disposition {
+.predictor-direction {
   font-size: 0.7rem;
   opacity: 0.9;
+  margin-right: 0.25rem;
+  text-transform: capitalize;
 }
 
-.signal-confidence {
+.predictor-strength {
   font-size: 0.65rem;
-  margin-left: 0.25rem;
+  margin-right: 0.25rem;
   opacity: 0.8;
 }
 
-.no-signals {
+.predictor-confidence {
+  font-size: 0.65rem;
+  opacity: 0.8;
+}
+
+.no-predictors {
   margin-top: 0.5rem;
   font-size: 0.8rem;
   color: var(--ion-color-medium);
@@ -1579,21 +1600,74 @@ onMounted(async () => {
   color: var(--ion-color-medium);
 }
 
-.activity-signals {
+.activity-predictors {
   display: flex;
   flex-wrap: wrap;
   gap: 0.25rem;
   margin-left: 0.5rem;
 }
 
-.activity-signals ion-chip {
+.activity-predictors ion-chip {
   margin: 0;
   height: auto;
   padding: 0.125rem 0.375rem;
 }
 
-.activity-signals .signal-symbol {
+.activity-predictors .predictor-symbol {
   font-weight: 600;
   font-size: 0.7rem;
+}
+
+/* Summary section styles */
+.summary-section {
+  margin-bottom: 1.5rem;
+}
+
+.summary-card {
+  margin: 0;
+}
+
+.summary-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+}
+
+.summary-stat {
+  text-align: center;
+  padding: 0.75rem;
+  background: var(--ion-background-color);
+  border-radius: 6px;
+  border: 1px solid var(--ion-border-color);
+}
+
+.summary-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--ion-color-primary);
+  margin-bottom: 0.25rem;
+}
+
+.summary-label {
+  font-size: 0.75rem;
+  color: var(--ion-color-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.empty-summary {
+  text-align: center;
+  padding: 0.5rem;
+}
+
+.empty-summary p {
+  color: var(--ion-color-medium);
+  margin-bottom: 0.5rem;
 }
 </style>
