@@ -134,6 +134,28 @@ BEGIN
   ON CONFLICT (universe_id, symbol) DO UPDATE SET
     name = EXCLUDED.name, context = EXCLUDED.context, metadata = EXCLUDED.metadata, updated_at = NOW();
 
+  -- AMZN - Amazon (Real)
+  INSERT INTO prediction.targets (universe_id, symbol, name, target_type, context, is_active, metadata)
+  VALUES (
+    v_stocks_universe_id, 'AMZN', 'Amazon.com Inc', 'stock',
+    'Amazon.com Inc. is a global e-commerce and cloud computing leader. Key segments: AWS cloud, e-commerce marketplace, advertising, Prime subscriptions. Watch for AWS growth, retail margins, ad revenue, and AI infrastructure spending.',
+    true,
+    '{"sector": "Technology", "industry": "Internet Retail", "market_cap": "large", "yahoo_symbol": "AMZN"}'::jsonb
+  )
+  ON CONFLICT (universe_id, symbol) DO UPDATE SET
+    name = EXCLUDED.name, context = EXCLUDED.context, metadata = EXCLUDED.metadata, updated_at = NOW();
+
+  -- META - Meta Platforms (Real)
+  INSERT INTO prediction.targets (universe_id, symbol, name, target_type, context, is_active, metadata)
+  VALUES (
+    v_stocks_universe_id, 'META', 'Meta Platforms Inc', 'stock',
+    'Meta Platforms Inc. operates Facebook, Instagram, WhatsApp, and Reality Labs. Key metrics: ad revenue, user engagement, Reels monetization, Reality Labs investment. Watch for ad market trends, AI integration, metaverse spending, and regulatory actions.',
+    true,
+    '{"sector": "Technology", "industry": "Social Media", "market_cap": "large", "yahoo_symbol": "META"}'::jsonb
+  )
+  ON CONFLICT (universe_id, symbol) DO UPDATE SET
+    name = EXCLUDED.name, context = EXCLUDED.context, metadata = EXCLUDED.metadata, updated_at = NOW();
+
   -- =========== REAL CRYPTO TARGETS ===========
 
   -- BTC - Bitcoin (Real)
@@ -180,7 +202,7 @@ BEGIN
   ON CONFLICT (universe_id, symbol) DO UPDATE SET
     name = EXCLUDED.name, context = EXCLUDED.context, metadata = EXCLUDED.metadata, updated_at = NOW();
 
-  RAISE NOTICE 'Created/updated 8 real targets (4 stocks, 4 crypto)';
+  RAISE NOTICE 'Created/updated 10 real targets (6 stocks, 4 crypto)';
 END $$;
 
 -- =====================================================================================
@@ -246,6 +268,28 @@ BEGIN
   ON CONFLICT (universe_id, symbol) DO UPDATE SET
     name = EXCLUDED.name, context = EXCLUDED.context, metadata = EXCLUDED.metadata, updated_at = NOW();
 
+  -- T_AMZN - Amazon (Test)
+  INSERT INTO prediction.targets (universe_id, symbol, name, target_type, context, is_active, metadata)
+  VALUES (
+    v_stocks_universe_id, 'T_AMZN', 'Amazon.com Inc (Test)', 'stock',
+    'Amazon.com Inc. is a global e-commerce and cloud computing leader. Key segments: AWS cloud, e-commerce marketplace, advertising, Prime subscriptions. Watch for AWS growth, retail margins, ad revenue, and AI infrastructure spending.',
+    true,
+    '{"sector": "Technology", "industry": "Internet Retail", "market_cap": "large", "test_mode": true, "mirrors": "AMZN"}'::jsonb
+  )
+  ON CONFLICT (universe_id, symbol) DO UPDATE SET
+    name = EXCLUDED.name, context = EXCLUDED.context, metadata = EXCLUDED.metadata, updated_at = NOW();
+
+  -- T_META - Meta Platforms (Test)
+  INSERT INTO prediction.targets (universe_id, symbol, name, target_type, context, is_active, metadata)
+  VALUES (
+    v_stocks_universe_id, 'T_META', 'Meta Platforms Inc (Test)', 'stock',
+    'Meta Platforms Inc. operates Facebook, Instagram, WhatsApp, and Reality Labs. Key metrics: ad revenue, user engagement, Reels monetization, Reality Labs investment. Watch for ad market trends, AI integration, metaverse spending, and regulatory actions.',
+    true,
+    '{"sector": "Technology", "industry": "Social Media", "market_cap": "large", "test_mode": true, "mirrors": "META"}'::jsonb
+  )
+  ON CONFLICT (universe_id, symbol) DO UPDATE SET
+    name = EXCLUDED.name, context = EXCLUDED.context, metadata = EXCLUDED.metadata, updated_at = NOW();
+
   -- =========== TEST CRYPTO TARGETS ===========
 
   -- T_BTC - Bitcoin (Test)
@@ -292,7 +336,7 @@ BEGIN
   ON CONFLICT (universe_id, symbol) DO UPDATE SET
     name = EXCLUDED.name, context = EXCLUDED.context, metadata = EXCLUDED.metadata, updated_at = NOW();
 
-  RAISE NOTICE 'Created/updated 8 test targets (4 stocks, 4 crypto)';
+  RAISE NOTICE 'Created/updated 10 test targets (6 stocks, 4 crypto)';
 END $$;
 
 -- =====================================================================================

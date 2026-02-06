@@ -106,8 +106,33 @@ BEGIN
     ON CONFLICT (scope_id, identifier) DO UPDATE SET name = EXCLUDED.name
     RETURNING id INTO v_avax_id;
 
-    RAISE NOTICE 'Created subjects: GOOGL=%, NVDA=%, BTC=%, ETH=%, SOL=%, AVAX=%',
-                 v_googl_id, v_nvda_id, v_btc_id, v_eth_id, v_sol_id, v_avax_id;
+    -- AAPL - Apple (Medium Risk)
+    INSERT INTO risk.subjects (scope_id, identifier, name, subject_type, metadata)
+    VALUES (v_scope_id, 'AAPL', 'Apple Inc.', 'stock',
+            '{"sector": "Technology", "industry": "Consumer Electronics", "marketCap": "3.4T", "exchange": "NASDAQ"}'::JSONB)
+    ON CONFLICT (scope_id, identifier) DO UPDATE SET name = EXCLUDED.name
+    RETURNING id INTO v_aapl_id;
+
+    -- AMZN - Amazon (Medium Risk)
+    INSERT INTO risk.subjects (scope_id, identifier, name, subject_type, metadata)
+    VALUES (v_scope_id, 'AMZN', 'Amazon.com Inc.', 'stock',
+            '{"sector": "Technology", "industry": "Internet Retail", "marketCap": "2.3T", "exchange": "NASDAQ"}'::JSONB)
+    ON CONFLICT (scope_id, identifier) DO UPDATE SET name = EXCLUDED.name;
+
+    -- META - Meta Platforms (Medium Risk)
+    INSERT INTO risk.subjects (scope_id, identifier, name, subject_type, metadata)
+    VALUES (v_scope_id, 'META', 'Meta Platforms Inc.', 'stock',
+            '{"sector": "Technology", "industry": "Social Media", "marketCap": "1.6T", "exchange": "NASDAQ"}'::JSONB)
+    ON CONFLICT (scope_id, identifier) DO UPDATE SET name = EXCLUDED.name;
+
+    -- MSFT - Microsoft (Low Risk)
+    INSERT INTO risk.subjects (scope_id, identifier, name, subject_type, metadata)
+    VALUES (v_scope_id, 'MSFT', 'Microsoft Corporation', 'stock',
+            '{"sector": "Technology", "industry": "Software", "marketCap": "3.1T", "exchange": "NASDAQ"}'::JSONB)
+    ON CONFLICT (scope_id, identifier) DO UPDATE SET name = EXCLUDED.name;
+
+    RAISE NOTICE 'Created subjects: AAPL=%, GOOGL=%, NVDA=%, BTC=%, ETH=%, SOL=%, AVAX=% (+ AMZN, META, MSFT)',
+                 v_aapl_id, v_googl_id, v_nvda_id, v_btc_id, v_eth_id, v_sol_id, v_avax_id;
 
     -- =============================================================================
     -- CREATE ASSESSMENTS FOR NEW SUBJECTS
@@ -662,7 +687,7 @@ BEGIN
     RAISE NOTICE 'COMPREHENSIVE RISK DATA SEED COMPLETE';
     RAISE NOTICE '================================================';
     RAISE NOTICE 'Created/Updated:';
-    RAISE NOTICE '  - 6 new subjects (GOOGL, NVDA, BTC, ETH, SOL, AVAX)';
+    RAISE NOTICE '  - 10 subjects (AAPL, AMZN, GOOGL, META, MSFT, NVDA, BTC, ETH, SOL, AVAX)';
     RAISE NOTICE '  - Assessments for all subjects (6 dimensions each)';
     RAISE NOTICE '  - 30+ days of historical scores for Score History';
     RAISE NOTICE '  - 4 data sources (CoinGecko, Yahoo, SEC, CoinDesk)';
