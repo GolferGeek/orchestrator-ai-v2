@@ -753,15 +753,9 @@ export class PredictionHandler implements IDashboardHandler {
         );
       }
 
-      // Get article IDs for predictors (new flow)
-      const articleIds = validPredictors
-        .map((p) => p.article_id)
-        .filter((id): id is string => !!id);
-
       // Note: Legacy predictors may not have article_id
       // For deep-dive lineage, we use article data when available
       const validSignals: Array<unknown> = []; // Legacy - no longer used
-      const fingerprints: Array<unknown> = []; // Legacy - no longer used
 
       // Note: Source articles from legacy prediction.source_seen_items table were removed
       // Articles now come from crawler.articles via source_subscriptions
@@ -1008,10 +1002,8 @@ export class PredictionHandler implements IDashboardHandler {
         },
         lineage: {
           // Contributing predictors with their article sources
-          predictors: validPredictors.map((predictor, idx) => {
+          predictors: validPredictors.map((predictor) => {
             // Note: signal_id removed - using article_id for new predictors
-            const signal = null; // Legacy field removed
-            const fingerprint = fingerprints[idx];
 
             return {
               id: predictor.id,

@@ -29,6 +29,22 @@
           <span class="stat-value">{{ externalAgents.length }}</span>
           <span class="stat-label">External</span>
         </div>
+        <div class="stat">
+          <span class="stat-value">{{ ragRunnerAgents.length }}</span>
+          <span class="stat-label">RAG</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value">{{ predictionAgents.length }}</span>
+          <span class="stat-label">Prediction</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value">{{ riskAgents.length }}</span>
+          <span class="stat-label">Risk</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value">{{ mediaAgents.length }}</span>
+          <span class="stat-label">Media</span>
+        </div>
       </div>
 
       <!-- Filter Bar -->
@@ -45,6 +61,18 @@
           </ion-segment-button>
           <ion-segment-button value="external">
             <ion-label>External</ion-label>
+          </ion-segment-button>
+          <ion-segment-button value="rag-runner">
+            <ion-label>RAG</ion-label>
+          </ion-segment-button>
+          <ion-segment-button value="prediction">
+            <ion-label>Prediction</ion-label>
+          </ion-segment-button>
+          <ion-segment-button value="risk">
+            <ion-label>Risk</ion-label>
+          </ion-segment-button>
+          <ion-segment-button value="media">
+            <ion-label>Media</ion-label>
           </ion-segment-button>
         </ion-segment>
 
@@ -250,7 +278,7 @@ interface Agent {
   name: string;
   description: string;
   version: string;
-  agent_type: 'context' | 'api' | 'external';
+  agent_type: 'context' | 'api' | 'external' | 'rag-runner' | 'media' | 'langgraph' | 'prediction' | 'risk';
   department: string;
   tags: string[];
   capabilities: string[];
@@ -276,6 +304,10 @@ const selectedAgent = ref<Agent | null>(null);
 const contextAgents = computed(() => agents.value.filter(a => a.agent_type === 'context'));
 const apiAgents = computed(() => agents.value.filter(a => a.agent_type === 'api'));
 const externalAgents = computed(() => agents.value.filter(a => a.agent_type === 'external'));
+const ragRunnerAgents = computed(() => agents.value.filter(a => a.agent_type === 'rag-runner'));
+const predictionAgents = computed(() => agents.value.filter(a => a.agent_type === 'prediction'));
+const riskAgents = computed(() => agents.value.filter(a => a.agent_type === 'risk'));
+const mediaAgents = computed(() => agents.value.filter(a => a.agent_type === 'media'));
 
 const filteredAgents = computed(() => {
   let result = agents.value;
@@ -304,10 +336,18 @@ const filteredAgents = computed(() => {
 const fetchAgents = async () => {
   loading.value = true;
   try {
-    const response = await apiService.get('/agents');
-    // Response could be { agents: [...] } or just array
-    const data = response as { agents?: Agent[] } | Agent[];
-    agents.value = Array.isArray(data) ? data : (data?.agents || []);
+    const response = await apiService.get('/api/admin/agents');
+    // Response format: { success: true, data: Agent[] }
+    const data = response as { success?: boolean; data?: Agent[]; agents?: Agent[] } | Agent[];
+    if (Array.isArray(data)) {
+      agents.value = data;
+    } else if (data?.data) {
+      agents.value = data.data;
+    } else if (data?.agents) {
+      agents.value = data.agents;
+    } else {
+      agents.value = [];
+    }
   } catch (error) {
     console.error('Failed to fetch agents:', error);
     agents.value = [];
@@ -341,6 +381,11 @@ const getAgentIcon = (type: string) => {
     case 'context': return chatbubbleOutline;
     case 'api': return cloudOutline;
     case 'external': return linkOutline;
+    case 'rag-runner': return chatbubbleOutline;
+    case 'prediction': return chatbubbleOutline;
+    case 'risk': return chatbubbleOutline;
+    case 'langgraph': return cloudOutline;
+    case 'media': return cloudOutline;
     default: return chatbubbleOutline;
   }
 };
@@ -350,6 +395,11 @@ const getTypeColor = (type: string) => {
     case 'context': return 'primary';
     case 'api': return 'success';
     case 'external': return 'tertiary';
+    case 'rag-runner': return 'warning';
+    case 'prediction': return 'danger';
+    case 'risk': return 'dark';
+    case 'langgraph': return 'success';
+    case 'media': return 'secondary';
     default: return 'medium';
   }
 };
@@ -414,12 +464,14 @@ onMounted(() => {
 /* Stats Banner */
 .stats-banner {
   display: flex;
-  gap: 1.5rem;
-  padding: 1rem 1.5rem;
+  gap: 2rem;
+  padding: 1.25rem 1.5rem;
   background: linear-gradient(135deg, #a16c4a 0%, #6d4428 100%);
   border-radius: 10px;
   margin-bottom: 1.5rem;
   color: white;
+  flex-wrap: wrap;
+  justify-content: space-around;
 }
 
 .stats-banner .stat {
@@ -445,15 +497,33 @@ onMounted(() => {
   gap: 1rem;
   margin-bottom: 1.5rem;
   align-items: center;
+  flex-wrap: wrap;
+  width: 100%;
+  max-width: 100%;
+}
+
+.filter-segment-wrapper {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .filter-bar ion-segment {
-  flex: 0 0 auto;
-  max-width: 400px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.filter-bar ion-segment[scrollable] {
+  --overflow: auto;
 }
 
 .filter-bar ion-searchbar {
-  flex: 1;
+  flex: 1 1 300px;
+  min-width: 250px;
+  max-width: 100%;
   --background: white;
   --border-radius: 8px;
 }
@@ -498,18 +568,43 @@ onMounted(() => {
 }
 
 .agent-icon.context {
-  background: var(--ion-color-primary-tint);
-  color: var(--ion-color-primary);
+  background: var(--ion-color-primary);
+  color: white;
 }
 
 .agent-icon.api {
-  background: var(--ion-color-success-tint);
-  color: var(--ion-color-success);
+  background: var(--ion-color-success);
+  color: white;
 }
 
 .agent-icon.external {
-  background: var(--ion-color-tertiary-tint);
-  color: var(--ion-color-tertiary);
+  background: var(--ion-color-tertiary);
+  color: white;
+}
+
+.agent-icon.rag-runner {
+  background: var(--ion-color-warning);
+  color: white;
+}
+
+.agent-icon.prediction {
+  background: var(--ion-color-danger);
+  color: white;
+}
+
+.agent-icon.risk {
+  background: var(--ion-color-dark);
+  color: white;
+}
+
+.agent-icon.langgraph {
+  background: var(--ion-color-success);
+  color: white;
+}
+
+.agent-icon.media {
+  background: var(--ion-color-secondary);
+  color: white;
 }
 
 .agent-icon ion-icon {

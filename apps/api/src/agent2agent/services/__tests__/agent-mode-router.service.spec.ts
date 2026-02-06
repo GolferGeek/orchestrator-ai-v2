@@ -16,7 +16,6 @@ describe('AgentModeRouterService - Sovereign Mode Enforcement', () => {
   let service: AgentModeRouterService;
   let agentRegistryService: jest.Mocked<AgentRegistryService>;
   let runtimeDefinitionService: jest.Mocked<AgentRuntimeDefinitionService>;
-  let runnerRegistryService: jest.Mocked<AgentRunnerRegistryService>;
 
   const createMockAgentRecord = (
     overrides: Partial<AgentRecord> = {},

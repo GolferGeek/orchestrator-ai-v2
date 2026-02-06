@@ -12,14 +12,23 @@ export interface AgentRecord {
   name: string;
   description: string;
   version: string;
-  agent_type: 'context' | 'api' | 'external' | 'media';
+  agent_type:
+    | 'context'
+    | 'api'
+    | 'external'
+    | 'rag-runner'
+    | 'orchestrator'
+    | 'media'
+    | 'langgraph'
+    | 'prediction'
+    | 'risk';
   department: string;
   tags: string[];
   io_schema: JsonObject;
   capabilities: string[];
   context: string; // Markdown context for all agent types
   endpoint: JsonObject | null; // API/external only
-  llm_config: JsonObject | null; // context only
+  llm_config: JsonObject | null; // context and rag-runner only
   metadata: JsonObject;
   require_local_model?: boolean; // When true, only local LLM providers (Ollama) allowed
   created_at: string;

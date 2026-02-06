@@ -674,9 +674,15 @@ export class PredictionGenerationService {
         },
         // Track which forks are actively trading (non-flat)
         active_forks: [
-          ...(userAssessment && !this.isDirectionFlat(userAssessment.direction) ? ['user'] : []),
-          ...(aiAssessment && !this.isDirectionFlat(aiAssessment.direction) ? ['ai'] : []),
-          ...(!this.isDirectionFlat(assessment.direction) ? ['arbitrator'] : []),
+          ...(userAssessment && !this.isDirectionFlat(userAssessment.direction)
+            ? ['user']
+            : []),
+          ...(aiAssessment && !this.isDirectionFlat(aiAssessment.direction)
+            ? ['ai']
+            : []),
+          ...(!this.isDirectionFlat(assessment.direction)
+            ? ['arbitrator']
+            : []),
         ],
       },
       llm_ensemble: {
@@ -926,9 +932,7 @@ export class PredictionGenerationService {
   private isDirectionFlat(direction: string): boolean {
     const normalized = direction.toLowerCase();
     return (
-      normalized === 'neutral' ||
-      normalized === 'flat' ||
-      normalized === 'hold'
+      normalized === 'neutral' || normalized === 'flat' || normalized === 'hold'
     );
   }
 
@@ -958,8 +962,10 @@ export class PredictionGenerationService {
       const userAssessment = userBySlug.get(slug);
       const aiAssessment = aiBySlug.get(slug);
 
-      const userFlat = !userAssessment || this.isDirectionFlat(userAssessment.direction);
-      const aiFlat = !aiAssessment || this.isDirectionFlat(aiAssessment.direction);
+      const userFlat =
+        !userAssessment || this.isDirectionFlat(userAssessment.direction);
+      const aiFlat =
+        !aiAssessment || this.isDirectionFlat(aiAssessment.direction);
 
       if (userFlat && aiFlat) {
         filteredSlugs.push(slug);
@@ -978,7 +984,8 @@ export class PredictionGenerationService {
     return {
       userForkAssessments: threeWayResult.userForkAssessments.filter(keepSlug),
       aiForkAssessments: threeWayResult.aiForkAssessments.filter(keepSlug),
-      arbitratorForkAssessments: threeWayResult.arbitratorForkAssessments.filter(keepSlug),
+      arbitratorForkAssessments:
+        threeWayResult.arbitratorForkAssessments.filter(keepSlug),
       filteredSlugs,
     };
   }

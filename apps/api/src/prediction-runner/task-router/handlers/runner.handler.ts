@@ -244,7 +244,7 @@ export class RunnerHandler implements IDashboardHandler {
    * the analyst ensemble to create predictors.
    */
   private async handleProcessArticles(
-    params?: RunnerParams,
+    _params?: RunnerParams,
   ): Promise<DashboardActionResult> {
     this.logger.log('Manual article processing triggered');
 

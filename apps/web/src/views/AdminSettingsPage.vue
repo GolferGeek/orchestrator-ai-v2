@@ -231,17 +231,6 @@
                     <ion-label>{{ agentsHealthData.discoveredAgents }}</ion-label>
                   </ion-chip>
                 </div>
-              </div>
-            </div>
-
-            <!-- System Configuration Group -->
-            <div class="nav-group" :class="{ collapsed: collapsedGroups.system }">
-              <div class="nav-group-header" @click="toggleGroup('system')">
-                <ion-icon :icon="settingsOutline" />
-                <span>System Configuration</span>
-                <ion-icon :icon="collapsedGroups.system ? chevronForwardOutline : chevronDownOutline" class="collapse-icon" />
-              </div>
-              <div class="nav-items" v-show="!collapsedGroups.system">
                 <div
                   class="nav-item"
                   :class="{ active: activeSection === 'database' }"
@@ -380,7 +369,6 @@ const collapsedGroups = ref<Record<string, boolean>>({
   privacy: false,
   access: false,
   data: false,
-  system: false,
 });
 
 // Toggle group collapse state
