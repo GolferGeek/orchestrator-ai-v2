@@ -22,10 +22,15 @@
         <ion-card>
           <ion-card-header>
             <ion-card-title>
-              <ion-icon :icon="shieldCheckmarkOutline" class="section-icon"></ion-icon>
+              <ion-icon
+                :icon="shieldCheckmarkOutline"
+                class="section-icon"
+              ></ion-icon>
               System Roles
             </ion-card-title>
-            <ion-card-subtitle>{{ roles.length }} roles defined</ion-card-subtitle>
+            <ion-card-subtitle
+              >{{ roles.length }} roles defined</ion-card-subtitle
+            >
           </ion-card-header>
           <ion-card-content>
             <ion-list>
@@ -43,7 +48,7 @@
                 ></ion-icon>
                 <ion-label>
                   <h2>{{ role.displayName }}</h2>
-                  <p>{{ role.description || 'No description' }}</p>
+                  <p>{{ role.description || "No description" }}</p>
                 </ion-label>
                 <ion-badge slot="end" :color="getRoleBadgeColor(role.name)">
                   {{ role.name }}
@@ -61,12 +66,20 @@
               Permissions
             </ion-card-title>
             <ion-card-subtitle>
-              {{ selectedRole ? `Permissions for ${selectedRole.displayName}` : 'Select a role to view permissions' }}
+              {{
+                selectedRole
+                  ? `Permissions for ${selectedRole.displayName}`
+                  : "Select a role to view permissions"
+              }}
             </ion-card-subtitle>
           </ion-card-header>
           <ion-card-content>
             <div v-if="!selectedRole" class="ion-text-center ion-padding">
-              <ion-icon :icon="handLeftOutline" size="large" color="medium"></ion-icon>
+              <ion-icon
+                :icon="handLeftOutline"
+                size="large"
+                color="medium"
+              ></ion-icon>
               <p>Select a role above to view its permissions</p>
             </div>
 
@@ -78,7 +91,10 @@
                   :value="category"
                 >
                   <ion-item slot="header" color="light">
-                    <ion-icon :icon="getCategoryIcon(category)" slot="start"></ion-icon>
+                    <ion-icon
+                      :icon="getCategoryIcon(category)"
+                      slot="start"
+                    ></ion-icon>
                     <ion-label>
                       <h3>{{ formatCategory(category) }}</h3>
                       <p>{{ perms.length }} permissions</p>
@@ -90,7 +106,9 @@
                         <ion-checkbox
                           slot="start"
                           :checked="roleHasPermission(perm.name)"
-                          :disabled="selectedRole?.isSystem && !rbacStore.isSuperAdmin"
+                          :disabled="
+                            selectedRole?.isSystem && !rbacStore.isSuperAdmin
+                          "
                           @ionChange="togglePermission(perm, $event)"
                         ></ion-checkbox>
                         <ion-label>
@@ -140,22 +158,47 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted } from "vue";
 import {
   IonCard,
-  IonCardHeader, IonCardTitle, IonCardSubtitle, IonCardContent,
-  IonList, IonItem, IonLabel, IonIcon, IonButton,
-  IonSpinner, IonBadge, IonAccordionGroup, IonAccordion,
-  IonCheckbox, toastController
-} from '@ionic/vue';
+  IonCardHeader,
+  IonCardTitle,
+  IonCardSubtitle,
+  IonCardContent,
+  IonList,
+  IonItem,
+  IonLabel,
+  IonIcon,
+  IonButton,
+  IonSpinner,
+  IonBadge,
+  IonAccordionGroup,
+  IonAccordion,
+  IonCheckbox,
+  toastController,
+} from "@ionic/vue";
 import {
-  refreshOutline, shieldCheckmarkOutline, lockClosedOutline, createOutline,
-  keyOutline, handLeftOutline, timeOutline, cloudOutline,
-  settingsOutline, chatbubblesOutline, documentOutline, addCircleOutline,
-  removeCircleOutline, swapHorizontalOutline
-} from 'ionicons/icons';
-import { useRbacStore } from '@/stores/rbacStore';
-import rbacService, { type RbacRole, type RbacPermission, type AuditLogEntry } from '@/services/rbacService';
+  refreshOutline,
+  shieldCheckmarkOutline,
+  lockClosedOutline,
+  createOutline,
+  keyOutline,
+  handLeftOutline,
+  timeOutline,
+  cloudOutline,
+  settingsOutline,
+  chatbubblesOutline,
+  documentOutline,
+  addCircleOutline,
+  removeCircleOutline,
+  swapHorizontalOutline,
+} from "ionicons/icons";
+import { useRbacStore } from "@/stores/rbacStore";
+import rbacService, {
+  type RbacRole,
+  type RbacPermission,
+  type AuditLogEntry,
+} from "@/services/rbacService";
 
 const rbacStore = useRbacStore();
 
@@ -181,15 +224,25 @@ async function refreshData() {
     roles.value = rbacStore.allRoles;
 
     // Load audit log
-    try {
-      auditLog.value = await rbacService.getAuditLog(rbacStore.currentOrganization || undefined, 10);
-    } catch {
-      auditLog.value = [];
-    }
+    await fetchAuditLog();
   } catch (error) {
-    console.error('Failed to load data:', error);
+    console.error("Failed to load data:", error);
   } finally {
     loading.value = false;
+  }
+}
+
+async function fetchAuditLog() {
+  try {
+    // Pass undefined when org is '*' (all orgs) so the API returns unfiltered entries
+    const orgSlug =
+      rbacStore.currentOrganization && rbacStore.currentOrganization !== "*"
+        ? rbacStore.currentOrganization
+        : undefined;
+    auditLog.value = await rbacService.getAuditLog(orgSlug, 10);
+  } catch (error) {
+    console.error("Failed to load audit log:", error);
+    auditLog.value = [];
   }
 }
 
@@ -199,7 +252,7 @@ async function selectRole(role: RbacRole) {
   try {
     rolePermissions.value = await rbacService.getRolePermissions(role.id);
   } catch (error) {
-    console.error('Failed to load role permissions:', error);
+    console.error("Failed to load role permissions:", error);
     rolePermissions.value = [];
   }
 }
@@ -214,9 +267,9 @@ async function togglePermission(perm: RbacPermission, event: CustomEvent) {
   // Only prevent modification of system roles if user is not super-admin
   if (selectedRole.value.isSystem && !rbacStore.isSuperAdmin) {
     const toast = await toastController.create({
-      message: 'Only super-admins can modify system roles',
+      message: "Only super-admins can modify system roles",
       duration: 2000,
-      color: 'warning'
+      color: "warning",
     });
     await toast.present();
     return;
@@ -234,43 +287,48 @@ async function togglePermission(perm: RbacPermission, event: CustomEvent) {
       const toast = await toastController.create({
         message: `Added ${perm.displayName} to ${selectedRole.value.displayName}`,
         duration: 2000,
-        color: 'success'
+        color: "success",
       });
       await toast.present();
-
-      // Reload user permissions if the store is initialized
-      if (rbacStore.isInitialized && rbacStore.currentOrganization) {
-        await rbacStore.loadUserPermissions(rbacStore.currentOrganization);
-      }
     } else if (!isChecked && wasChecked) {
       // Remove permission from role
-      await rbacService.removePermissionFromRole(selectedRole.value.id, perm.id);
-      rolePermissions.value = rolePermissions.value.filter(p => p !== perm.name);
+      await rbacService.removePermissionFromRole(
+        selectedRole.value.id,
+        perm.id,
+      );
+      rolePermissions.value = rolePermissions.value.filter(
+        (p) => p !== perm.name,
+      );
 
       const toast = await toastController.create({
         message: `Removed ${perm.displayName} from ${selectedRole.value.displayName}`,
         duration: 2000,
-        color: 'success'
+        color: "success",
       });
       await toast.present();
-
-      // Reload user permissions if the store is initialized
-      if (rbacStore.isInitialized && rbacStore.currentOrganization) {
-        await rbacStore.loadUserPermissions(rbacStore.currentOrganization);
-      }
+    } else {
+      return; // No change
     }
+
+    // Reload user permissions and refresh audit log after any successful change
+    if (rbacStore.isInitialized && rbacStore.currentOrganization) {
+      await rbacStore.loadUserPermissions(rbacStore.currentOrganization);
+    }
+    await fetchAuditLog();
   } catch (error) {
-    console.error('Failed to toggle permission:', error);
+    console.error("Failed to toggle permission:", error);
 
     // Reload permissions to reset checkbox state
     if (selectedRole.value) {
-      rolePermissions.value = await rbacService.getRolePermissions(selectedRole.value.id);
+      rolePermissions.value = await rbacService.getRolePermissions(
+        selectedRole.value.id,
+      );
     }
 
     const toast = await toastController.create({
-      message: `Failed to update permission: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      message: `Failed to update permission: ${error instanceof Error ? error.message : "Unknown error"}`,
       duration: 3000,
-      color: 'danger'
+      color: "danger",
     });
     await toast.present();
   }
@@ -278,45 +336,47 @@ async function togglePermission(perm: RbacPermission, event: CustomEvent) {
 
 function getRoleBadgeColor(roleName: string): string {
   const colors: Record<string, string> = {
-    'super-admin': 'danger',
-    'admin': 'warning',
-    'manager': 'tertiary',
-    'member': 'primary',
-    'viewer': 'medium'
+    "super-admin": "danger",
+    admin: "warning",
+    manager: "tertiary",
+    member: "primary",
+    viewer: "medium",
   };
-  return colors[roleName] || 'medium';
+  return colors[roleName] || "medium";
 }
 
 function getCategoryIcon(category: string): string {
   const icons: Record<string, string> = {
-    'rag': cloudOutline,
-    'agents': chatbubblesOutline,
-    'admin': settingsOutline,
-    'llm': documentOutline,
-    'deliverables': documentOutline,
-    'system': shieldCheckmarkOutline
+    rag: cloudOutline,
+    agents: chatbubblesOutline,
+    admin: settingsOutline,
+    llm: documentOutline,
+    deliverables: documentOutline,
+    system: shieldCheckmarkOutline,
   };
   return icons[category] || keyOutline;
 }
 
 function formatCategory(category: string): string {
-  return category.charAt(0).toUpperCase() + category.slice(1).replace(/_/g, ' ');
+  return (
+    category.charAt(0).toUpperCase() + category.slice(1).replace(/_/g, " ")
+  );
 }
 
 function getAuditIcon(action: string): string {
-  if (action.includes('grant')) return addCircleOutline;
-  if (action.includes('revoke')) return removeCircleOutline;
+  if (action.includes("grant")) return addCircleOutline;
+  if (action.includes("revoke")) return removeCircleOutline;
   return swapHorizontalOutline;
 }
 
 function getAuditColor(action: string): string {
-  if (action.includes('grant')) return 'success';
-  if (action.includes('revoke')) return 'danger';
-  return 'primary';
+  if (action.includes("grant")) return "success";
+  if (action.includes("revoke")) return "danger";
+  return "primary";
 }
 
 function formatAuditAction(action: string): string {
-  return action.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  return action.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
 }
 
 function formatDate(dateStr: string): string {
