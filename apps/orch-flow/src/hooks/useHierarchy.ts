@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, isSupabaseAvailable } from '@/integrations/supabase/client';
+import { useAuth } from './useAuth';
 
 // Helper to query public schema (for users table)
 const publicSchema = () => supabase.schema('public');
@@ -39,6 +40,7 @@ export interface Project {
 }
 
 export function useHierarchy(organizationSlug?: string | null) {
+  const { user } = useAuth();
   const [efforts, setEfforts] = useState<Effort[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -48,15 +50,16 @@ export function useHierarchy(organizationSlug?: string | null) {
     console.log('[fetchAll] Starting...');
     // If no organizationSlug provided, try to get it from the current user
     let orgSlug = organizationSlug;
-    if (!orgSlug) {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
+    if (!orgSlug && user) {
+      try {
         const { data: userData } = await publicSchema()
           .from('users')
           .select('organization_slug')
           .eq('id', user.id)
           .single();
         orgSlug = userData?.organization_slug;
+      } catch (error) {
+        console.warn('Could not fetch user organization (Supabase may not be accessible):', error);
       }
     }
     console.log('[fetchAll] orgSlug:', orgSlug);
@@ -109,30 +112,79 @@ export function useHierarchy(organizationSlug?: string | null) {
 
     setProjects(projectsRes.data || []);
     setLoading(false);
-  }, [organizationSlug]);
+  }, [organizationSlug, user]);
 
   useEffect(() => {
     fetchAll();
 
-    const effortChannel = supabase
-      .channel('efforts-changes')
-      .on('postgres_changes', { event: '*', schema: 'orch_flow', table: 'efforts' }, fetchAll)
-      .subscribe();
+    // Subscribe to realtime changes only if Supabase is accessible
+    let effortChannel: ReturnType<typeof supabase.channel> | null = null;
+    let goalChannel: ReturnType<typeof supabase.channel> | null = null;
+    let projectChannel: ReturnType<typeof supabase.channel> | null = null;
 
-    const goalChannel = supabase
-      .channel('goals-changes')
-      .on('postgres_changes', { event: '*', schema: 'orch_flow', table: 'goals' }, fetchAll)
-      .subscribe();
+    // Check if Supabase is available before attempting subscriptions
+    isSupabaseAvailable().then((isAvailable) => {
+      if (!isAvailable) {
+        // Supabase is not accessible - skip realtime subscriptions
+        console.debug('[useHierarchy] Supabase not accessible - skipping realtime subscriptions');
+        return;
+      }
 
-    const projectChannel = supabase
-      .channel('projects-changes')
-      .on('postgres_changes', { event: '*', schema: 'orch_flow', table: 'projects' }, fetchAll)
-      .subscribe();
+      // Supabase is available - set up subscriptions
+      try {
+        effortChannel = supabase
+          .channel('efforts-changes')
+          .on('postgres_changes', { event: '*', schema: 'orch_flow', table: 'efforts' }, fetchAll)
+          .subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+              console.log('[useHierarchy] Subscribed to efforts changes');
+            } else if (status === 'CHANNEL_ERROR') {
+              console.warn('⚠️ Could not subscribe to efforts changes (Supabase may not be accessible)');
+            }
+          });
+
+        goalChannel = supabase
+          .channel('goals-changes')
+          .on('postgres_changes', { event: '*', schema: 'orch_flow', table: 'goals' }, fetchAll)
+          .subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+              console.log('[useHierarchy] Subscribed to goals changes');
+            } else if (status === 'CHANNEL_ERROR') {
+              console.warn('⚠️ Could not subscribe to goals changes (Supabase may not be accessible)');
+            }
+          });
+
+        projectChannel = supabase
+          .channel('projects-changes')
+          .on('postgres_changes', { event: '*', schema: 'orch_flow', table: 'projects' }, fetchAll)
+          .subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+              console.log('[useHierarchy] Subscribed to projects changes');
+            } else if (status === 'CHANNEL_ERROR') {
+              console.warn('⚠️ Could not subscribe to projects changes (Supabase may not be accessible)');
+            }
+          });
+      } catch (error) {
+        console.warn('⚠️ Could not set up realtime subscriptions (Supabase may not be accessible):', error);
+      }
+    });
 
     return () => {
-      supabase.removeChannel(effortChannel);
-      supabase.removeChannel(goalChannel);
-      supabase.removeChannel(projectChannel);
+      if (effortChannel) {
+        supabase.removeChannel(effortChannel).catch(() => {
+          // Ignore cleanup errors
+        });
+      }
+      if (goalChannel) {
+        supabase.removeChannel(goalChannel).catch(() => {
+          // Ignore cleanup errors
+        });
+      }
+      if (projectChannel) {
+        supabase.removeChannel(projectChannel).catch(() => {
+          // Ignore cleanup errors
+        });
+      }
     };
   }, [fetchAll]);
 
@@ -140,33 +192,36 @@ export function useHierarchy(organizationSlug?: string | null) {
   const addEffort = async (name: string) => {
     console.log('[addEffort] Starting with name:', name);
 
-    // Get organization_slug from current user
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    console.log('[addEffort] Auth result:', { user: user?.id, authError });
-
     if (!user) {
       console.error('[addEffort] User not authenticated');
       return { data: null, error: new Error('User not authenticated') };
     }
 
-    const { data: userData, error: userError } = await publicSchema()
-      .from('users')
-      .select('organization_slug')
-      .eq('id', user.id)
-      .single();
-    console.log('[addEffort] User data result:', { userData, userError });
+    // Get organization_slug from current user
+    let orgSlug: string | undefined;
+    try {
+      const { data: userData, error: userError } = await publicSchema()
+        .from('users')
+        .select('organization_slug')
+        .eq('id', user.id)
+        .single();
+      console.log('[addEffort] User data result:', { userData, userError });
+      orgSlug = userData?.organization_slug;
+    } catch (error) {
+      console.warn('Could not fetch user organization (Supabase may not be accessible):', error);
+    }
 
-    if (!userData?.organization_slug) {
+    if (!orgSlug) {
       console.error('[addEffort] User organization not found');
       return { data: null, error: new Error('User organization not found') };
     }
 
-    console.log('[addEffort] Inserting effort with org:', userData.organization_slug);
+    console.log('[addEffort] Inserting effort with org:', orgSlug);
     const { data, error } = await supabase
       .from('efforts')
       .insert({
         name,
-        organization_slug: userData.organization_slug,
+        organization_slug: orgSlug,
         order_index: 0
       })
       .select()

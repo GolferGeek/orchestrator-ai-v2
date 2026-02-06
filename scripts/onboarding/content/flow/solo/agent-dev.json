@@ -1,0 +1,248 @@
+{
+  "efforts": [
+    {
+      "name": "Agent Development Basics",
+      "description": "Learn the fundamentals of building and deploying AI agents",
+      "icon": "sparkles",
+      "color": "#f59e0b",
+      "estimatedDays": 10,
+      "projects": [
+        {
+          "name": "First Custom Agent",
+          "description": "Build your first custom agent from scratch",
+          "tasks": [
+            {
+              "title": "⭐ Understand agent architecture",
+              "description": "Learn how agents work: inputs, processing, outputs. Review example agents to understand patterns and best practices.",
+              "isMilestone": true
+            },
+            {
+              "title": "Design your agent's purpose",
+              "description": "Clearly define what your agent should do. Write a simple specification including inputs, outputs, and expected behavior."
+            },
+            {
+              "title": "Choose appropriate model",
+              "description": "Select the right AI model for your use case. Consider cost, performance, and capabilities of different models."
+            },
+            {
+              "title": "Implement core functionality",
+              "description": "Build the main logic for your agent. Start simple and iterate. Focus on getting basic functionality working first."
+            },
+            {
+              "title": "Test with sample inputs",
+              "description": "Test your agent with various sample inputs. Verify it handles different scenarios and produces expected outputs."
+            },
+            {
+              "title": "Add error handling",
+              "description": "Implement error handling for common failure scenarios. Provide meaningful error messages and graceful degradation."
+            }
+          ]
+        },
+        {
+          "name": "Agent Refinement",
+          "description": "Improve your agent's reliability and performance",
+          "tasks": [
+            {
+              "title": "⭐ Test and refine agent behavior",
+              "description": "Test your agent thoroughly with real-world scenarios. Refine prompts, parameters, and logic based on results.",
+              "isMilestone": true
+            },
+            {
+              "title": "Optimize prompts",
+              "description": "Refine your prompts for better results. Test different phrasings, include examples, and iterate based on output quality."
+            },
+            {
+              "title": "Add input validation",
+              "description": "Validate inputs before processing. Check for required fields, data types, and format constraints."
+            },
+            {
+              "title": "Implement output formatting",
+              "description": "Ensure agent outputs are properly formatted. Parse and structure responses for easy consumption by downstream systems."
+            },
+            {
+              "title": "Add logging and debugging",
+              "description": "Implement logging to track agent execution. Log inputs, outputs, and intermediate steps for debugging."
+            },
+            {
+              "title": "Document agent behavior",
+              "description": "Document how your agent works, what inputs it expects, and what outputs it produces. Include examples and edge cases."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Advanced Agent Patterns",
+      "description": "Learn advanced patterns for building sophisticated agents",
+      "icon": "layers",
+      "color": "#8b5cf6",
+      "estimatedDays": 12,
+      "projects": [
+        {
+          "name": "Multi-Step Agents",
+          "description": "Build agents that perform complex multi-step workflows",
+          "tasks": [
+            {
+              "title": "⭐ Design workflow architecture",
+              "description": "Plan a multi-step workflow. Break down complex tasks into discrete steps with clear inputs and outputs.",
+              "isMilestone": true
+            },
+            {
+              "title": "Implement step orchestration",
+              "description": "Build logic to orchestrate multiple steps. Handle step sequencing, conditional branching, and error recovery."
+            },
+            {
+              "title": "Add state management",
+              "description": "Manage state across workflow steps. Store intermediate results and context needed for subsequent steps."
+            },
+            {
+              "title": "Handle step failures",
+              "description": "Implement retry logic and error recovery. Allow workflows to continue or gracefully fail when steps encounter errors."
+            },
+            {
+              "title": "Add progress tracking",
+              "description": "Track progress through multi-step workflows. Provide status updates and enable resuming interrupted workflows."
+            },
+            {
+              "title": "Test workflow end-to-end",
+              "description": "Test complete workflows with various scenarios. Verify all steps execute correctly and handle edge cases."
+            }
+          ]
+        },
+        {
+          "name": "Agent Composition",
+          "description": "Combine multiple agents to solve complex problems",
+          "tasks": [
+            {
+              "title": "⭐ Identify agent composition opportunities",
+              "description": "Find scenarios where multiple agents working together can solve problems better than a single agent.",
+              "isMilestone": true
+            },
+            {
+              "title": "Design agent communication",
+              "description": "Plan how agents will communicate and share data. Define interfaces and data formats for agent interactions."
+            },
+            {
+              "title": "Implement agent chaining",
+              "description": "Chain agents together where one agent's output becomes another's input. Handle data transformation between agents."
+            },
+            {
+              "title": "Add parallel agent execution",
+              "description": "Run multiple agents in parallel when appropriate. Aggregate results and handle partial failures."
+            },
+            {
+              "title": "Create agent coordination logic",
+              "description": "Build logic to coordinate multiple agents. Decide when to use which agent and how to combine their outputs."
+            },
+            {
+              "title": "Test agent compositions",
+              "description": "Test various agent compositions. Verify they work together correctly and produce desired outcomes."
+            }
+          ]
+        },
+        {
+          "name": "Agent Optimization",
+          "description": "Optimize agents for performance, cost, and quality",
+          "tasks": [
+            {
+              "title": "⭐ Profile agent performance",
+              "description": "Measure agent performance: response time, token usage, and cost. Identify optimization opportunities.",
+              "isMilestone": true
+            },
+            {
+              "title": "Optimize prompt length",
+              "description": "Reduce prompt size where possible. Remove unnecessary context while maintaining quality. Use efficient prompt structures."
+            },
+            {
+              "title": "Implement caching",
+              "description": "Cache common queries and responses. Reduce API calls and improve response times for repeated requests."
+            },
+            {
+              "title": "Fine-tune model selection",
+              "description": "Choose the most cost-effective model for each task. Use smaller models when appropriate, larger models only when needed."
+            },
+            {
+              "title": "Add streaming responses",
+              "description": "Implement streaming for long-running agents. Provide incremental updates and improve perceived performance."
+            },
+            {
+              "title": "Monitor and iterate",
+              "description": "Continuously monitor agent performance and costs. Iterate on optimizations based on real-world usage data."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Production Readiness",
+      "description": "Prepare agents for production deployment",
+      "icon": "rocket",
+      "color": "#10b981",
+      "estimatedDays": 10,
+      "projects": [
+        {
+          "name": "Testing & Validation",
+          "description": "Comprehensive testing before production",
+          "tasks": [
+            {
+              "title": "⭐ Create test suite",
+              "description": "Build comprehensive test suite covering happy paths, edge cases, and error scenarios. Include unit, integration, and end-to-end tests.",
+              "isMilestone": true
+            },
+            {
+              "title": "Test with production-like data",
+              "description": "Test agents with realistic data that mirrors production. Ensure they handle real-world complexity and edge cases."
+            },
+            {
+              "title": "Validate output quality",
+              "description": "Establish quality metrics and validate agent outputs meet standards. Review outputs for accuracy, completeness, and format."
+            },
+            {
+              "title": "Test error scenarios",
+              "description": "Test how agents handle errors: API failures, invalid inputs, timeouts, and unexpected responses."
+            },
+            {
+              "title": "Load test agents",
+              "description": "Test agent performance under load. Verify they can handle expected traffic and scale appropriately."
+            },
+            {
+              "title": "Security testing",
+              "description": "Test for security vulnerabilities. Check input validation, output sanitization, and access controls."
+            }
+          ]
+        },
+        {
+          "name": "Deployment Preparation",
+          "description": "Prepare agents for production deployment",
+          "tasks": [
+            {
+              "title": "⭐ Create deployment checklist",
+              "description": "Document deployment steps and pre-deployment checks. Include configuration, testing, and rollback procedures.",
+              "isMilestone": true
+            },
+            {
+              "title": "Set up staging environment",
+              "description": "Create staging environment matching production. Test deployments in staging before production release."
+            },
+            {
+              "title": "Configure production settings",
+              "description": "Set production configurations: API keys, rate limits, timeouts, and resource allocations."
+            },
+            {
+              "title": "Set up monitoring",
+              "description": "Configure monitoring for agent performance, errors, and usage. Set up alerts for critical issues."
+            },
+            {
+              "title": "Create runbooks",
+              "description": "Document operational procedures: deployments, rollbacks, troubleshooting, and incident response."
+            },
+            {
+              "title": "Plan rollback strategy",
+              "description": "Define rollback procedures if deployment fails. Test rollback process to ensure it works smoothly."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, isSupabaseAvailable } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import {
   teamsApiService,
@@ -163,34 +163,79 @@ export function useTeamsApi() {
   }, [loading, teams, fetchAvailableTeams]);
 
   // Subscribe to team changes via Supabase realtime (still works since we use same DB)
+  // Only attempt subscription if Supabase is accessible
   useEffect(() => {
-    const teamsChannel = supabase
-      .channel('public-teams-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'teams' },
-        () => {
-          fetchUserContext();
-        }
-      )
-      .subscribe();
+    if (!user) {
+      return;
+    }
 
-    const membersChannel = supabase
-      .channel('public-team-members-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'team_members' },
-        () => {
-          fetchUserContext();
-        }
-      )
-      .subscribe();
+    let teamsChannel: ReturnType<typeof supabase.channel> | null = null;
+    let membersChannel: ReturnType<typeof supabase.channel> | null = null;
+    let isSubscribed = false;
+
+    // Check if Supabase is available before attempting subscriptions
+    isSupabaseAvailable().then((isAvailable) => {
+      if (!isAvailable) {
+        // Supabase is not accessible - skip realtime subscriptions
+        console.debug('⚠️ Supabase not accessible - skipping realtime subscriptions');
+        return;
+      }
+
+      // Supabase is available - set up subscriptions
+      try {
+        teamsChannel = supabase
+          .channel('public-teams-changes')
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'teams' },
+            () => {
+              fetchUserContext();
+            }
+          )
+          .subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+              console.log('✅ Subscribed to teams changes');
+              isSubscribed = true;
+            } else if (status === 'CHANNEL_ERROR') {
+              console.warn('⚠️ Could not subscribe to teams changes (Supabase may not be accessible)');
+            }
+          });
+
+        membersChannel = supabase
+          .channel('public-team-members-changes')
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'team_members' },
+            () => {
+              fetchUserContext();
+            }
+          )
+          .subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+              console.log('✅ Subscribed to team members changes');
+              isSubscribed = true;
+            } else if (status === 'CHANNEL_ERROR') {
+              console.warn('⚠️ Could not subscribe to team members changes (Supabase may not be accessible)');
+            }
+          });
+      } catch (error) {
+        console.warn('⚠️ Could not set up Supabase realtime subscriptions:', error);
+      }
+    });
 
     return () => {
-      supabase.removeChannel(teamsChannel);
-      supabase.removeChannel(membersChannel);
+      if (teamsChannel) {
+        supabase.removeChannel(teamsChannel).catch(() => {
+          // Ignore cleanup errors
+        });
+      }
+      if (membersChannel) {
+        supabase.removeChannel(membersChannel).catch(() => {
+          // Ignore cleanup errors
+        });
+      }
     };
-  }, [fetchUserContext]);
+  }, [fetchUserContext, user]);
 
   const createTeam = useCallback(
     async (name: string, description?: string) => {

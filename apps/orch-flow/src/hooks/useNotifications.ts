@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, isSupabaseAvailable } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
 // Helper to use orch_flow schema
@@ -48,44 +48,57 @@ export function useNotifications(guestName?: string) {
 
     fetchNotifications();
 
-    // Subscribe to realtime changes
-    const channel = supabase
-      .channel('notifications-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'orch_flow',
-          table: 'notifications',
-        },
-        (payload) => {
-          if (payload.eventType === 'INSERT') {
-            const newNotif = payload.new as Notification;
-            // Only add if it's for this user/guest
-            if ((user && newNotif.user_id === user.id) ||
-                (!user && guestName && newNotif.guest_name === guestName)) {
-              setNotifications(prev => [newNotif, ...prev]);
-              setUnreadCount(prev => prev + 1);
-              playNotificationSoundRef.current();
+    // Subscribe to realtime changes only if Supabase is accessible
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    isSupabaseAvailable().then((isAvailable) => {
+      if (!isAvailable) {
+        console.debug('[useNotifications] Supabase not accessible - skipping realtime subscription');
+        return;
+      }
+
+      channel = supabase
+        .channel('notifications-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'orch_flow',
+            table: 'notifications',
+          },
+          (payload) => {
+            if (payload.eventType === 'INSERT') {
+              const newNotif = payload.new as Notification;
+              // Only add if it's for this user/guest
+              if ((user && newNotif.user_id === user.id) ||
+                  (!user && guestName && newNotif.guest_name === guestName)) {
+                setNotifications(prev => [newNotif, ...prev]);
+                setUnreadCount(prev => prev + 1);
+                playNotificationSoundRef.current();
+              }
+            } else if (payload.eventType === 'UPDATE') {
+              setNotifications(prev =>
+                prev.map(n => n.id === payload.new.id ? payload.new as Notification : n)
+              );
+              // Recalculate unread count
+              setNotifications(prev => {
+                setUnreadCount(prev.filter(n => !n.is_read).length);
+                return prev;
+              });
+            } else if (payload.eventType === 'DELETE') {
+              setNotifications(prev => prev.filter(n => n.id !== payload.old.id));
             }
-          } else if (payload.eventType === 'UPDATE') {
-            setNotifications(prev =>
-              prev.map(n => n.id === payload.new.id ? payload.new as Notification : n)
-            );
-            // Recalculate unread count
-            setNotifications(prev => {
-              setUnreadCount(prev.filter(n => !n.is_read).length);
-              return prev;
-            });
-          } else if (payload.eventType === 'DELETE') {
-            setNotifications(prev => prev.filter(n => n.id !== payload.old.id));
           }
-        }
-      )
-      .subscribe();
+        )
+        .subscribe();
+    });
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) {
+        supabase.removeChannel(channel).catch(() => {
+          // Ignore cleanup errors
+        });
+      }
     };
   }, [user, guestName]);
 

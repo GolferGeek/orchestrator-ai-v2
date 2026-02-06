@@ -1,0 +1,279 @@
+{
+  "efforts": [
+    {
+      "name": "Strategic Planning",
+      "description": "Establish strategic direction and align your team around AI adoption goals",
+      "icon": "rocket",
+      "color": "#3b82f6",
+      "estimatedDays": 14,
+      "projects": [
+        {
+          "name": "Define Team Vision",
+          "description": "Establish clear vision for AI adoption and set strategic direction",
+          "tasks": [
+            {
+              "title": "⭐ Conduct team vision session",
+              "description": "Gather your team to discuss AI goals. What problems are we solving? What opportunities exist? Encourage open discussion and capture all ideas.",
+              "isMilestone": true
+            },
+            {
+              "title": "Document strategic objectives",
+              "description": "Write clear, measurable objectives. Align with business goals and ensure objectives are specific, achievable, and time-bound."
+            },
+            {
+              "title": "Identify quick wins",
+              "description": "Find 2-3 areas where AI can provide immediate value. Focus on high-impact, low-effort opportunities that demonstrate value quickly."
+            },
+            {
+              "title": "Create roadmap",
+              "description": "Plan your AI adoption journey. Set milestones and timelines. Break down into phases: pilot, expansion, and scale."
+            },
+            {
+              "title": "Define success metrics",
+              "description": "Establish KPIs. How will you measure ROI? What does success look like? Set both quantitative and qualitative metrics."
+            },
+            {
+              "title": "Prioritize initiatives",
+              "description": "Rank initiatives by impact and feasibility. Focus resources on highest-value opportunities first."
+            }
+          ]
+        },
+        {
+          "name": "Team Alignment",
+          "description": "Ensure everyone understands the direction and is aligned",
+          "tasks": [
+            {
+              "title": "⭐ Communicate vision to team",
+              "description": "Share your AI strategy with the team. Explain the 'why' behind decisions and how it benefits everyone.",
+              "isMilestone": true
+            },
+            {
+              "title": "Assign roles and responsibilities",
+              "description": "Clarify who does what. Define ownership for different aspects and ensure clear accountability."
+            },
+            {
+              "title": "Set up regular check-ins",
+              "description": "Schedule weekly or bi-weekly meetings to track progress and address questions. Keep communication channels open."
+            },
+            {
+              "title": "Create feedback channels",
+              "description": "Establish ways for team members to share ideas, concerns, and successes. Make it easy to provide input."
+            },
+            {
+              "title": "Address concerns proactively",
+              "description": "Listen to team concerns about AI adoption. Address fears about job security, change, and new technology."
+            },
+            {
+              "title": "Celebrate early wins",
+              "description": "Recognize and celebrate early successes. Build momentum and positive energy around AI initiatives."
+            }
+          ]
+        },
+        {
+          "name": "Stakeholder Engagement",
+          "description": "Engage stakeholders and build support for AI initiatives",
+          "tasks": [
+            {
+              "title": "⭐ Identify key stakeholders",
+              "description": "List all stakeholders who need to be involved or informed. Include executives, department heads, and end users.",
+              "isMilestone": true
+            },
+            {
+              "title": "Schedule stakeholder meetings",
+              "description": "Set up meetings with each stakeholder group. Prepare presentations and gather input on priorities."
+            },
+            {
+              "title": "Present business case",
+              "description": "Create compelling business case for AI adoption. Include ROI projections, benefits, and risk mitigation."
+            },
+            {
+              "title": "Gather stakeholder requirements",
+              "description": "Document specific requirements from each stakeholder group. Understand their needs and constraints."
+            },
+            {
+              "title": "Build consensus",
+              "description": "Work to align stakeholders around common goals. Address concerns and build support for initiatives."
+            },
+            {
+              "title": "Establish governance",
+              "description": "Define governance structure for AI initiatives. Set up decision-making processes and approval workflows."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Resource Planning",
+      "description": "Plan and allocate resources needed for successful AI implementation",
+      "icon": "wallet",
+      "color": "#10b981",
+      "estimatedDays": 12,
+      "projects": [
+        {
+          "name": "Budget Planning",
+          "description": "Create budget and secure funding for AI initiatives",
+          "tasks": [
+            {
+              "title": "⭐ Assess current spending",
+              "description": "Review current costs related to tasks that AI could automate or improve. Include labor, tools, and overhead costs.",
+              "isMilestone": true
+            },
+            {
+              "title": "Estimate AI platform costs",
+              "description": "Research and estimate costs for AI platforms, API usage, and tools. Consider different pricing tiers and usage scenarios."
+            },
+            {
+              "title": "Calculate potential savings",
+              "description": "Estimate time and cost savings from AI implementation. Consider both direct savings and productivity improvements."
+            },
+            {
+              "title": "Create budget proposal",
+              "description": "Draft comprehensive budget proposal with costs, expected ROI, and timeline. Include one-time and recurring expenses."
+            },
+            {
+              "title": "Identify funding sources",
+              "description": "Determine where budget will come from. Consider reallocating existing resources or requesting new funding."
+            },
+            {
+              "title": "Plan for budget approval",
+              "description": "Prepare materials and schedule meetings to get budget approved. Anticipate questions and prepare answers."
+            }
+          ]
+        },
+        {
+          "name": "Team Capacity Planning",
+          "description": "Assess team capacity and plan for AI adoption",
+          "tasks": [
+            {
+              "title": "⭐ Assess team capacity",
+              "description": "Evaluate current team workload and capacity. Identify time available for AI initiatives and training.",
+              "isMilestone": true
+            },
+            {
+              "title": "Identify skill gaps",
+              "description": "Assess team skills related to AI. Identify gaps and determine if training or hiring is needed."
+            },
+            {
+              "title": "Plan training and development",
+              "description": "Create training plan to build AI capabilities. Include internal training, external courses, and hands-on practice."
+            },
+            {
+              "title": "Allocate team time",
+              "description": "Schedule dedicated time for team members to work on AI initiatives. Protect this time from other priorities."
+            },
+            {
+              "title": "Consider external support",
+              "description": "Evaluate if external consultants or vendors are needed. Identify areas where external expertise would help."
+            },
+            {
+              "title": "Create capacity buffer",
+              "description": "Plan for unexpected challenges and learning curve. Build buffer time into schedules for realistic planning."
+            }
+          ]
+        },
+        {
+          "name": "Tool & Platform Selection",
+          "description": "Select the right tools and platforms for your team",
+          "tasks": [
+            {
+              "title": "⭐ Define tool requirements",
+              "description": "List must-have and nice-to-have features. Consider ease of use, integration, support, and cost.",
+              "isMilestone": true
+            },
+            {
+              "title": "Research available platforms",
+              "description": "Identify and research AI platforms that meet your requirements. Read reviews, compare features, and check pricing."
+            },
+            {
+              "title": "Schedule platform demos",
+              "description": "Request demos from top platform candidates. Prepare questions and use cases to evaluate during demos."
+            },
+            {
+              "title": "Evaluate ease of use",
+              "description": "Assess how easy platforms are for non-technical users. Consider learning curve and training requirements."
+            },
+            {
+              "title": "Check integration capabilities",
+              "description": "Assess how well platforms integrate with your existing tools. Check for connectors and API availability."
+            },
+            {
+              "title": "Make platform selection",
+              "description": "Choose platform that best fits your needs, budget, and team capabilities. Document decision rationale."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Change Management",
+      "description": "Manage organizational change and ensure smooth AI adoption",
+      "icon": "people",
+      "color": "#8b5cf6",
+      "estimatedDays": 10,
+      "projects": [
+        {
+          "name": "Change Communication",
+          "description": "Communicate changes effectively to minimize resistance",
+          "tasks": [
+            {
+              "title": "⭐ Develop communication plan",
+              "description": "Create comprehensive communication plan. Define messages, channels, timing, and audiences for AI adoption.",
+              "isMilestone": true
+            },
+            {
+              "title": "Craft key messages",
+              "description": "Develop clear, consistent messages about AI adoption. Focus on benefits, address concerns, and set expectations."
+            },
+            {
+              "title": "Choose communication channels",
+              "description": "Select appropriate channels for different messages. Use meetings, emails, documentation, and training sessions."
+            },
+            {
+              "title": "Schedule regular updates",
+              "description": "Plan regular communication about progress. Keep team informed and engaged throughout adoption process."
+            },
+            {
+              "title": "Address resistance",
+              "description": "Identify and address sources of resistance. Listen to concerns and provide reassurance and support."
+            },
+            {
+              "title": "Celebrate milestones",
+              "description": "Recognize progress and celebrate milestones. Build positive momentum and reinforce benefits."
+            }
+          ]
+        },
+        {
+          "name": "Training & Support",
+          "description": "Provide training and support to help team adopt AI",
+          "tasks": [
+            {
+              "title": "⭐ Assess training needs",
+              "description": "Evaluate what training team members need. Consider different skill levels and learning styles.",
+              "isMilestone": true
+            },
+            {
+              "title": "Create training materials",
+              "description": "Develop training materials: guides, videos, and hands-on exercises. Make content accessible and practical."
+            },
+            {
+              "title": "Schedule training sessions",
+              "description": "Plan and schedule training sessions. Allow time for practice and questions during sessions."
+            },
+            {
+              "title": "Set up support system",
+              "description": "Establish support channels for questions and issues. Create help desk, documentation, and peer support."
+            },
+            {
+              "title": "Provide ongoing support",
+              "description": "Offer continued support after initial training. Be available for questions and provide additional help as needed."
+            },
+            {
+              "title": "Gather training feedback",
+              "description": "Collect feedback on training effectiveness. Improve materials and sessions based on feedback."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

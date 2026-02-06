@@ -7,6 +7,72 @@ const SUPABASE_API_PORT = import.meta.env.VITE_SUPABASE_API_PORT || import.meta.
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || `http://127.0.0.1:${SUPABASE_API_PORT}`;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+// Cache for Supabase availability check
+let supabaseAvailabilityCache: { isAvailable: boolean; checkedAt: number } | null = null;
+const AVAILABILITY_CACHE_DURATION = 30000; // 30 seconds
+
+/**
+ * Check if Supabase is accessible by attempting a simple query
+ * Results are cached for 30 seconds to avoid repeated checks
+ */
+export async function isSupabaseAvailable(): Promise<boolean> {
+  // Check cache first
+  if (supabaseAvailabilityCache) {
+    const now = Date.now();
+    if (now - supabaseAvailabilityCache.checkedAt < AVAILABILITY_CACHE_DURATION) {
+      return supabaseAvailabilityCache.isAvailable;
+    }
+  }
+
+  try {
+    // Attempt a simple query to test connectivity
+    // The global fetch wrapper already has a 10-second timeout, but we want faster failure
+    const queryPromise = supabase
+      .from('users')
+      .select('id')
+      .limit(1);
+
+    // Race the query against a timeout
+    const timeoutPromise = new Promise<{ error: { message: string } }>((resolve) => {
+      setTimeout(() => {
+        resolve({ error: { message: 'Connection timeout' } });
+      }, 2000); // 2 second timeout
+    });
+
+    const result = await Promise.race([queryPromise, timeoutPromise]);
+    const isAvailable = !result.error;
+
+    supabaseAvailabilityCache = {
+      isAvailable,
+      checkedAt: Date.now(),
+    };
+    return isAvailable;
+  } catch (error) {
+    // Connection failed - Supabase is not accessible
+    supabaseAvailabilityCache = {
+      isAvailable: false,
+      checkedAt: Date.now(),
+    };
+    return false;
+  }
+}
+
+// Suppress noisy WebSocket connection errors from Supabase realtime
+// These errors are expected when Supabase is not accessible and are handled gracefully
+if (typeof window !== 'undefined') {
+  const originalError = console.error;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  console.error = (...args: any[]) => {
+    const message = args[0]?.toString() || '';
+    // Suppress WebSocket connection errors for Supabase realtime
+    if (message.includes('WebSocket connection to') && message.includes('realtime/v1/websocket')) {
+      // Silently ignore - we handle these errors gracefully in our hooks
+      return;
+    }
+    originalError.apply(console, args);
+  };
+}
+
 // Debug: Log environment variables (remove in production)
 if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
   console.error('❌ Missing Supabase environment variables:');
@@ -21,10 +87,35 @@ if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
     storage: localStorage,
-    persistSession: true,
-    autoRefreshToken: true,
+    persistSession: false, // We manage sessions via auth store, not Supabase
+    autoRefreshToken: false, // We use API for auth, not Supabase auth
+    detectSessionInUrl: false, // Don't detect sessions from URL
   },
   db: {
     schema: 'orch_flow'  // Orch-Flow uses orch_flow schema for all tables
+  },
+  realtime: {
+    // Handle WebSocket connection errors gracefully
+    params: {
+      eventsPerSecond: 10
+    },
+    // Don't automatically reconnect on error - let hooks handle it
+    reconnectAfterMs: () => false, // Disable auto-reconnect
+  },
+  global: {
+    // Don't automatically retry failed requests
+    fetch: (url, options = {}) => {
+      return fetch(url, {
+        ...options,
+        // Add timeout to prevent hanging
+        signal: AbortSignal.timeout(10000), // 10 second timeout
+      }).catch((error) => {
+        // Log but don't throw - let the calling code handle it
+        if (error.name !== 'AbortError') {
+          console.warn('Supabase request failed:', error);
+        }
+        throw error;
+      });
+    }
   }
 });

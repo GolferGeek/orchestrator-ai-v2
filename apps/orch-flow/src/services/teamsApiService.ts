@@ -3,10 +3,8 @@
  *
  * API client for team management operations.
  * Connects to /users/me/context, /orgs/:slug/teams, and /teams endpoints.
- * Uses Supabase auth for authentication.
+ * Uses API authentication (token from localStorage) instead of direct Supabase calls.
  */
-
-import { supabase } from '@/integrations/supabase/client';
 
 // Types matching the API responses
 export interface ApiTeam {
@@ -59,18 +57,33 @@ class TeamsApiService {
   private readonly baseUrl: string;
 
   constructor() {
-    const apiPort = import.meta.env.VITE_API_PORT || '6100';
-    this.baseUrl = import.meta.env.VITE_API_URL || `http://127.0.0.1:${apiPort}`;
+    // Use MAIN_API_URL for teams/orgs endpoints (same as Notebook)
+    // Falls back to local API URL if MAIN_API_URL not set (for backward compatibility)
+    const mainApiUrl = import.meta.env.VITE_MAIN_API_URL || import.meta.env.MAIN_API_URL;
+    if (mainApiUrl) {
+      this.baseUrl = mainApiUrl;
+    } else {
+      // Fallback to local API for backward compatibility
+      const apiPort = import.meta.env.VITE_API_PORT || '6100';
+      this.baseUrl = import.meta.env.VITE_API_URL || `http://127.0.0.1:${apiPort}`;
+    }
   }
 
   /**
-   * Get the current auth token from Supabase
+   * Get the current auth token from localStorage (auth store)
    */
-  private async getAuthToken(): Promise<string | null> {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    return session?.access_token || null;
+  private getAuthToken(): string | null {
+    try {
+      const authStorage = localStorage.getItem('auth-storage');
+      if (!authStorage) {
+        return null;
+      }
+      const { state } = JSON.parse(authStorage);
+      return state?.token || null;
+    } catch (error) {
+      console.error('Error reading auth token from storage:', error);
+      return null;
+    }
   }
 
   /**
@@ -80,7 +93,7 @@ class TeamsApiService {
     path: string,
     options: RequestInit = {}
   ): Promise<T> {
-    const token = await this.getAuthToken();
+    const token = this.getAuthToken();
     if (!token) {
       throw new Error('Not authenticated');
     }

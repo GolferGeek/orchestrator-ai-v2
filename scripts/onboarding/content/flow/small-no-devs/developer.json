@@ -1,0 +1,217 @@
+{
+  "efforts": [
+    {
+      "name": "Development Foundation",
+      "description": "Establish development practices and workflows for your team",
+      "icon": "code",
+      "color": "#10b981",
+      "estimatedDays": 10,
+      "projects": [
+        {
+          "name": "Team Setup",
+          "description": "Get your team's development environment ready",
+          "tasks": [
+            {
+              "title": "⭐ Set up team access",
+              "description": "Create accounts for all team members. Configure permissions and access levels appropriate for each role.",
+              "isMilestone": true
+            },
+            {
+              "title": "Establish development standards",
+              "description": "Define coding standards, naming conventions, and best practices for your team. Create style guides and templates."
+            },
+            {
+              "title": "Set up version control",
+              "description": "Configure Git repositories. Set up branching strategy and code review process. Train team on version control basics."
+            },
+            {
+              "title": "Create development documentation",
+              "description": "Document your setup process, common workflows, and troubleshooting guides. Make it easy for team members to get started."
+            },
+            {
+              "title": "Set up collaboration tools",
+              "description": "Configure project management, communication, and documentation tools. Ensure everyone knows how to use them."
+            },
+            {
+              "title": "Establish code review process",
+              "description": "Define code review guidelines and process. Ensure quality and knowledge sharing through reviews."
+            }
+          ]
+        },
+        {
+          "name": "First Team Project",
+          "description": "Build your first team AI agent project together",
+          "tasks": [
+            {
+              "title": "⭐ Choose team project",
+              "description": "Select a project that benefits multiple team members. Get input from the team and prioritize based on impact.",
+              "isMilestone": true
+            },
+            {
+              "title": "Plan project structure",
+              "description": "Design the architecture together. Define components, interfaces, and how pieces fit together."
+            },
+            {
+              "title": "Assign tasks",
+              "description": "Break down work into tasks. Assign based on team members' strengths and learning goals."
+            },
+            {
+              "title": "Set up project tracking",
+              "description": "Use project management tools to track progress. Set up boards, tasks, and milestones for visibility."
+            },
+            {
+              "title": "Review and iterate",
+              "description": "Conduct regular reviews. Gather feedback, identify improvements, and iterate on the project."
+            },
+            {
+              "title": "Document lessons learned",
+              "description": "Capture what worked well and what didn't. Document lessons learned for future projects."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "API Integration",
+      "description": "Learn to integrate with APIs and build connections between systems",
+      "icon": "link",
+      "color": "#3b82f6",
+      "estimatedDays": 8,
+      "projects": [
+        {
+          "name": "API Basics",
+          "description": "Understand and use APIs effectively",
+          "tasks": [
+            {
+              "title": "⭐ Learn API fundamentals",
+              "description": "Understand what APIs are and how they work. Learn about requests, responses, and authentication basics.",
+              "isMilestone": true
+            },
+            {
+              "title": "Explore available APIs",
+              "description": "Review APIs available in your platform. Understand what each API does and when to use it."
+            },
+            {
+              "title": "Test API connections",
+              "description": "Make test API calls to verify connectivity. Use API testing tools or simple scripts to test endpoints."
+            },
+            {
+              "title": "Understand authentication",
+              "description": "Learn how API authentication works. Understand API keys, tokens, and secure credential management."
+            },
+            {
+              "title": "Handle API errors",
+              "description": "Learn to interpret API error messages. Understand common errors and how to resolve them."
+            },
+            {
+              "title": "Document API usage",
+              "description": "Document how your team uses APIs. Create examples and guides for common API operations."
+            }
+          ]
+        },
+        {
+          "name": "Integration Patterns",
+          "description": "Learn common integration patterns and best practices",
+          "tasks": [
+            {
+              "title": "⭐ Identify integration needs",
+              "description": "List systems and tools that need to integrate. Identify data flows and integration points.",
+              "isMilestone": true
+            },
+            {
+              "title": "Design integration approach",
+              "description": "Plan how systems will connect. Consider data formats, timing, and error handling."
+            },
+            {
+              "title": "Use pre-built connectors",
+              "description": "Leverage existing connectors and integrations when available. Save time by using proven solutions."
+            },
+            {
+              "title": "Test integrations thoroughly",
+              "description": "Test integrations with real data. Verify data accuracy and handle edge cases."
+            },
+            {
+              "title": "Monitor integration health",
+              "description": "Set up monitoring for integrations. Track success rates, errors, and performance."
+            },
+            {
+              "title": "Create integration documentation",
+              "description": "Document integration setup and configuration. Include troubleshooting guides and common issues."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Quality & Testing",
+      "description": "Ensure quality and reliability of your team's work",
+      "icon": "shield-checkmark",
+      "color": "#ef4444",
+      "estimatedDays": 8,
+      "projects": [
+        {
+          "name": "Testing Practices",
+          "description": "Establish testing practices for your team",
+          "tasks": [
+            {
+              "title": "⭐ Define testing approach",
+              "description": "Establish testing practices for your team. Define what to test, when to test, and how to test.",
+              "isMilestone": true
+            },
+            {
+              "title": "Create test cases",
+              "description": "Write test cases for key functionality. Include normal cases, edge cases, and error scenarios."
+            },
+            {
+              "title": "Set up test environments",
+              "description": "Create test environments separate from production. Use test data and configurations."
+            },
+            {
+              "title": "Implement manual testing",
+              "description": "Create manual testing checklists and procedures. Ensure consistent testing across team members."
+            },
+            {
+              "title": "Document test results",
+              "description": "Record test results and issues found. Track what was tested and outcomes."
+            },
+            {
+              "title": "Establish bug tracking",
+              "description": "Set up process for tracking bugs and issues. Prioritize fixes and track resolution."
+            }
+          ]
+        },
+        {
+          "name": "Quality Assurance",
+          "description": "Ensure consistent quality across team projects",
+          "tasks": [
+            {
+              "title": "⭐ Define quality standards",
+              "description": "Establish quality standards for your team. Define what 'done' means and quality criteria.",
+              "isMilestone": true
+            },
+            {
+              "title": "Create quality checklists",
+              "description": "Develop checklists for quality reviews. Include code quality, documentation, and testing requirements."
+            },
+            {
+              "title": "Implement peer reviews",
+              "description": "Set up peer review process. Have team members review each other's work for quality and learning."
+            },
+            {
+              "title": "Track quality metrics",
+              "description": "Measure quality metrics: bug rates, test coverage, code review feedback. Track trends over time."
+            },
+            {
+              "title": "Continuously improve",
+              "description": "Regularly review and improve quality processes. Learn from issues and refine practices."
+            },
+            {
+              "title": "Celebrate quality wins",
+              "description": "Recognize team members who maintain high quality. Build culture of quality excellence."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,177 @@
+{
+  "efforts": [
+    {
+      "name": "Strategic AI Initiative",
+      "description": "Establish comprehensive AI strategy and align organization around AI adoption",
+      "icon": "rocket",
+      "color": "#3b82f6",
+      "estimatedDays": 21,
+      "projects": [
+        {
+          "name": "Strategic Foundation",
+          "description": "Establish comprehensive AI strategy and vision",
+          "tasks": [
+            {
+              "title": "⭐ Executive alignment session",
+              "description": "Meet with leadership to align on AI vision and priorities. Ensure buy-in, support, and resource commitment from executives.",
+              "isMilestone": true
+            },
+            {
+              "title": "Define strategic objectives",
+              "description": "Document clear, measurable strategic objectives. Align with business goals, KPIs, and long-term vision. Make objectives specific and time-bound."
+            },
+            {
+              "title": "Assess current capabilities",
+              "description": "Evaluate your team's current AI capabilities. Identify strengths, gaps, and areas for improvement. Assess technical and organizational readiness."
+            },
+            {
+              "title": "Create comprehensive roadmap",
+              "description": "Develop a detailed roadmap with phases, milestones, and success criteria. Include timelines, dependencies, and resource requirements."
+            },
+            {
+              "title": "Establish governance",
+              "description": "Define decision-making processes, roles, and responsibilities for AI initiatives. Create governance structure and approval workflows."
+            },
+            {
+              "title": "Identify quick wins",
+              "description": "Find high-impact, low-effort opportunities to demonstrate value quickly. Build momentum and support for larger initiatives."
+            }
+          ]
+        },
+        {
+          "name": "Team Enablement",
+          "description": "Enable your team to succeed with AI",
+          "tasks": [
+            {
+              "title": "⭐ Communicate strategic vision",
+              "description": "Share the AI strategy across the organization. Explain the 'why' and expected outcomes. Ensure everyone understands the direction.",
+              "isMilestone": true
+            },
+            {
+              "title": "Allocate resources",
+              "description": "Assign budget, people, and infrastructure to AI initiatives. Ensure adequate support and remove barriers to success."
+            },
+            {
+              "title": "Set up success metrics",
+              "description": "Define KPIs and measurement frameworks. Track progress regularly and adjust strategy based on results."
+            },
+            {
+              "title": "Create feedback loops",
+              "description": "Establish channels for continuous feedback. Adapt strategy based on learnings and changing conditions."
+            },
+            {
+              "title": "Build AI capabilities",
+              "description": "Invest in training and development. Build AI expertise within the team through courses, workshops, and hands-on practice."
+            },
+            {
+              "title": "Foster innovation culture",
+              "description": "Create environment that encourages experimentation and innovation. Reward learning and calculated risk-taking."
+            }
+          ]
+        },
+        {
+          "name": "Cross-Functional Collaboration",
+          "description": "Foster collaboration across teams and departments",
+          "tasks": [
+            {
+              "title": "⭐ Identify stakeholders",
+              "description": "Map all stakeholders affected by AI initiatives. Understand their needs, concerns, and how they'll be impacted.",
+              "isMilestone": true
+            },
+            {
+              "title": "Facilitate cross-team meetings",
+              "description": "Organize regular meetings between teams. Share progress, align on priorities, and resolve conflicts."
+            },
+            {
+              "title": "Create shared goals",
+              "description": "Establish shared goals that require cross-team collaboration. Align incentives and create win-win scenarios."
+            },
+            {
+              "title": "Build communication channels",
+              "description": "Set up communication channels for cross-team collaboration. Use tools and processes that facilitate information sharing."
+            },
+            {
+              "title": "Resolve conflicts proactively",
+              "description": "Address conflicts and misalignments early. Facilitate discussions and find solutions that work for all parties."
+            },
+            {
+              "title": "Celebrate collaborative wins",
+              "description": "Recognize and celebrate successes that result from collaboration. Reinforce value of working together."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Resource & Risk Management",
+      "description": "Manage resources effectively and mitigate risks",
+      "icon": "shield-checkmark",
+      "color": "#ef4444",
+      "estimatedDays": 16,
+      "projects": [
+        {
+          "name": "Resource Planning",
+          "description": "Plan and allocate resources strategically",
+          "tasks": [
+            {
+              "title": "⭐ Create resource plan",
+              "description": "Develop comprehensive resource plan covering budget, people, infrastructure, and time. Align with strategic objectives.",
+              "isMilestone": true
+            },
+            {
+              "title": "Allocate budget strategically",
+              "description": "Distribute budget across initiatives based on priority and ROI. Balance short-term wins with long-term investments."
+            },
+            {
+              "title": "Plan team capacity",
+              "description": "Assess team capacity and plan allocation. Balance current work with new AI initiatives and training needs."
+            },
+            {
+              "title": "Manage infrastructure costs",
+              "description": "Plan infrastructure spending. Optimize for cost while ensuring performance and scalability."
+            },
+            {
+              "title": "Track resource utilization",
+              "description": "Monitor how resources are being used. Identify inefficiencies and reallocate as needed."
+            },
+            {
+              "title": "Adjust resource allocation",
+              "description": "Regularly review and adjust resource allocation based on progress and changing priorities."
+            }
+          ]
+        },
+        {
+          "name": "Risk Management",
+          "description": "Identify and mitigate risks proactively",
+          "tasks": [
+            {
+              "title": "⭐ Conduct risk assessment",
+              "description": "Identify potential risks: technical, organizational, financial, and compliance. Assess likelihood and impact.",
+              "isMilestone": true
+            },
+            {
+              "title": "Create risk mitigation plans",
+              "description": "Develop plans to mitigate identified risks. Assign owners and set timelines for risk reduction activities."
+            },
+            {
+              "title": "Establish risk monitoring",
+              "description": "Set up processes to monitor risks continuously. Track risk indicators and trigger mitigation when thresholds are crossed."
+            },
+            {
+              "title": "Plan for contingencies",
+              "description": "Develop contingency plans for high-impact risks. Prepare for scenarios where things don't go as planned."
+            },
+            {
+              "title": "Create incident response plan",
+              "description": "Document procedures for responding to incidents. Define escalation paths and communication plans."
+            },
+            {
+              "title": "Review and update risk plans",
+              "description": "Regularly review risk register and mitigation plans. Update as conditions change and new risks emerge."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

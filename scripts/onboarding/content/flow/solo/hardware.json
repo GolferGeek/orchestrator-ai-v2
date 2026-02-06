@@ -1,0 +1,217 @@
+{
+  "efforts": [
+    {
+      "name": "Infrastructure Basics",
+      "description": "Set up foundational infrastructure for running AI agents and workloads",
+      "icon": "server",
+      "color": "#8b5cf6",
+      "estimatedDays": 10,
+      "projects": [
+        {
+          "name": "Initial Hardware Setup",
+          "description": "Assess and configure basic hardware requirements",
+          "tasks": [
+            {
+              "title": "⭐ Assess current hardware capabilities",
+              "description": "Review your existing hardware. Check CPU, memory, storage, and network capacity. Identify any gaps for running AI workloads and estimate resource needs.",
+              "isMilestone": true
+            },
+            {
+              "title": "Plan infrastructure needs",
+              "description": "Determine what hardware you'll need. Consider: local vs cloud, GPU requirements, storage needs, network capacity, and scalability requirements."
+            },
+            {
+              "title": "Choose deployment model",
+              "description": "Decide between cloud, on-premises, or hybrid deployment. Evaluate costs, security, and operational complexity for each option."
+            },
+            {
+              "title": "Set up basic monitoring",
+              "description": "Configure basic system monitoring. Track CPU, memory, disk usage, and network activity to understand resource utilization."
+            },
+            {
+              "title": "Implement backup strategy",
+              "description": "Set up automated backups for critical data and configurations. Define backup frequency, retention, and recovery procedures."
+            },
+            {
+              "title": "Document infrastructure setup",
+              "description": "Document your hardware configuration, network setup, and deployment architecture. Keep diagrams and configuration details up to date."
+            }
+          ]
+        },
+        {
+          "name": "Security Configuration",
+          "description": "Implement security best practices for your infrastructure",
+          "tasks": [
+            {
+              "title": "⭐ Configure firewall rules",
+              "description": "Set up firewall rules to restrict access. Allow only necessary ports and services. Block unnecessary inbound connections.",
+              "isMilestone": true
+            },
+            {
+              "title": "Set up access controls",
+              "description": "Implement proper user access controls. Use least privilege principle and separate admin accounts from regular users."
+            },
+            {
+              "title": "Configure SSL/TLS certificates",
+              "description": "Set up SSL/TLS certificates for secure connections. Configure automatic renewal and proper certificate management."
+            },
+            {
+              "title": "Implement logging and auditing",
+              "description": "Enable comprehensive logging for security events. Set up log aggregation and review processes for suspicious activity."
+            },
+            {
+              "title": "Set up intrusion detection",
+              "description": "Configure basic intrusion detection. Monitor for unauthorized access attempts and unusual system behavior."
+            },
+            {
+              "title": "Create security documentation",
+              "description": "Document security policies, procedures, and incident response plans. Keep security documentation accessible and up to date."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Resource Management",
+      "description": "Optimize resource allocation and manage costs effectively",
+      "icon": "wallet",
+      "color": "#10b981",
+      "estimatedDays": 8,
+      "projects": [
+        {
+          "name": "Resource Planning",
+          "description": "Plan and allocate resources efficiently",
+          "tasks": [
+            {
+              "title": "⭐ Analyze resource usage patterns",
+              "description": "Monitor and analyze how resources are used. Identify peak usage times, resource-intensive operations, and optimization opportunities.",
+              "isMilestone": true
+            },
+            {
+              "title": "Set resource limits",
+              "description": "Configure resource limits for different workloads. Prevent any single process from consuming all available resources."
+            },
+            {
+              "title": "Implement resource quotas",
+              "description": "Set up quotas for different users or projects. Ensure fair resource distribution and prevent overconsumption."
+            },
+            {
+              "title": "Create cost tracking",
+              "description": "Set up cost tracking and reporting. Monitor spending on cloud resources, compute, storage, and network usage."
+            },
+            {
+              "title": "Plan for scaling",
+              "description": "Design infrastructure that can scale. Plan for horizontal and vertical scaling based on workload demands."
+            },
+            {
+              "title": "Optimize resource allocation",
+              "description": "Review and optimize resource allocation. Right-size instances, remove unused resources, and optimize for cost and performance."
+            }
+          ]
+        },
+        {
+          "name": "Performance Optimization",
+          "description": "Optimize infrastructure performance for AI workloads",
+          "tasks": [
+            {
+              "title": "⭐ Benchmark current performance",
+              "description": "Establish performance baselines. Measure response times, throughput, and resource utilization under typical workloads.",
+              "isMilestone": true
+            },
+            {
+              "title": "Identify performance bottlenecks",
+              "description": "Analyze system performance to identify bottlenecks. Use profiling tools to find CPU, memory, I/O, or network constraints."
+            },
+            {
+              "title": "Optimize database performance",
+              "description": "Tune database configurations, indexes, and queries. Optimize for your specific workload patterns and access patterns."
+            },
+            {
+              "title": "Implement caching strategies",
+              "description": "Add caching layers to reduce load. Cache frequently accessed data, API responses, and computation results."
+            },
+            {
+              "title": "Optimize network configuration",
+              "description": "Review and optimize network settings. Reduce latency, improve bandwidth utilization, and optimize routing."
+            },
+            {
+              "title": "Monitor and iterate",
+              "description": "Continuously monitor performance metrics. Iterate on optimizations based on real-world usage patterns and feedback."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Operations & Maintenance",
+      "description": "Establish operational procedures and maintenance routines",
+      "icon": "settings",
+      "color": "#6366f1",
+      "estimatedDays": 7,
+      "projects": [
+        {
+          "name": "Operational Procedures",
+          "description": "Create procedures for day-to-day operations",
+          "tasks": [
+            {
+              "title": "⭐ Create operational runbooks",
+              "description": "Document common operational tasks. Include step-by-step procedures for deployments, updates, and troubleshooting.",
+              "isMilestone": true
+            },
+            {
+              "title": "Set up automated deployments",
+              "description": "Automate deployment processes. Reduce manual errors and enable faster, more reliable deployments."
+            },
+            {
+              "title": "Implement health checks",
+              "description": "Set up health check endpoints and monitoring. Automatically detect and alert on service failures or degradation."
+            },
+            {
+              "title": "Create incident response procedures",
+              "description": "Document procedures for handling incidents. Define escalation paths, communication plans, and recovery steps."
+            },
+            {
+              "title": "Set up maintenance windows",
+              "description": "Schedule regular maintenance windows. Plan updates, patches, and system maintenance during low-traffic periods."
+            },
+            {
+              "title": "Document operational contacts",
+              "description": "Maintain a list of key contacts for different systems and services. Include vendors, support contacts, and internal experts."
+            }
+          ]
+        },
+        {
+          "name": "Monitoring & Alerting",
+          "description": "Set up comprehensive monitoring and alerting",
+          "tasks": [
+            {
+              "title": "⭐ Configure monitoring dashboards",
+              "description": "Set up dashboards to visualize system health. Monitor key metrics: CPU, memory, disk, network, and application performance.",
+              "isMilestone": true
+            },
+            {
+              "title": "Set up alerting rules",
+              "description": "Configure alerts for critical issues. Set appropriate thresholds and ensure alerts are actionable and not noisy."
+            },
+            {
+              "title": "Implement log aggregation",
+              "description": "Centralize log collection from all systems. Enable easy searching and analysis of logs across your infrastructure."
+            },
+            {
+              "title": "Create performance reports",
+              "description": "Generate regular performance reports. Track trends, identify issues, and measure improvements over time."
+            },
+            {
+              "title": "Set up capacity planning",
+              "description": "Monitor resource trends to predict future needs. Plan capacity increases before hitting limits."
+            },
+            {
+              "title": "Review and optimize alerts",
+              "description": "Regularly review alert effectiveness. Reduce false positives, tune thresholds, and ensure alerts lead to action."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

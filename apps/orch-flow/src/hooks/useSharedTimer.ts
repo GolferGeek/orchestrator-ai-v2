@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, isSupabaseAvailable } from '@/integrations/supabase/client';
 
 // Helper to use orch_flow schema
 const orchFlow = () => supabase.schema('orch_flow');
@@ -93,37 +93,51 @@ export function useSharedTimer(onTimerComplete?: () => void, teamId?: string | n
 
     fetchTimer();
 
-    const channel = supabase
-      .channel(`timer-changes-${teamId || 'global'}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'orch_flow',
-          table: 'timer_state',
-        },
-        (payload) => {
-          // Only update if it's for our team
-          const newRecord = payload.new as Record<string, unknown>;
-          if (teamId && newRecord?.team_id !== teamId) {
-            return;
-          }
-          if (!teamId && newRecord?.team_id !== null) {
-            return;
-          }
-          console.log('Timer update:', payload);
-          if (payload.new) {
-            setTimerState(payload.new as TimerState);
-            if ((payload.new as TimerState).is_running) {
-              hasCompletedRef.current = false;
+    // Subscribe to timer state changes only if Supabase is accessible
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    isSupabaseAvailable().then((isAvailable) => {
+      if (!isAvailable) {
+        console.debug('[useSharedTimer] Supabase not accessible - skipping realtime subscription');
+        return;
+      }
+
+      channel = supabase
+        .channel(`timer-changes-${teamId || 'global'}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'orch_flow',
+            table: 'timer_state',
+          },
+          (payload) => {
+            // Only update if it's for our team
+            const newRecord = payload.new as Record<string, unknown>;
+            if (teamId && newRecord?.team_id !== teamId) {
+              return;
+            }
+            if (!teamId && newRecord?.team_id !== null) {
+              return;
+            }
+            console.log('Timer update:', payload);
+            if (payload.new) {
+              setTimerState(payload.new as TimerState);
+              if ((payload.new as TimerState).is_running) {
+                hasCompletedRef.current = false;
+              }
             }
           }
-        }
-      )
-      .subscribe();
+        )
+        .subscribe();
+    });
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) {
+        supabase.removeChannel(channel).catch(() => {
+          // Ignore cleanup errors
+        });
+      }
     };
   }, [teamId]);
 

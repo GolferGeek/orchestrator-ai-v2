@@ -1,0 +1,217 @@
+{
+  "efforts": [
+    {
+      "name": "Documentation Strategy",
+      "description": "Create a comprehensive documentation strategy for your team",
+      "icon": "book",
+      "color": "#ef4444",
+      "estimatedDays": 8,
+      "projects": [
+        {
+          "name": "Team Documentation Plan",
+          "description": "Create a plan for team documentation",
+          "tasks": [
+            {
+              "title": "⭐ Define documentation needs",
+              "description": "Identify what documentation your team needs. Consider user guides, API docs, internal docs, and training materials.",
+              "isMilestone": true
+            },
+            {
+              "title": "Assign documentation owners",
+              "description": "Assign team members to own different documentation areas. Define responsibilities and ensure coverage."
+            },
+            {
+              "title": "Set documentation standards",
+              "description": "Establish style guides and templates. Ensure consistency across all documentation."
+            },
+            {
+              "title": "Choose documentation tools",
+              "description": "Select tools for creating and managing documentation. Consider collaboration features and ease of use."
+            },
+            {
+              "title": "Create documentation workflow",
+              "description": "Define process for creating, reviewing, and updating documentation. Ensure documentation stays current."
+            },
+            {
+              "title": "Plan documentation structure",
+              "description": "Design logical structure for documentation. Organize content for easy navigation and discovery."
+            }
+          ]
+        },
+        {
+          "name": "Create Essential Documentation",
+          "description": "Build your core documentation set",
+          "tasks": [
+            {
+              "title": "⭐ Write getting started guide",
+              "description": "Create a guide for new team members. Include setup, workflows, key concepts, and common tasks.",
+              "isMilestone": true
+            },
+            {
+              "title": "Document team processes",
+              "description": "Write down your team's processes and workflows. Include decision-making, communication, and collaboration processes."
+            },
+            {
+              "title": "Create user-facing docs",
+              "description": "Write documentation for end users. Make it clear, accessible, and focused on user needs."
+            },
+            {
+              "title": "Build troubleshooting guides",
+              "description": "Create guides for common issues and problems. Help users solve problems independently."
+            },
+            {
+              "title": "Establish documentation review",
+              "description": "Set up a process for reviewing and updating documentation regularly. Keep content current and accurate."
+            },
+            {
+              "title": "Create documentation index",
+              "description": "Build an index or table of contents for easy navigation. Help users find what they need quickly."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "User Guides & Training",
+      "description": "Create guides and training materials for users",
+      "icon": "school",
+      "color": "#3b82f6",
+      "estimatedDays": 10,
+      "projects": [
+        {
+          "name": "User Guide Creation",
+          "description": "Build comprehensive user guides",
+          "tasks": [
+            {
+              "title": "⭐ Identify user personas",
+              "description": "Define different user personas. Understand their needs, goals, and technical levels to tailor guides.",
+              "isMilestone": true
+            },
+            {
+              "title": "Create quick start guides",
+              "description": "Write quick start guides for common tasks. Help users get started quickly with step-by-step instructions."
+            },
+            {
+              "title": "Build feature guides",
+              "description": "Document each major feature in detail. Explain what it does, how to use it, and when to use it."
+            },
+            {
+              "title": "Create best practices guides",
+              "description": "Document best practices and recommendations. Help users avoid common mistakes and follow proven patterns."
+            },
+            {
+              "title": "Add examples and use cases",
+              "description": "Include real-world examples and use cases. Show users how features solve actual problems."
+            },
+            {
+              "title": "Make guides accessible",
+              "description": "Ensure guides are easy to find and use. Use clear language, visuals, and good formatting."
+            }
+          ]
+        },
+        {
+          "name": "Training Materials",
+          "description": "Develop training materials for different audiences",
+          "tasks": [
+            {
+              "title": "⭐ Assess training needs",
+              "description": "Evaluate what training different user groups need. Consider skill levels and learning preferences.",
+              "isMilestone": true
+            },
+            {
+              "title": "Create beginner tutorials",
+              "description": "Write tutorials for beginners. Start with basics and build complexity gradually. Include hands-on exercises."
+            },
+            {
+              "title": "Build intermediate tutorials",
+              "description": "Create tutorials for intermediate users. Cover more advanced topics and complex workflows."
+            },
+            {
+              "title": "Create video tutorials",
+              "description": "Produce video tutorials for visual learners. Cover key workflows and common tasks in video format."
+            },
+            {
+              "title": "Develop training exercises",
+              "description": "Create hands-on exercises for training. Let users practice what they learn with guided activities."
+            },
+            {
+              "title": "Gather training feedback",
+              "description": "Collect feedback on training materials. Improve based on user questions and confusion points."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Community Building",
+      "description": "Build and engage with user community",
+      "icon": "people",
+      "color": "#10b981",
+      "estimatedDays": 8,
+      "projects": [
+        {
+          "name": "Community Engagement",
+          "description": "Foster community around your platform",
+          "tasks": [
+            {
+              "title": "⭐ Set up community channels",
+              "description": "Create spaces for community interaction: forums, chat, or discussion groups. Choose platforms that fit your users.",
+              "isMilestone": true
+            },
+            {
+              "title": "Create community guidelines",
+              "description": "Establish guidelines for community participation. Set expectations for behavior and content."
+            },
+            {
+              "title": "Engage with community members",
+              "description": "Actively participate in community discussions. Answer questions, share tips, and build relationships."
+            },
+            {
+              "title": "Organize community events",
+              "description": "Plan and host community events: webinars, office hours, or meetups. Bring users together."
+            },
+            {
+              "title": "Highlight community contributions",
+              "description": "Showcase work from community members. Feature examples, case studies, and success stories."
+            },
+            {
+              "title": "Gather community feedback",
+              "description": "Collect feedback from community. Understand user needs, pain points, and feature requests."
+            }
+          ]
+        },
+        {
+          "name": "Content Creation",
+          "description": "Create content to educate and engage users",
+          "tasks": [
+            {
+              "title": "⭐ Plan content strategy",
+              "description": "Develop a content strategy. Plan blog posts, videos, and other content that educates and engages users.",
+              "isMilestone": true
+            },
+            {
+              "title": "Write blog posts",
+              "description": "Create blog posts on relevant topics. Share tips, case studies, platform updates, and best practices."
+            },
+            {
+              "title": "Create example projects",
+              "description": "Build example projects that showcase platform capabilities. Provide code and documentation for users to learn from."
+            },
+            {
+              "title": "Produce video content",
+              "description": "Create video content: demos, walkthroughs, and tutorials. Reach visual learners and provide engaging content."
+            },
+            {
+              "title": "Share success stories",
+              "description": "Document and share success stories. Show how others are using the platform effectively."
+            },
+            {
+              "title": "Maintain content calendar",
+              "description": "Plan and schedule regular content. Keep users engaged with consistent, valuable content."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

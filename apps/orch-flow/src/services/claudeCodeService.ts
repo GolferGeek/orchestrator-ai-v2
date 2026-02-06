@@ -3,10 +3,8 @@
  *
  * API client for the Claude Code panel.
  * Connects to /super-admin endpoints for executing Claude Code commands.
- * Uses Supabase auth for authentication.
+ * Uses API authentication (token from localStorage) instead of direct Supabase calls.
  */
-
-import { supabase } from '@/integrations/supabase/client';
 import type {
   ClaudeCommand,
   ClaudeSkill,
@@ -24,11 +22,20 @@ class ClaudeCodeService {
   }
 
   /**
-   * Get the current auth token from Supabase
+   * Get the current auth token from localStorage (auth store)
    */
-  private async getAuthToken(): Promise<string | null> {
-    const { data: { session } } = await supabase.auth.getSession();
-    return session?.access_token || null;
+  private getAuthToken(): string | null {
+    try {
+      const authStorage = localStorage.getItem('auth-storage');
+      if (!authStorage) {
+        return null;
+      }
+      const { state } = JSON.parse(authStorage);
+      return state?.token || null;
+    } catch (error) {
+      console.error('Error reading auth token from storage:', error);
+      return null;
+    }
   }
 
   /**
@@ -36,7 +43,7 @@ class ClaudeCodeService {
    */
   async isAvailable(): Promise<boolean> {
     try {
-      const token = await this.getAuthToken();
+      const token = this.getAuthToken();
       if (!token) return false;
 
       const response = await fetch(`${this.baseUrl}/super-admin/health`, {
@@ -59,7 +66,7 @@ class ClaudeCodeService {
    */
   async getCommands(): Promise<ClaudeCommand[]> {
     try {
-      const token = await this.getAuthToken();
+      const token = this.getAuthToken();
       if (!token) return [];
 
       const response = await fetch(`${this.baseUrl}/super-admin/commands`, {
@@ -83,7 +90,7 @@ class ClaudeCodeService {
    */
   async getSkills(): Promise<ClaudeSkill[]> {
     try {
-      const token = await this.getAuthToken();
+      const token = this.getAuthToken();
       if (!token) return [];
 
       const response = await fetch(`${this.baseUrl}/super-admin/skills`, {
@@ -117,7 +124,7 @@ class ClaudeCodeService {
     sourceContext?: 'web-app' | 'orch-flow' | 'default',
   ): Promise<AbortController> {
     const abortController = new AbortController();
-    const token = await this.getAuthToken();
+    const token = this.getAuthToken();
 
     if (!token) {
       onError(new Error('Not authenticated'));

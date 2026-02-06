@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, isSupabaseAvailable } from '@/integrations/supabase/client';
 
 // Helper to use orch_flow schema (where Orch-Flow team collaboration tables are)
 const orchFlow = () => supabase.schema('orch_flow');
@@ -86,39 +86,65 @@ export function useSharedTasks(filterUserId?: string, includeCollaborated?: bool
 
     fetchTasks();
 
-    // Subscribe to realtime changes
-    const channel = supabase
-      .channel('tasks-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'orch_flow',
-          table: 'shared_tasks',
-        },
-        (payload) => {
-          console.log('Task update:', payload);
+    // Subscribe to realtime changes only if Supabase is accessible
+    let channel: ReturnType<typeof supabase.channel> | null = null;
 
-          if (payload.eventType === 'INSERT') {
-            const newTask = payload.new as Task;
-            setTasks((prev) => [newTask, ...prev]);
-          } else if (payload.eventType === 'UPDATE') {
-            setTasks((prev) =>
-              prev.map((task) =>
-                task.id === payload.new.id ? (payload.new as Task) : task
-              )
-            );
-          } else if (payload.eventType === 'DELETE') {
-            setTasks((prev) =>
-              prev.filter((task) => task.id !== payload.old.id)
-            );
-          }
-        }
-      )
-      .subscribe();
+    // Check if Supabase is available before attempting subscription
+    isSupabaseAvailable().then((isAvailable) => {
+      if (!isAvailable) {
+        // Supabase is not accessible - skip realtime subscription
+        console.debug('[useSharedTasks] Supabase not accessible - skipping realtime subscription');
+        return;
+      }
+
+      // Supabase is available - set up subscription
+      try {
+        channel = supabase
+          .channel('tasks-changes')
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'orch_flow',
+              table: 'shared_tasks',
+            },
+            (payload) => {
+              console.log('Task update:', payload);
+
+              if (payload.eventType === 'INSERT') {
+                const newTask = payload.new as Task;
+                setTasks((prev) => [newTask, ...prev]);
+              } else if (payload.eventType === 'UPDATE') {
+                setTasks((prev) =>
+                  prev.map((task) =>
+                    task.id === payload.new.id ? (payload.new as Task) : task
+                  )
+                );
+              } else if (payload.eventType === 'DELETE') {
+                setTasks((prev) =>
+                  prev.filter((task) => task.id !== payload.old.id)
+                );
+              }
+            }
+          )
+          .subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+              console.log('[useSharedTasks] Subscribed to tasks changes');
+            } else if (status === 'CHANNEL_ERROR') {
+              console.warn('⚠️ Could not subscribe to tasks changes (Supabase may not be accessible)');
+            }
+          });
+      } catch (error) {
+        console.warn('⚠️ Could not set up tasks realtime subscription (Supabase may not be accessible):', error);
+      }
+    });
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) {
+        supabase.removeChannel(channel).catch(() => {
+          // Ignore cleanup errors
+        });
+      }
     };
   }, [filterUserId, includeCollaborated, teamId]);
 

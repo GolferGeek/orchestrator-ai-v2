@@ -1,0 +1,186 @@
+{
+  "efforts": [
+    {
+      "name": "Infrastructure Planning",
+      "description": "Plan and set up infrastructure to support your team's AI initiatives",
+      "icon": "server",
+      "color": "#8b5cf6",
+      "estimatedDays": 10,
+      "projects": [
+        {
+          "name": "Assess Team Needs",
+          "description": "Understand your team's infrastructure requirements",
+          "tasks": [
+            {
+              "title": "⭐ Evaluate current infrastructure",
+              "description": "Review existing hardware and cloud resources. Identify what's working well and what needs improvement or replacement.",
+              "isMilestone": true
+            },
+            {
+              "title": "Determine team requirements",
+              "description": "Calculate resource needs based on team size and planned usage. Consider current needs and growth projections."
+            },
+            {
+              "title": "Choose deployment strategy",
+              "description": "Decide between cloud, on-premise, or hybrid. Consider cost, security, scalability, and operational complexity."
+            },
+            {
+              "title": "Plan resource allocation",
+              "description": "Allocate resources across team members and projects. Set up resource limits and monitoring to prevent overuse."
+            },
+            {
+              "title": "Estimate costs",
+              "description": "Calculate infrastructure costs for different scenarios. Compare options and plan budget accordingly."
+            },
+            {
+              "title": "Create infrastructure roadmap",
+              "description": "Plan infrastructure evolution over time. Identify when upgrades or changes will be needed."
+            }
+          ]
+        },
+        {
+          "name": "Infrastructure Setup",
+          "description": "Configure infrastructure for your team",
+          "tasks": [
+            {
+              "title": "⭐ Set up shared resources",
+              "description": "Configure shared storage, databases, and compute resources for the team. Ensure proper access controls.",
+              "isMilestone": true
+            },
+            {
+              "title": "Implement access controls",
+              "description": "Set up authentication and authorization. Define who can access what resources and ensure security."
+            },
+            {
+              "title": "Configure monitoring",
+              "description": "Set up logging and monitoring tools. Track usage, performance, and costs to stay informed."
+            },
+            {
+              "title": "Set up backup systems",
+              "description": "Configure automated backups for critical data. Test restore procedures to ensure backups work."
+            },
+            {
+              "title": "Document infrastructure",
+              "description": "Create documentation for your infrastructure setup and procedures. Keep it updated as things change."
+            },
+            {
+              "title": "Train team on infrastructure",
+              "description": "Educate team on how to use infrastructure resources. Provide guides and support for common tasks."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Security & Compliance",
+      "description": "Ensure infrastructure security and compliance",
+      "icon": "shield-checkmark",
+      "color": "#ef4444",
+      "estimatedDays": 8,
+      "projects": [
+        {
+          "name": "Security Configuration",
+          "description": "Implement security best practices",
+          "tasks": [
+            {
+              "title": "⭐ Assess security requirements",
+              "description": "Identify security requirements for your infrastructure. Consider data sensitivity, compliance needs, and risk tolerance.",
+              "isMilestone": true
+            },
+            {
+              "title": "Configure security settings",
+              "description": "Set up security configurations: firewalls, access controls, encryption, and security monitoring."
+            },
+            {
+              "title": "Implement password policies",
+              "description": "Establish strong password policies. Require complex passwords and regular changes."
+            },
+            {
+              "title": "Set up security monitoring",
+              "description": "Configure monitoring for security events. Set up alerts for suspicious activity or unauthorized access."
+            },
+            {
+              "title": "Create security documentation",
+              "description": "Document security policies and procedures. Include incident response plans and security best practices."
+            },
+            {
+              "title": "Schedule security reviews",
+              "description": "Plan regular security reviews. Assess vulnerabilities and update security measures as needed."
+            }
+          ]
+        },
+        {
+          "name": "Compliance Management",
+          "description": "Ensure compliance with relevant regulations",
+          "tasks": [
+            {
+              "title": "⭐ Identify compliance requirements",
+              "description": "Determine what regulations apply to your infrastructure. Consider data protection, industry-specific rules, and regional requirements.",
+              "isMilestone": true
+            },
+            {
+              "title": "Assess compliance gaps",
+              "description": "Evaluate current infrastructure against compliance requirements. Identify gaps and needed improvements."
+            },
+            {
+              "title": "Implement compliance controls",
+              "description": "Put controls in place to meet compliance requirements. Document how controls address each requirement."
+            },
+            {
+              "title": "Set up audit logging",
+              "description": "Enable comprehensive audit logging. Track access, changes, and activities for compliance reporting."
+            },
+            {
+              "title": "Create compliance documentation",
+              "description": "Document compliance approach and evidence. Prepare materials for audits and reviews."
+            },
+            {
+              "title": "Plan compliance monitoring",
+              "description": "Establish process for ongoing compliance monitoring. Schedule regular reviews and updates."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Cost Management",
+      "description": "Manage infrastructure costs effectively",
+      "icon": "wallet",
+      "color": "#10b981",
+      "estimatedDays": 6,
+      "projects": [
+        {
+          "name": "Cost Optimization",
+          "description": "Optimize infrastructure costs",
+          "tasks": [
+            {
+              "title": "⭐ Analyze current costs",
+              "description": "Review current infrastructure spending. Break down costs by service, project, and team member.",
+              "isMilestone": true
+            },
+            {
+              "title": "Identify cost savings",
+              "description": "Find opportunities to reduce costs. Look for unused resources, over-provisioned services, and better pricing options."
+            },
+            {
+              "title": "Right-size resources",
+              "description": "Match resource allocation to actual needs. Remove unused resources and optimize resource sizes."
+            },
+            {
+              "title": "Set up cost alerts",
+              "description": "Configure alerts for cost thresholds. Get notified when spending exceeds budgets or increases unexpectedly."
+            },
+            {
+              "title": "Create cost reports",
+              "description": "Generate regular cost reports. Track spending trends and share with stakeholders."
+            },
+            {
+              "title": "Establish cost policies",
+              "description": "Create policies for infrastructure spending. Set approval processes and spending limits."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
