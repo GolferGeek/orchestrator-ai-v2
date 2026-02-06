@@ -41,7 +41,7 @@ export class AnalystPositionService {
 
   // Default position sizing parameters (used as fallback)
   private readonly DEFAULT_POSITION_PERCENT = 0.05; // 5% default position
-  private readonly MIN_CONFIDENCE_FOR_POSITION = 0.6; // Minimum 60% confidence to take position
+  private readonly MIN_CONFIDENCE_FOR_POSITION = 0.0; // Always take a position when directional (size reflects confidence)
 
   constructor(private readonly portfolioRepository: PortfolioRepository) {}
 
@@ -92,13 +92,6 @@ export class AnalystPositionService {
       entryPrice,
       assessment.confidence,
     );
-
-    if (quantity <= 0) {
-      this.logger.warn(
-        `Calculated position size is 0 or negative for analyst ${assessment.analyst.slug}`,
-      );
-      return null;
-    }
 
     // Create the position
     const position = await this.portfolioRepository.createAnalystPosition({
@@ -226,13 +219,13 @@ export class AnalystPositionService {
 
     // Calculate position value and quantity
     const positionValue = portfolioBalance * positionPercent;
-    const quantity = Math.floor(positionValue / entryPrice);
+    const quantity = Math.max(1, Math.floor(positionValue / entryPrice));
 
     this.logger.debug(
       `Position sizing: confidence=${(confidence * 100).toFixed(1)}%, tier=${(positionPercent * 100).toFixed(0)}%, value=$${positionValue.toFixed(2)}, quantity=${quantity}`,
     );
 
-    return Math.max(0, quantity);
+    return quantity;
   }
 
   /**

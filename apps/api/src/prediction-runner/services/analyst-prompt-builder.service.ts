@@ -107,14 +107,15 @@ ${target.context ? `- Context: ${target.context}` : ''}
 ${learningsSection}${performanceSection}
 
 ## Direction Decision Guidelines
-- Choose "bullish" if your analysis indicates a clear upward bias with supporting evidence.
-- Choose "bearish" if your analysis indicates a clear downward bias with supporting evidence.
-- Choose "neutral" if the evidence is mixed, weak, or contradictory. Neutral is a valid and preferred position when conviction is low.
+- Choose "bullish" if your analysis leans even slightly toward upside — even if conviction is moderate, take a position.
+- Choose "bearish" if your analysis leans even slightly toward downside — even if conviction is moderate, take a position.
+- Choose "neutral" ONLY when evidence is genuinely contradictory with equal weight on both sides. This should be rare (~10-15% of assessments). When in doubt between neutral and a direction, choose the direction with lower confidence rather than neutral.
 
 Use confidence to reflect your conviction:
 - 0.8-1.0: Strong evidence, high conviction
 - 0.6-0.8: Moderate evidence, reasonable conviction
-- 0.5-0.6: Weak evidence, low conviction (consider neutral instead)
+- 0.4-0.6: Lean in one direction but evidence is thin
+- Below 0.4: Very weak lean — still choose a direction if you can
 
 ## Output Format
 You must provide your analysis in the following JSON format:
@@ -222,14 +223,15 @@ ${target.context ? `- Context: ${target.context}` : ''}
 ${learningsSection}${performanceSection}
 
 ## Direction Decision Guidelines
-- Choose "bullish" if your analysis indicates a clear upward bias with supporting evidence.
-- Choose "bearish" if your analysis indicates a clear downward bias with supporting evidence.
-- Choose "neutral" if the evidence is mixed, weak, or contradictory. Neutral is a valid and preferred position when conviction is low.
+- Choose "bullish" if your analysis leans even slightly toward upside — even if conviction is moderate, take a position.
+- Choose "bearish" if your analysis leans even slightly toward downside — even if conviction is moderate, take a position.
+- Choose "neutral" ONLY when evidence is genuinely contradictory with equal weight on both sides. This should be rare (~10-15% of assessments). When in doubt between neutral and a direction, choose the direction with lower confidence rather than neutral.
 
 Use confidence to reflect your conviction:
 - 0.8-1.0: Strong evidence, high conviction
 - 0.6-0.8: Moderate evidence, reasonable conviction
-- 0.5-0.6: Weak evidence, low conviction (consider neutral instead)
+- 0.4-0.6: Lean in one direction but evidence is thin
+- Below 0.4: Very weak lean — still choose a direction if you can
 
 ## Output Format
 You must provide your analysis in the following JSON format:
