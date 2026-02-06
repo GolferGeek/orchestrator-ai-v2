@@ -156,6 +156,17 @@ BEGIN
   ON CONFLICT (universe_id, symbol) DO UPDATE SET
     name = EXCLUDED.name, context = EXCLUDED.context, metadata = EXCLUDED.metadata, updated_at = NOW();
 
+  -- TSLA - Tesla (Real)
+  INSERT INTO prediction.targets (universe_id, symbol, name, target_type, context, is_active, metadata)
+  VALUES (
+    v_stocks_universe_id, 'TSLA', 'Tesla Inc', 'stock',
+    'Tesla Inc. is an electric vehicle and clean energy company. Key segments: automotive, energy generation/storage, FSD/autonomy. Watch for delivery numbers, margin trends, FSD progress, energy business growth, and regulatory credits.',
+    true,
+    '{"sector": "Consumer Cyclical", "industry": "Auto Manufacturers", "market_cap": "large", "yahoo_symbol": "TSLA"}'::jsonb
+  )
+  ON CONFLICT (universe_id, symbol) DO UPDATE SET
+    name = EXCLUDED.name, context = EXCLUDED.context, metadata = EXCLUDED.metadata, updated_at = NOW();
+
   -- =========== REAL CRYPTO TARGETS ===========
 
   -- BTC - Bitcoin (Real)
@@ -202,7 +213,7 @@ BEGIN
   ON CONFLICT (universe_id, symbol) DO UPDATE SET
     name = EXCLUDED.name, context = EXCLUDED.context, metadata = EXCLUDED.metadata, updated_at = NOW();
 
-  RAISE NOTICE 'Created/updated 10 real targets (6 stocks, 4 crypto)';
+  RAISE NOTICE 'Created/updated 11 real targets (7 stocks, 4 crypto)';
 END $$;
 
 -- =====================================================================================
@@ -290,6 +301,17 @@ BEGIN
   ON CONFLICT (universe_id, symbol) DO UPDATE SET
     name = EXCLUDED.name, context = EXCLUDED.context, metadata = EXCLUDED.metadata, updated_at = NOW();
 
+  -- T_TSLA - Tesla (Test)
+  INSERT INTO prediction.targets (universe_id, symbol, name, target_type, context, is_active, metadata)
+  VALUES (
+    v_stocks_universe_id, 'T_TSLA', 'Tesla Inc (Test)', 'stock',
+    'Tesla Inc. is an electric vehicle and clean energy company. Key segments: automotive, energy generation/storage, FSD/autonomy. Watch for delivery numbers, margin trends, FSD progress, energy business growth, and regulatory credits.',
+    true,
+    '{"sector": "Consumer Cyclical", "industry": "Auto Manufacturers", "market_cap": "large", "test_mode": true, "mirrors": "TSLA"}'::jsonb
+  )
+  ON CONFLICT (universe_id, symbol) DO UPDATE SET
+    name = EXCLUDED.name, context = EXCLUDED.context, metadata = EXCLUDED.metadata, updated_at = NOW();
+
   -- =========== TEST CRYPTO TARGETS ===========
 
   -- T_BTC - Bitcoin (Test)
@@ -336,7 +358,7 @@ BEGIN
   ON CONFLICT (universe_id, symbol) DO UPDATE SET
     name = EXCLUDED.name, context = EXCLUDED.context, metadata = EXCLUDED.metadata, updated_at = NOW();
 
-  RAISE NOTICE 'Created/updated 10 test targets (6 stocks, 4 crypto)';
+  RAISE NOTICE 'Created/updated 11 test targets (7 stocks, 4 crypto)';
 END $$;
 
 -- =====================================================================================

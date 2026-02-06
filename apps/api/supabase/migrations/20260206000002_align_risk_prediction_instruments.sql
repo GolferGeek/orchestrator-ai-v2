@@ -167,7 +167,28 @@ BEGIN
   )
   ON CONFLICT (universe_id, symbol) DO NOTHING;
 
-  RAISE NOTICE 'Aligned prediction stock targets (added AMZN, META + test variants)';
+  -- TSLA - Tesla (update metadata if exists, insert if not)
+  INSERT INTO prediction.targets (universe_id, symbol, name, target_type, context, is_active, metadata)
+  VALUES (
+    v_stocks_universe_id, 'TSLA', 'Tesla Inc', 'stock',
+    'Tesla Inc. is an electric vehicle and clean energy company. Key segments: automotive, energy generation/storage, FSD/autonomy. Watch for delivery numbers, margin trends, FSD progress, energy business growth, and regulatory credits.',
+    true,
+    '{"sector": "Consumer Cyclical", "industry": "Auto Manufacturers", "market_cap": "large", "yahoo_symbol": "TSLA"}'::jsonb
+  )
+  ON CONFLICT (universe_id, symbol) DO UPDATE SET
+    name = EXCLUDED.name, context = EXCLUDED.context, metadata = EXCLUDED.metadata, updated_at = NOW();
+
+  -- T_TSLA - Tesla (Test)
+  INSERT INTO prediction.targets (universe_id, symbol, name, target_type, context, is_active, metadata)
+  VALUES (
+    v_stocks_universe_id, 'T_TSLA', 'Tesla Inc (Test)', 'stock',
+    'Tesla Inc. is an electric vehicle and clean energy company. Key segments: automotive, energy generation/storage, FSD/autonomy. Watch for delivery numbers, margin trends, FSD progress, energy business growth, and regulatory credits.',
+    true,
+    '{"sector": "Consumer Cyclical", "industry": "Auto Manufacturers", "market_cap": "large", "test_mode": true, "mirrors": "TSLA"}'::jsonb
+  )
+  ON CONFLICT (universe_id, symbol) DO NOTHING;
+
+  RAISE NOTICE 'Aligned prediction stock targets (added AMZN, META, TSLA + test variants)';
 END $$;
 
 -- =============================================================================
@@ -211,7 +232,13 @@ BEGIN
           '{"sector": "Technology", "industry": "Software", "marketCap": "3.1T", "exchange": "NASDAQ"}'::JSONB)
   ON CONFLICT (scope_id, identifier) DO NOTHING;
 
-  RAISE NOTICE 'Aligned risk subjects (added AAPL, AMZN, META, MSFT)';
+  -- TSLA - Tesla
+  INSERT INTO risk.subjects (scope_id, identifier, name, subject_type, metadata)
+  VALUES (v_scope_id, 'TSLA', 'Tesla Inc.', 'stock',
+          '{"sector": "Consumer Cyclical", "industry": "Auto Manufacturers", "marketCap": "1.1T", "exchange": "NASDAQ"}'::JSONB)
+  ON CONFLICT (scope_id, identifier) DO NOTHING;
+
+  RAISE NOTICE 'Aligned risk subjects (added AAPL, AMZN, META, MSFT, TSLA)';
 END $$;
 
 -- =============================================================================
@@ -225,16 +252,16 @@ DECLARE
 BEGIN
   SELECT COUNT(*) INTO v_pred_count
   FROM prediction.targets
-  WHERE symbol IN ('AAPL', 'AMZN', 'AVAX', 'BTC', 'ETH', 'GOOGL', 'META', 'MSFT', 'NVDA', 'SOL')
+  WHERE symbol IN ('AAPL', 'AMZN', 'AVAX', 'BTC', 'ETH', 'GOOGL', 'META', 'MSFT', 'NVDA', 'SOL', 'TSLA')
     AND is_active = true;
 
   SELECT COUNT(*) INTO v_risk_count
   FROM risk.subjects
-  WHERE identifier IN ('AAPL', 'AMZN', 'AVAX', 'BTC', 'ETH', 'GOOGL', 'META', 'MSFT', 'NVDA', 'SOL')
+  WHERE identifier IN ('AAPL', 'AMZN', 'AVAX', 'BTC', 'ETH', 'GOOGL', 'META', 'MSFT', 'NVDA', 'SOL', 'TSLA')
     AND is_active = true;
 
   RAISE NOTICE '========== ALIGNMENT VERIFICATION ==========';
-  RAISE NOTICE 'Prediction targets (active, non-test): %/10', v_pred_count;
-  RAISE NOTICE 'Risk subjects (active): %/10', v_risk_count;
+  RAISE NOTICE 'Prediction targets (active, non-test): %/11', v_pred_count;
+  RAISE NOTICE 'Risk subjects (active): %/11', v_risk_count;
   RAISE NOTICE '============================================';
 END $$;

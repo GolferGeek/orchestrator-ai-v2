@@ -131,8 +131,15 @@ BEGIN
             '{"sector": "Technology", "industry": "Software", "marketCap": "3.1T", "exchange": "NASDAQ"}'::JSONB)
     ON CONFLICT (scope_id, identifier) DO UPDATE SET name = EXCLUDED.name;
 
-    RAISE NOTICE 'Created subjects: AAPL=%, GOOGL=%, NVDA=%, BTC=%, ETH=%, SOL=%, AVAX=% (+ AMZN, META, MSFT)',
-                 v_aapl_id, v_googl_id, v_nvda_id, v_btc_id, v_eth_id, v_sol_id, v_avax_id;
+    -- TSLA - Tesla (High Risk)
+    INSERT INTO risk.subjects (scope_id, identifier, name, subject_type, metadata)
+    VALUES (v_scope_id, 'TSLA', 'Tesla Inc.', 'stock',
+            '{"sector": "Consumer Cyclical", "industry": "Auto Manufacturers", "marketCap": "1.1T", "exchange": "NASDAQ"}'::JSONB)
+    ON CONFLICT (scope_id, identifier) DO UPDATE SET name = EXCLUDED.name
+    RETURNING id INTO v_tsla_id;
+
+    RAISE NOTICE 'Created subjects: AAPL=%, GOOGL=%, NVDA=%, TSLA=%, BTC=%, ETH=%, SOL=%, AVAX=% (+ AMZN, META, MSFT)',
+                 v_aapl_id, v_googl_id, v_nvda_id, v_tsla_id, v_btc_id, v_eth_id, v_sol_id, v_avax_id;
 
     -- =============================================================================
     -- CREATE ASSESSMENTS FOR NEW SUBJECTS
@@ -687,7 +694,7 @@ BEGIN
     RAISE NOTICE 'COMPREHENSIVE RISK DATA SEED COMPLETE';
     RAISE NOTICE '================================================';
     RAISE NOTICE 'Created/Updated:';
-    RAISE NOTICE '  - 10 subjects (AAPL, AMZN, GOOGL, META, MSFT, NVDA, BTC, ETH, SOL, AVAX)';
+    RAISE NOTICE '  - 11 subjects (AAPL, AMZN, GOOGL, META, MSFT, NVDA, TSLA, BTC, ETH, SOL, AVAX)';
     RAISE NOTICE '  - Assessments for all subjects (6 dimensions each)';
     RAISE NOTICE '  - 30+ days of historical scores for Score History';
     RAISE NOTICE '  - 4 data sources (CoinGecko, Yahoo, SEC, CoinDesk)';
