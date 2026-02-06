@@ -1,0 +1,121 @@
+{
+  "efforts": [
+    {
+      "name": "Development Setup",
+      "description": "Set up your development environment and create your first agent",
+      "icon": "code",
+      "color": "#10b981",
+      "estimatedDays": 14,
+      "projects": [
+        {
+          "name": "Initial Configuration",
+          "description": "Set up basic development tools and access",
+          "tasks": [
+            {
+              "title": "⭐ Verify API access and credentials",
+              "description": "Test your API keys and ensure you can connect to the Orchestrator AI platform. Check authentication works correctly.",
+              "isMilestone": true
+            },
+            {
+              "title": "Set up local development environment",
+              "description": "Install necessary tools (Node.js, Python, or your preferred stack). Configure your IDE with proper extensions."
+            },
+            {
+              "title": "Clone or access code repositories",
+              "description": "Get access to relevant codebases. Set up version control if needed."
+            },
+            {
+              "title": "Review API documentation",
+              "description": "Familiarize yourself with available endpoints and authentication methods. Bookmark key documentation pages."
+            },
+            {
+              "title": "Create your first test connection",
+              "description": "Make a simple API call to verify everything works. Start with a basic \"hello world\" style request."
+            },
+            {
+              "title": "Set up environment variables",
+              "description": "Configure your development environment with necessary API keys and configuration. Use secure storage methods."
+            },
+            {
+              "title": "Install required dependencies",
+              "description": "Set up project dependencies. Create package.json or requirements.txt. Install all necessary libraries."
+            },
+            {
+              "title": "Configure your IDE",
+              "description": "Set up code formatting, linting, and debugging tools. Install relevant extensions for your workflow."
+            }
+          ]
+        },
+        {
+          "name": "First Agent",
+          "description": "Create and test your first AI agent",
+          "tasks": [
+            {
+              "title": "⭐ Choose a simple use case",
+              "description": "Pick something straightforward for your first agent - maybe data formatting, simple Q&A, or basic automation.",
+              "isMilestone": true
+            },
+            {
+              "title": "Configure agent settings",
+              "description": "Set up the agent's name, description, and basic parameters. Choose appropriate model and settings."
+            },
+            {
+              "title": "Test agent with sample input",
+              "description": "Run your agent with test data. Verify it produces expected outputs."
+            },
+            {
+              "title": "Handle edge cases",
+              "description": "Test with various inputs including edge cases. Add error handling if needed."
+            },
+            {
+              "title": "Document your agent",
+              "description": "Write down what the agent does, how to use it, and any important notes for future reference."
+            },
+            {
+              "title": "Add input validation",
+              "description": "Implement proper input validation. Check for required fields and data types."
+            },
+            {
+              "title": "Create error handling",
+              "description": "Add comprehensive error handling. Handle API failures, timeouts, and invalid responses."
+            },
+            {
+              "title": "Set up logging",
+              "description": "Implement logging for debugging. Track agent execution and identify issues."
+            }
+          ]
+        },
+        {
+          "name": "Development Best Practices",
+          "description": "Establish good development habits and workflows",
+          "tasks": [
+            {
+              "title": "Set up version control",
+              "description": "Initialize git repository. Create meaningful commit messages. Set up branch strategy."
+            },
+            {
+              "title": "Write unit tests",
+              "description": "Create tests for your agent logic. Test individual functions and components."
+            },
+            {
+              "title": "Set up CI/CD pipeline",
+              "description": "Configure automated testing and deployment. Set up GitHub Actions or similar."
+            },
+            {
+              "title": "Document your code",
+              "description": "Add inline comments and documentation. Write clear function descriptions."
+            },
+            {
+              "title": "Review security practices",
+              "description": "Ensure API keys are secure. Review authentication and authorization."
+            },
+            {
+              "title": "Optimize performance",
+              "description": "Profile your agent's performance. Identify bottlenecks and optimize."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
