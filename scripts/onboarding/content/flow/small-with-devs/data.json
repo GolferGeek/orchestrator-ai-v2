@@ -1,0 +1,32 @@
+{
+  "efforts": [
+    {
+      "name": "Data Infrastructure Setup",
+      "description": "Establish foundational data infrastructure and tools for collecting, storing, and processing data",
+      "icon": "server",
+      "color": "#8b5cf6",
+      "estimatedDays": 21,
+      "projects": [
+        {
+          "name": "Data Storage Setup",
+          "description": "Set up data storage solutions for your organization",
+          "tasks": [
+            {
+              "title": "⭐ Assess data storage needs",
+              "description": "Evaluate what types of data you'll be storing, volume estimates, and access patterns. Consider structured, unstructured, and time-series data.",
+              "isMilestone": true
+            },
+            {
+              "title": "Choose storage solution",
+              "description": "Select appropriate storage (databases, data lakes, cloud storage). Consider PostgreSQL, MongoDB, S3, or cloud data warehouses."
+            },
+            {
+              "title": "Set up initial database",
+              "description": "Create your primary database instance. Configure basic settings, security, and access controls."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

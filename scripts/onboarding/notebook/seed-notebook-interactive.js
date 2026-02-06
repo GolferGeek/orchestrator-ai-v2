@@ -1,0 +1,173 @@
+#!/usr/bin/env node
+/**
+ * Notebook Onboarding Script - Interactive
+ * 
+ * Interactive script that prompts user for company size and creates appropriate Notebook content
+ */
+
+const readline = require('readline');
+const {
+  createNotebookClient,
+  createNotebook,
+  createSource,
+} = require('../shared/api-helpers');
+const {
+  createSourceFile,
+} = require('../shared/file-helpers');
+const { getNotebookTemplate } = require('../shared/content-templates');
+const {
+  createDbClient,
+  connectDb,
+  disconnectDb,
+  getGlobalTeams,
+  detectTeamType,
+} = require('../shared/db-helpers');
+
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout,
+});
+
+function question(prompt) {
+  return new Promise((resolve) => {
+    rl.question(prompt, resolve);
+  });
+}
+
+async function seedNotebookInteractive(orgSlug) {
+  const dbClient = createDbClient();
+  const notebookClient = await createNotebookClient();
+
+  try {
+    await connectDb(dbClient);
+
+    console.log(`\n📋 Interactive Notebook Onboarding\n`);
+
+    // Prompt for company size
+    console.log('Select your company size:');
+    console.log('  1. Solo Developer');
+    console.log('  2. Small Team (No Developers)');
+    console.log('  3. Small Team (With Developers)');
+    console.log('');
+
+    const sizeChoice = await question('Enter choice (1-3): ');
+    let companySize;
+
+    switch (sizeChoice.trim()) {
+      case '1':
+        companySize = 'solo';
+        break;
+      case '2':
+        companySize = 'small-no-devs';
+        break;
+      case '3':
+        companySize = 'small-with-devs';
+        break;
+      default:
+        console.error('❌ Invalid choice. Exiting.');
+        process.exit(1);
+    }
+
+    console.log(`\n✅ Selected: ${companySize === 'solo' ? 'Solo Developer' : companySize === 'small-no-devs' ? 'Small Team (No Developers)' : 'Small Team (With Developers)'}\n`);
+
+    const teams = await getGlobalTeams(dbClient);
+    console.log(`✅ Found ${teams.length} global teams\n`);
+
+    if (teams.length === 0) {
+      console.warn('⚠️  No global teams found. Content will be generic.');
+    }
+
+    let totalNotebooks = 0;
+    let totalDocuments = 0;
+
+    for (const team of teams) {
+      const teamType = detectTeamType(team);
+      console.log(`\n📦 Processing team: ${team.name} (${teamType})`);
+
+      const template = getNotebookTemplate(teamType, companySize);
+
+      if (!template.notebooks || template.notebooks.length === 0) {
+        console.log(`  ⏭️  No template content for ${teamType}, skipping`);
+        continue;
+      }
+
+      for (const notebookTemplate of template.notebooks) {
+        console.log(`  📓 Creating notebook: ${notebookTemplate.name}`);
+
+        const notebook = await createNotebook(notebookClient, {
+          name: notebookTemplate.name,
+          description: notebookTemplate.description || '',
+          teamId: team.id,
+        });
+
+        totalNotebooks++;
+        console.log(`    ✅ Created notebook: ${notebook.id || notebook.name}`);
+
+        for (const docTemplate of notebookTemplate.documents || []) {
+          console.log(`    📄 Creating document: ${docTemplate.title}`);
+
+          const filePath = await createSourceFile(
+            team.id,
+            `temp-${Date.now()}`,
+            docTemplate.filename || `${docTemplate.title.toLowerCase().replace(/\s+/g, '-')}.md`,
+            docTemplate.content
+          );
+
+          const source = await createSource(notebookClient, {
+            type: 'upload',
+            notebookId: notebook.id || notebook.name,
+            filePath: filePath,
+            title: docTemplate.title,
+            teamId: team.id,
+          });
+
+          if (source.id) {
+            const correctFilePath = await createSourceFile(
+              team.id,
+              source.id,
+              docTemplate.filename || `${docTemplate.title.toLowerCase().replace(/\s+/g, '-')}.md`,
+              docTemplate.content
+            );
+            const fs = require('fs').promises;
+            try {
+              await fs.unlink(filePath);
+            } catch (e) {
+              // Ignore
+            }
+          }
+
+          totalDocuments++;
+          console.log(`      ✅ Created document: ${source.id || source.title}`);
+        }
+      }
+    }
+
+    console.log(`\n✅ Notebook seeding complete!`);
+    console.log(`   📊 Summary:`);
+    console.log(`      - Notebooks: ${totalNotebooks}`);
+    console.log(`      - Documents: ${totalDocuments}\n`);
+
+  } catch (error) {
+    console.error(`\n❌ Error seeding Notebook content:`, error.message);
+    if (error.stack) {
+      console.error(error.stack);
+    }
+    process.exit(1);
+  } finally {
+    rl.close();
+    await disconnectDb(dbClient);
+  }
+}
+
+const orgSlug = process.argv[2];
+
+if (!orgSlug) {
+  console.error('❌ Usage: node seed-notebook-interactive.js <organization-slug>');
+  console.error('   Example: node seed-notebook-interactive.js demo-org');
+  process.exit(1);
+}
+
+seedNotebookInteractive(orgSlug).catch((error) => {
+  console.error('❌ Fatal error:', error);
+  process.exit(1);
+});
