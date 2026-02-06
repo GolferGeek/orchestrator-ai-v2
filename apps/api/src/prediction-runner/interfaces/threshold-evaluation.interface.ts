@@ -30,9 +30,9 @@ export interface ThresholdEvaluationResult {
 }
 
 export const DEFAULT_THRESHOLD_CONFIG: ThresholdConfig = {
-  min_predictors: 3,
-  min_combined_strength: 15,
-  min_direction_consensus: 0.6,
+  min_predictors: 5,
+  min_combined_strength: 20,
+  min_direction_consensus: 0.75,
   predictor_ttl_hours: 24,
   time_decay_rate: 0.05, // ~50% weight after 14 hours, ~25% after 28 hours
 };

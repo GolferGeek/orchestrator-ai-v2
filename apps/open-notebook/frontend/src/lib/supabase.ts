@@ -13,13 +13,9 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn(
-    '[Supabase] Missing environment variables. Supabase authentication will not work.',
-    '\n  NEXT_PUBLIC_SUPABASE_URL:', supabaseUrl ? '✓' : '✗',
-    '\n  NEXT_PUBLIC_SUPABASE_ANON_KEY:', supabaseAnonKey ? '✓' : '✗'
-  )
-}
+// Note: Supabase is now optional - authentication uses the main API (api.orchestratorai.io)
+// This client is kept for backward compatibility but may not be needed
+// No warning needed since we're using the main API for auth
 
 export const supabase = createClient(
   supabaseUrl || 'http://localhost:6010',

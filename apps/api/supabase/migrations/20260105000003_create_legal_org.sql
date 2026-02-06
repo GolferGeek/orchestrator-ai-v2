@@ -8,7 +8,7 @@
 INSERT INTO public.organizations (slug, name, description, settings, created_at, updated_at)
 VALUES (
     'legal',
-    'Legal Demo Organization',
+    'Legal',
     'Law firm RAG demonstration with 5 complexity types: attributed, hybrid, cross-reference, temporal, and basic',
     '{
         "theme": "light",

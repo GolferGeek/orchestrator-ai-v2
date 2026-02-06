@@ -166,7 +166,8 @@ services:
       - "7201:8502"
       - "7202:5055"
     environment:
-      - API_URL=http://localhost:7202
+      - API_URL=https://nb-api.orchestratorai.io
+      - NEXT_PUBLIC_MAIN_API_URL=https://api.orchestratorai.io
       - SURREAL_URL=ws://surrealdb:8000/rpc
       - SURREAL_USER=root
       - SURREAL_PASSWORD=root
@@ -198,8 +199,11 @@ services:
       dockerfile: Dockerfile.orch-flow
       args:
         # Build args for Vite (required at build time)
+        # NOTE: These use .env values. For Docker/tunnel deployments,
+        # override with: docker compose build --build-arg VITE_API_URL=https://api.orchestratorai.io orch-flow
         VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-http://localhost:6010}
         VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY}
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:6100}
     container_name: orchestrator-orch-flow
     env_file:
       - .env

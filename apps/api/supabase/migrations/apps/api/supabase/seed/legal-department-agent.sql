@@ -1,5 +1,5 @@
 -- ================================================
--- Legal Department AI Agent Registration
+-- Department AI Agent Registration
 -- ================================================
 
 INSERT INTO public.agents (
@@ -15,13 +15,13 @@ INSERT INTO public.agents (
   metadata
 ) VALUES (
   'legal-department',
-  ARRAY['demo-org', 'global'],
-  'Legal Department AI',
+  ARRAY['legal'],
+  'Department AI',
   'Multi-agent legal document analysis system. Processes contracts, NDAs, MSAs using CLO routing, specialist agents, and synthesis. Supports multimodal input (PDF, DOCX, images, scanned documents) with OCR fallback.',
   'langgraph',
   'legal',
   ARRAY['legal-analysis', 'contract-review', 'nda-analysis', 'multimodal-input', 'document-extraction', 'risk-assessment'],
-  'Legal Department AI agent for analyzing legal documents with multi-agent collaboration.',
+  'Department AI agent for analyzing legal documents with multi-agent collaboration.',
   '{
     "input": {
       "task": "string",
@@ -51,4 +51,4 @@ ON CONFLICT (slug) DO UPDATE SET
   description = EXCLUDED.description,
   updated_at = now();
 
-SELECT 'Legal Department AI agent registered successfully' AS status;
+SELECT 'Department AI agent registered successfully' AS status;

@@ -1,7 +1,18 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { getApiUrl } from '@/lib/config'
-import { supabase } from '@/lib/supabase'
+
+/**
+ * Get the main API URL (api.orchestratorai.io) for authentication and teams.
+ * This is separate from the Open Notebook API URL.
+ */
+const getMainApiUrl = (): string => {
+  // Use environment variable if set, otherwise default to api.orchestratorai.io
+  if (typeof window !== 'undefined') {
+    return process.env.NEXT_PUBLIC_MAIN_API_URL || 'https://api.orchestratorai.io'
+  }
+  return process.env.MAIN_API_URL || process.env.NEXT_PUBLIC_MAIN_API_URL || 'https://api.orchestratorai.io'
+}
 
 interface AuthStatusResponse {
   auth_enabled: boolean
@@ -89,75 +100,27 @@ export const useAuthStore = create<AuthState>()(
       login: async (email: string, password: string) => {
         set({ isLoading: true, error: null })
         try {
-          // Authenticate with Supabase
-          const { data, error: supabaseError } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-          })
-
-          if (supabaseError) {
-            let errorMessage = 'Authentication failed'
-            if (supabaseError.message.includes('Invalid login credentials')) {
-              errorMessage = 'Invalid email or password. Please try again.'
-            } else if (supabaseError.message.includes('Email not confirmed')) {
-              errorMessage = 'Please confirm your email before logging in.'
-            } else {
-              errorMessage = supabaseError.message
-            }
-
-            set({
-              error: errorMessage,
-              isLoading: false,
-              isAuthenticated: false,
-              token: null,
-              userEmail: null
-            })
-            return false
-          }
-
-          if (!data.session) {
-            set({
-              error: 'No session returned from authentication',
-              isLoading: false,
-              isAuthenticated: false,
-              token: null,
-              userEmail: null
-            })
-            return false
-          }
-
-          const token = data.session.access_token
-
-          // Validate token with API
-          const apiUrl = await getApiUrl()
-          const response = await fetch(`${apiUrl}/api/notebooks`, {
-            method: 'GET',
+          // Authenticate through main API (api.orchestratorai.io) - same as main website
+          const mainApiUrl = getMainApiUrl()
+          const response = await fetch(`${mainApiUrl}/auth/login`, {
+            method: 'POST',
             headers: {
-              'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json'
-            }
+            },
+            body: JSON.stringify({ email, password })
           })
 
-          if (response.ok) {
-            set({
-              isAuthenticated: true,
-              token: token,
-              authType: 'supabase',
-              userEmail: email,
-              isLoading: false,
-              lastAuthCheck: Date.now(),
-              error: null
-            })
-            return true
-          } else {
-            // Token is valid with Supabase but API rejected it
-            let errorMessage = 'API authentication failed'
+          if (!response.ok) {
+            let errorMessage = 'Authentication failed'
             if (response.status === 401) {
-              errorMessage = 'Token not accepted by API. Please check API configuration.'
+              errorMessage = 'Invalid email or password. Please try again.'
             } else if (response.status === 403) {
-              errorMessage = 'Access denied by API.'
+              errorMessage = 'Please confirm your email before logging in.'
+            } else if (response.status === 503) {
+              errorMessage = 'Authentication service is not available. Please check server configuration.'
             } else {
-              errorMessage = `API error (${response.status})`
+              const errorData = await response.json().catch(() => ({}))
+              errorMessage = errorData.detail || `Authentication failed (${response.status})`
             }
 
             set({
@@ -169,8 +132,35 @@ export const useAuthStore = create<AuthState>()(
             })
             return false
           }
+
+          const data = await response.json()
+          // Main API returns accessToken (not access_token)
+          const token = data.accessToken || data.access_token
+
+          if (!token) {
+            set({
+              error: 'No token returned from authentication',
+              isLoading: false,
+              isAuthenticated: false,
+              token: null,
+              userEmail: null
+            })
+            return false
+          }
+
+          // Token is already validated by the backend, so we can use it directly
+          set({
+            isAuthenticated: true,
+            token: token,
+            authType: 'supabase',
+            userEmail: data.user?.email || email,
+            isLoading: false,
+            lastAuthCheck: Date.now(),
+            error: null
+          })
+          return true
         } catch (error) {
-          console.error('Supabase login error:', error)
+          console.error('Login error:', error)
           let errorMessage = 'Authentication failed'
 
           if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
@@ -236,9 +226,7 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: async () => {
-        // Sign out from Supabase
-        await supabase.auth.signOut()
-
+        // Clear local auth state (backend doesn't maintain sessions, so no need to call logout endpoint)
         set({
           isAuthenticated: false,
           token: null,

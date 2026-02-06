@@ -107,14 +107,14 @@ ${target.context ? `- Context: ${target.context}` : ''}
 ${learningsSection}${performanceSection}
 
 ## Direction Decision Guidelines
-IMPORTANT: Be decisive. Markets move - take a position.
+- Choose "bullish" if your analysis indicates a clear upward bias with supporting evidence.
+- Choose "bearish" if your analysis indicates a clear downward bias with supporting evidence.
+- Choose "neutral" if the evidence is mixed, weak, or contradictory. Neutral is a valid and preferred position when conviction is low.
 
-- Choose "bullish" if your analysis suggests ANY upward bias, even slight. Use lower confidence (0.5-0.7) for weak signals.
-- Choose "bearish" if your analysis suggests ANY downward bias, even slight. Use lower confidence (0.5-0.7) for weak signals.
-- ONLY choose "neutral" if you see EQUAL and OFFSETTING bullish and bearish factors that genuinely cancel out.
-
-Do NOT default to "neutral" just because you're uncertain. Instead, pick the more likely direction with lower confidence.
-Example: 55% likely to go up → bullish with 0.55 confidence (NOT neutral)
+Use confidence to reflect your conviction:
+- 0.8-1.0: Strong evidence, high conviction
+- 0.6-0.8: Moderate evidence, reasonable conviction
+- 0.5-0.6: Weak evidence, low conviction (consider neutral instead)
 
 ## Output Format
 You must provide your analysis in the following JSON format:
@@ -126,14 +126,13 @@ You must provide your analysis in the following JSON format:
   "risks": ["risk1", "risk2", ...]
 }`;
 
-    // Build user prompt
+    // Build user prompt - no suggested direction to avoid anchoring bias
     const userPrompt = `Analyze the following signal:
 
 ${input.content}
-${input.direction ? `\nSuggested direction: ${input.direction}` : ''}
 ${input.metadata ? `\nMetadata: ${JSON.stringify(input.metadata)}` : ''}
 
-Provide your assessment based on your perspective as ${analyst.name}.`;
+Provide your independent assessment based on your perspective as ${analyst.name}.`;
 
     return {
       systemPrompt,
@@ -223,14 +222,14 @@ ${target.context ? `- Context: ${target.context}` : ''}
 ${learningsSection}${performanceSection}
 
 ## Direction Decision Guidelines
-IMPORTANT: Be decisive. Markets move - take a position.
+- Choose "bullish" if your analysis indicates a clear upward bias with supporting evidence.
+- Choose "bearish" if your analysis indicates a clear downward bias with supporting evidence.
+- Choose "neutral" if the evidence is mixed, weak, or contradictory. Neutral is a valid and preferred position when conviction is low.
 
-- Choose "bullish" if your analysis suggests ANY upward bias, even slight. Use lower confidence (0.5-0.7) for weak signals.
-- Choose "bearish" if your analysis suggests ANY downward bias, even slight. Use lower confidence (0.5-0.7) for weak signals.
-- ONLY choose "neutral" if you see EQUAL and OFFSETTING bullish and bearish factors that genuinely cancel out.
-
-Do NOT default to "neutral" just because you're uncertain. Instead, pick the more likely direction with lower confidence.
-Example: 55% likely to go up → bullish with 0.55 confidence (NOT neutral)
+Use confidence to reflect your conviction:
+- 0.8-1.0: Strong evidence, high conviction
+- 0.6-0.8: Moderate evidence, reasonable conviction
+- 0.5-0.6: Weak evidence, low conviction (consider neutral instead)
 
 ## Output Format
 You must provide your analysis in the following JSON format:
@@ -242,14 +241,13 @@ You must provide your analysis in the following JSON format:
   "risks": ["risk1", "risk2", ...]
 }`;
 
-    // Build user prompt
+    // Build user prompt - no suggested direction to avoid anchoring bias
     const userPrompt = `Analyze the following signal:
 
 ${input.content}
-${input.direction ? `\nSuggested direction: ${input.direction}` : ''}
 ${input.metadata ? `\nMetadata: ${JSON.stringify(input.metadata)}` : ''}
 
-Provide your assessment based on your perspective as ${personalityAnalyst.name}, incorporating the domain and context knowledge provided.`;
+Provide your independent assessment based on your perspective as ${personalityAnalyst.name}, incorporating the domain and context knowledge provided.`;
 
     return {
       systemPrompt,

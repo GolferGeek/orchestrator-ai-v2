@@ -22,6 +22,8 @@ const nextConfig: NextConfig = {
     // Supabase configuration - read from server env and expose to client
     NEXT_PUBLIC_SUPABASE_URL: process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    // Main API URL for authentication and teams (api.orchestratorai.io)
+    NEXT_PUBLIC_MAIN_API_URL: process.env.MAIN_API_URL || process.env.NEXT_PUBLIC_MAIN_API_URL || 'https://api.orchestratorai.io',
   },
 
   // API Rewrites: Proxy /api/* requests to FastAPI backend

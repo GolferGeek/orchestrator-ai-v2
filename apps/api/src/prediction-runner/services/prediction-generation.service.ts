@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ExecutionContext } from '@orchestrator-ai/transport-types';
 import { PredictionRepository } from '../repositories/prediction.repository';
 import { PortfolioRepository } from '../repositories/portfolio.repository';
+import { TargetSnapshotRepository } from '../repositories/target-snapshot.repository';
 import { PredictorManagementService } from './predictor-management.service';
 import { SnapshotService } from './snapshot.service';
 import { AnalystEnsembleService } from './analyst-ensemble.service';
@@ -53,6 +54,7 @@ export class PredictionGenerationService {
   constructor(
     private readonly predictionRepository: PredictionRepository,
     private readonly portfolioRepository: PortfolioRepository,
+    private readonly targetSnapshotRepository: TargetSnapshotRepository,
     private readonly predictorManagementService: PredictorManagementService,
     private readonly snapshotService: SnapshotService,
     private readonly ensembleService: AnalystEnsembleService,
@@ -213,8 +215,11 @@ export class PredictionGenerationService {
     // Run fresh ensemble evaluation using three-way fork
     const ensembleInput: EnsembleInput = {
       targetId,
-      content: this.buildPredictionContext(predictors, thresholdResult),
-      direction: thresholdResult.dominantDirection,
+      content: await this.buildPredictionContext(
+        predictors,
+        thresholdResult,
+        targetId,
+      ),
     };
 
     const threeWayResult = await this.ensembleService.runThreeWayForkEnsemble(
@@ -370,8 +375,11 @@ export class PredictionGenerationService {
     // - arbitrator fork: combined context for final call
     const ensembleInput: EnsembleInput = {
       targetId,
-      content: this.buildPredictionContext(predictors, thresholdResult),
-      direction: thresholdResult.dominantDirection,
+      content: await this.buildPredictionContext(
+        predictors,
+        thresholdResult,
+        targetId,
+      ),
     };
 
     const threeWayResult = await this.ensembleService.runThreeWayForkEnsemble(
@@ -1071,20 +1079,46 @@ export class PredictionGenerationService {
 
   /**
    * Build context string from predictors for final ensemble
+   * Includes market data when available for better-informed predictions
    */
-  private buildPredictionContext(
+  private async buildPredictionContext(
     predictors: Predictor[],
     threshold: ThresholdEvaluationResult,
-  ): string {
+    targetId?: string,
+  ): Promise<string> {
     const parts = [
       `Prediction Generation Context`,
       `Active Predictors: ${predictors.length}`,
       `Combined Strength: ${threshold.combinedStrength}`,
       `Direction Consensus: ${(threshold.directionConsensus * 100).toFixed(0)}%`,
-      `Dominant Direction: ${threshold.dominantDirection}`,
-      '',
-      'Contributing Predictors:',
     ];
+
+    // Add market data if available
+    if (targetId) {
+      try {
+        const latestSnapshot =
+          await this.targetSnapshotRepository.findLatest(targetId);
+        if (latestSnapshot) {
+          const meta = latestSnapshot.metadata || {};
+          parts.push('');
+          parts.push('## Current Market Data');
+          parts.push(`Current Price: $${latestSnapshot.value.toFixed(2)}`);
+          if (meta.open) parts.push(`Open: $${meta.open.toFixed(2)}`);
+          if (meta.high) parts.push(`High: $${meta.high.toFixed(2)}`);
+          if (meta.low) parts.push(`Low: $${meta.low.toFixed(2)}`);
+          if (meta.volume)
+            parts.push(`Volume: ${meta.volume.toLocaleString()}`);
+          if (meta.change_24h != null)
+            parts.push(`24h Change: ${meta.change_24h.toFixed(2)}%`);
+          parts.push(`Price As Of: ${latestSnapshot.captured_at}`);
+        }
+      } catch {
+        // Non-critical - continue without market data
+      }
+    }
+
+    parts.push('');
+    parts.push('Contributing Predictors:');
 
     for (const p of predictors) {
       parts.push(

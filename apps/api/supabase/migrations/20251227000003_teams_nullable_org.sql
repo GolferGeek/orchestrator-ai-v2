@@ -345,23 +345,6 @@ $$;
 COMMENT ON COLUMN public.teams.org_slug IS 'Organization this team belongs to (NULL for global/dev teams)';
 
 -- =============================================================================
--- SEED GLOBAL DEV TEAMS
+-- SEED GLOBAL DEV TEAMS (moved to 20251227000002_create_teams_tables.sql)
 -- =============================================================================
-DO $$
-DECLARE
-  v_admin_user_id UUID;
-BEGIN
-  -- Get admin user ID for created_by
-  SELECT id INTO v_admin_user_id
-  FROM public.users
-  WHERE email = 'admin@orchestratorai.io';
-
-  -- Create global dev teams (no org_slug)
-  INSERT INTO public.teams (org_slug, name, description, created_by)
-  VALUES
-    (NULL, 'AI Developers', 'Core AI development team', v_admin_user_id),
-    (NULL, 'Platform Team', 'Platform infrastructure team', v_admin_user_id)
-  ON CONFLICT DO NOTHING;
-
-  RAISE NOTICE 'Global dev teams created';
-END $$;
+-- Teams are now seeded as global teams in the initial migration.

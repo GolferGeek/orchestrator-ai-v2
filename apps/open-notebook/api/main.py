@@ -89,9 +89,9 @@ app = FastAPI(
 )
 
 # Add Supabase authentication middleware first
-# Exclude /api/auth/status and /api/config from authentication
+# Exclude /api/auth/status, /api/auth/login, and /api/config from authentication
 # Uses Supabase JWT verification with fallback to password auth for backward compatibility
-app.add_middleware(SupabaseAuthMiddleware, excluded_paths=["/", "/health", "/docs", "/openapi.json", "/redoc", "/api/auth/status", "/api/config"])
+app.add_middleware(SupabaseAuthMiddleware, excluded_paths=["/", "/health", "/docs", "/openapi.json", "/redoc", "/api/auth/status", "/api/auth/login", "/api/config"])
 
 # Add CORS middleware last (so it processes first)
 app.add_middleware(

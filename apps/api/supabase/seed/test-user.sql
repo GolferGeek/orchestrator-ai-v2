@@ -77,7 +77,7 @@ BEGIN
         NULL,
         NOW(),
         '{"provider":"email","providers":["email"]}'::JSONB,
-        '{"display_name":"Demo User","organization_slug":"demo-org"}'::JSONB,
+        '{"display_name":"Demo User","organization_slug":"*"}'::JSONB,
         NOW(),
         NOW(),
         '',

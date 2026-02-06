@@ -58,17 +58,13 @@ interface TeamContextState {
 }
 
 // API base URL for the NestJS API (not the Open Notebook API)
+// This should point to api.orchestratorai.io (same as main website)
 const getApiBaseUrl = () => {
-  // In development, this is typically http://localhost:6100
-  // In production, this would be the API server URL
-  // Next.js client-side: use NEXT_PUBLIC_ prefix for env vars exposed to browser
-  const apiPort = process.env.NEXT_PUBLIC_API_PORT || process.env.API_PORT || '6100';
+  // Use environment variable if set, otherwise default to api.orchestratorai.io
   if (typeof window !== 'undefined') {
-    // Client-side: use NEXT_PUBLIC_ env var or construct from port
-    return (process.env.NEXT_PUBLIC_API_URL as string) || `http://127.0.0.1:${apiPort}`
+    return process.env.NEXT_PUBLIC_MAIN_API_URL || 'https://api.orchestratorai.io'
   }
-  // Server-side: use regular env var or construct from port
-  return process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || `http://127.0.0.1:${apiPort}`
+  return process.env.MAIN_API_URL || process.env.NEXT_PUBLIC_MAIN_API_URL || 'https://api.orchestratorai.io'
 }
 
 export const useTeamContextStore = create<TeamContextState>()(

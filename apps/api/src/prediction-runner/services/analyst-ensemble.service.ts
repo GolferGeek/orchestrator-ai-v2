@@ -1261,10 +1261,10 @@ export class AnalystEnsembleService {
     const avgConfidence = totalWeight > 0 ? confidenceSum / totalWeight : 0;
 
     // Convert back to direction
-    // Lowered thresholds from 0.3 to 0.15 for more decisive predictions
+    // Require meaningful conviction before making directional calls
     let direction: string;
-    if (avgValue > 0.15) direction = 'bullish';
-    else if (avgValue < -0.15) direction = 'bearish';
+    if (avgValue > 0.3) direction = 'bullish';
+    else if (avgValue < -0.3) direction = 'bearish';
     else direction = 'neutral';
 
     // Consensus = how close values are to each other

@@ -23,8 +23,8 @@ INSERT INTO public.agents (
 )
 VALUES (
     'legal-department',
-    ARRAY['demo-org', 'global']::TEXT[],
-    'Legal Department AI',
+    ARRAY['legal']::TEXT[],
+    'Department AI',
     'Multi-agent legal document analysis system. Processes contracts, NDAs, MSAs, and legal documents using CLO routing, specialist agents (contract, compliance, IP), and synthesis. Supports multimodal input for scanned/PDF documents.',
     '1.0.0',
     'api',
@@ -43,7 +43,7 @@ VALUES (
         'specialist-collaboration',
         'legal-synthesis'
     ]::TEXT[],
-    '{"markdown": "Legal Department AI - Multi-agent legal document analysis system"}'::JSONB,
+    '{"markdown": "Department AI - Multi-agent legal document analysis system"}'::JSONB,
     '{"url": "http://localhost:6200/legal-department", "method": "POST", "timeout": 120000}'::JSONB,
     NULL,
     '{

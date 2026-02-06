@@ -26,5 +26,9 @@ ingress:
   - hostname: notebook.orchestratorai.io
     service: http://localhost:7201
 
+  # Open Notebook API (Docker: 7202)
+  - hostname: nb-api.orchestratorai.io
+    service: http://localhost:7202
+
   # Catch-all rule (required)
   - service: http_status:404

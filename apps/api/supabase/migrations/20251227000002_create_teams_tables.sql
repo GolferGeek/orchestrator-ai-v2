@@ -241,49 +241,39 @@ AS $$
 $$;
 
 -- =============================================================================
--- SEED INITIAL TEAMS FOR MARKETING ORG (if marketing org exists)
+-- SEED INITIAL GLOBAL TEAMS
 -- =============================================================================
 DO $$
 DECLARE
   v_admin_user_id UUID;
   v_team_id UUID;
   v_user_record RECORD;
-  v_marketing_exists BOOLEAN;
 BEGIN
-  -- Check if marketing org exists
-  SELECT EXISTS(SELECT 1 FROM public.organizations WHERE slug = 'marketing') INTO v_marketing_exists;
-
-  IF NOT v_marketing_exists THEN
-    RAISE NOTICE 'Marketing org does not exist, skipping team seeding';
-    RETURN;
-  END IF;
-
-  -- Get admin user ID for created_by
+  -- Get admin user ID for created_by (use justin as fallback)
   SELECT id INTO v_admin_user_id
   FROM public.users
-  WHERE email = 'admin@orchestratorai.io';
+  WHERE email IN ('admin@orchestratorai.io', 'justin@orchestratorai.io')
+  ORDER BY email ASC
+  LIMIT 1;
 
-  -- Create teams if they don't exist
+  -- Create global teams (no org_slug)
   INSERT INTO public.teams (org_slug, name, description, created_by)
   VALUES
-    ('marketing', 'AI SLT', 'Senior Leadership Team', v_admin_user_id),
-    ('marketing', 'AI Evangelists', 'AI advocacy and education', v_admin_user_id),
-    ('marketing', 'AI Hardware', 'Hardware infrastructure team', v_admin_user_id),
-    ('marketing', 'AI Software', 'Software development team', v_admin_user_id),
-    ('marketing', 'AI Agent Development', 'Agent development specialists', v_admin_user_id)
-  ON CONFLICT (org_slug, name) DO NOTHING;
+    (NULL, 'AI SLT', 'Senior Leadership Team', v_admin_user_id),
+    (NULL, 'AI Evangelists', 'AI advocacy and education', v_admin_user_id),
+    (NULL, 'AI Hardware', 'Hardware infrastructure team', v_admin_user_id),
+    (NULL, 'AI Software', 'Software development team', v_admin_user_id),
+    (NULL, 'AI Agent Development', 'Agent development specialists', v_admin_user_id)
+  ON CONFLICT DO NOTHING;
 
-  -- Add all users in marketing org to all teams (except Demo User)
+  -- Add all non-demo users to all teams
   FOR v_user_record IN
     SELECT DISTINCT u.id
     FROM public.users u
-    JOIN rbac_user_org_roles uor ON u.id = uor.user_id
-    WHERE uor.organization_slug = 'marketing'
-      AND u.email != 'demo.user@orchestratorai.io'
+    WHERE u.email != 'demo.user@orchestratorai.io'
   LOOP
-    -- Add user to each team
     FOR v_team_id IN
-      SELECT id FROM public.teams WHERE org_slug = 'marketing'
+      SELECT id FROM public.teams
     LOOP
       INSERT INTO public.team_members (team_id, user_id, role)
       VALUES (v_team_id, v_user_record.id, 'member')
@@ -291,7 +281,7 @@ BEGIN
     END LOOP;
   END LOOP;
 
-  RAISE NOTICE 'Teams created and members assigned for marketing org';
+  RAISE NOTICE 'Global teams created and members assigned';
 END $$;
 
 -- =============================================================================

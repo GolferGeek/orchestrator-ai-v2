@@ -1,13 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { v4 as uuidv4 } from 'uuid';
 import {
   SourceSubscriptionRepository,
   CrawlerArticle,
 } from '../repositories/source-subscription.repository';
 import { PredictorRepository } from '../repositories/predictor.repository';
 import { TargetRepository } from '../repositories/target.repository';
+import { TargetSnapshotRepository } from '../repositories/target-snapshot.repository';
 import { AnalystEnsembleService } from './analyst-ensemble.service';
 import { LlmTierResolverService } from './llm-tier-resolver.service';
+import { LLMService } from '@/llms/llm.service';
 import { ObservabilityEventsService } from '@/observability/observability-events.service';
 import { ExecutionContext, NIL_UUID } from '@orchestrator-ai/transport-types';
 import { Article as CrawlerServiceArticle } from '@/crawler/interfaces';
@@ -72,8 +73,10 @@ export class ArticleProcessorService {
     private readonly subscriptionRepository: SourceSubscriptionRepository,
     private readonly predictorRepository: PredictorRepository,
     private readonly targetRepository: TargetRepository,
+    private readonly targetSnapshotRepository: TargetSnapshotRepository,
     private readonly ensembleService: AnalystEnsembleService,
     private readonly llmTierResolver: LlmTierResolverService,
+    private readonly llmService: LLMService,
     private readonly observabilityEventsService: ObservabilityEventsService,
   ) {}
 
@@ -296,8 +299,8 @@ export class ArticleProcessorService {
       // Check if article mentions this instrument
       const mentions = this.checkInstrumentMention(text, target);
       if (mentions.mentioned) {
-        // Infer direction from content
-        const direction = this.inferDirection(text);
+        // Infer direction from content using LLM
+        const direction = await this.inferDirection(text, target.symbol);
         relevant.push({
           target,
           relevance_score: mentions.score,
@@ -342,88 +345,66 @@ export class ArticleProcessorService {
   }
 
   /**
-   * Infer direction from article content using keyword analysis
+   * Infer direction from article content using LLM analysis
+   * Falls back to neutral if LLM call fails
    */
-  private inferDirection(text: string): PredictorDirection {
-    const bullishKeywords = [
-      'surge',
-      'rally',
-      'soar',
-      'jump',
-      'spike',
-      'breakout',
-      'bullish',
-      'gain',
-      'rise',
-      'climb',
-      'advance',
-      'up',
-      'higher',
-      'increase',
-      'growth',
-      'positive',
-      'strong',
-      'beat',
-      'exceed',
-      'outperform',
-      'upgrade',
-      'buy',
-      'accumulate',
-      'overweight',
-      'optimistic',
-      'record high',
-      'all-time high',
-      'momentum',
-      'boost',
-      'expand',
-    ];
-    const bearishKeywords = [
-      'crash',
-      'plunge',
-      'collapse',
-      'tumble',
-      'plummet',
-      'bearish',
-      'drop',
-      'fall',
-      'decline',
-      'slip',
-      'down',
-      'lower',
-      'decrease',
-      'loss',
-      'negative',
-      'weak',
-      'miss',
-      'below',
-      'underperform',
-      'downgrade',
-      'sell',
-      'reduce',
-      'underweight',
-      'concern',
-      'risk',
-      'warning',
-      'cut',
-      'layoff',
-      'slowdown',
-      'pressure',
-      'struggle',
-    ];
+  private async inferDirection(
+    text: string,
+    targetSymbol: string,
+  ): Promise<PredictorDirection> {
+    try {
+      const resolved = await this.llmTierResolver.resolveTier('bronze');
+      const ctx: ExecutionContext = {
+        orgSlug: 'system',
+        userId: NIL_UUID,
+        conversationId: NIL_UUID,
+        taskId: NIL_UUID,
+        planId: NIL_UUID,
+        deliverableId: NIL_UUID,
+        agentSlug: 'direction-inference',
+        agentType: 'service',
+        provider: resolved.provider,
+        model: resolved.model,
+      };
 
-    let bullishScore = 0;
-    let bearishScore = 0;
+      // Truncate text to avoid excessive token usage
+      const truncatedText =
+        text.length > 2000 ? text.substring(0, 2000) + '...' : text;
 
-    for (const keyword of bullishKeywords) {
-      if (text.includes(keyword)) bullishScore++;
+      const systemPrompt = `You are a financial sentiment classifier. Given a news article, determine its sentiment impact on the specified stock. Respond with ONLY a JSON object.
+
+Consider:
+- Negation: "did NOT surge" is bearish, not bullish
+- Context: "surge in layoffs" is bearish despite the word "surge"
+- Nuance: distinguish between direct company news vs general market commentary
+- Already priced in: old news or expected outcomes should be neutral
+
+Respond with: {"direction": "bullish" | "bearish" | "neutral", "reasoning": "one sentence"}`;
+
+      const userPrompt = `What is the sentiment impact of this article on ${targetSymbol}?\n\n${truncatedText}`;
+
+      const response = await this.llmService.generateResponse(
+        systemPrompt,
+        userPrompt,
+        { executionContext: ctx },
+      );
+
+      const responseText =
+        typeof response === 'string' ? response : response.content;
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]) as { direction?: string };
+        const dir = (parsed.direction || '').toLowerCase();
+        if (dir === 'bullish') return 'bullish';
+        if (dir === 'bearish') return 'bearish';
+      }
+      return 'neutral';
+    } catch (error) {
+      this.logger.warn(
+        `LLM direction inference failed, defaulting to neutral: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+      return 'neutral';
     }
-    for (const keyword of bearishKeywords) {
-      if (text.includes(keyword)) bearishScore++;
-    }
-
-    if (bullishScore > bearishScore) return 'bullish';
-    if (bearishScore > bullishScore) return 'bearish';
-    return 'neutral';
   }
 
   /**
@@ -434,7 +415,7 @@ export class ArticleProcessorService {
     ctx: ExecutionContext,
     article: CrawlerArticle,
     target: Target,
-    directionHint: PredictorDirection,
+    _directionHint: PredictorDirection,
   ): Promise<boolean> {
     // Resolve LLM provider/model
     const resolved = await this.llmTierResolver.resolveTier('silver');
@@ -444,11 +425,14 @@ export class ArticleProcessorService {
       model: resolved.model,
     };
 
-    // Build ensemble input from article
+    // Build ensemble input from article with market data
+    const articleContent = await this.buildArticleContentWithMarketData(
+      article,
+      target,
+    );
     const ensembleInput: EnsembleInput = {
       targetId: target.id,
-      content: this.buildArticleContent(article),
-      direction: directionHint,
+      content: articleContent,
       metadata: {
         article_id: article.id,
         article_title: article.title,
@@ -568,6 +552,41 @@ export class ArticleProcessorService {
   }
 
   /**
+   * Build content string from article with market data context
+   */
+  private async buildArticleContentWithMarketData(
+    article: CrawlerArticle,
+    target: Target,
+  ): Promise<string> {
+    const base = this.buildArticleContent(article);
+    try {
+      const snapshot = await this.targetSnapshotRepository.findLatest(
+        target.id,
+      );
+      if (snapshot) {
+        const meta = snapshot.metadata || {};
+        const marketParts = [
+          '',
+          `## Market Data for ${target.symbol}`,
+          `Current Price: $${snapshot.value.toFixed(2)}`,
+        ];
+        if (meta.open) marketParts.push(`Open: $${meta.open.toFixed(2)}`);
+        if (meta.high) marketParts.push(`High: $${meta.high.toFixed(2)}`);
+        if (meta.low) marketParts.push(`Low: $${meta.low.toFixed(2)}`);
+        if (meta.volume)
+          marketParts.push(`Volume: ${meta.volume.toLocaleString()}`);
+        if (meta.change_24h != null)
+          marketParts.push(`24h Change: ${meta.change_24h.toFixed(2)}%`);
+        marketParts.push(`Price As Of: ${snapshot.captured_at}`);
+        return base + '\n' + marketParts.join('\n');
+      }
+    } catch {
+      // Non-critical - continue without market data
+    }
+    return base;
+  }
+
+  /**
    * Map ensemble direction to predictor direction type
    */
   private mapDirection(direction: string): PredictorDirection {
@@ -677,7 +696,7 @@ export class ArticleProcessorService {
    */
   async processArticleForSubscriptions(
     article: CrawlerServiceArticle,
-    source: { id: string; organization_slug: string },
+    _source: { id: string; organization_slug: string },
   ): Promise<number> {
     const targets = await this.targetRepository.findAllActive();
     const crawlerArticle: CrawlerArticle = {
