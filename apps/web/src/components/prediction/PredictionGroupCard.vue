@@ -11,6 +11,14 @@
         <span class="target-name">{{ targetName }}</span>
       </div>
       <div class="meta-info">
+        <span v-if="priceInfo?.currentPrice != null" class="inline-price">
+          <span class="price-value">{{ formatInlinePrice(priceInfo) }}</span>
+          <span
+            v-if="priceInfo.change24hPercent != null"
+            class="price-change"
+            :class="priceChangeClass(priceInfo.change24hPercent)"
+          >{{ formatPriceChange(priceInfo.change24hPercent) }}</span>
+        </span>
         <span class="timeframe" v-if="timeframe">{{ timeframe }}</span>
         <span class="date">{{ formatDate(generatedAt) }}</span>
       </div>
@@ -38,7 +46,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { Prediction } from '@/services/predictionDashboardService';
+import type { Prediction, InstrumentPrice } from '@/services/predictionDashboardService';
 
 interface AnalystSummary {
   slug: string;
@@ -50,10 +58,12 @@ interface AnalystSummary {
 interface Props {
   predictions: Prediction[];
   isSelected?: boolean;
+  prices?: Map<string, InstrumentPrice>;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   isSelected: false,
+  prices: undefined,
 });
 
 defineEmits<{
@@ -66,6 +76,11 @@ const targetName = computed(() => props.predictions[0]?.targetName || '');
 const timeframe = computed(() => props.predictions[0]?.timeframe || '');
 const generatedAt = computed(() => props.predictions[0]?.generatedAt || '');
 const isTest = computed(() => props.predictions[0]?.isTest || false);
+
+const priceInfo = computed(() => {
+  const sym = targetSymbol.value;
+  return props.prices?.get(sym) ?? null;
+});
 
 // Check if a prediction represents a flat-only analyst (both user and AI forks are flat)
 function isFlatOnlyAnalyst(p: Prediction): boolean {
@@ -152,6 +167,27 @@ function getDirectionArrow(direction: string): string {
   return '→';
 }
 
+function formatInlinePrice(price: InstrumentPrice): string {
+  if (price.currentPrice == null) return '';
+  if (price.targetType === 'polymarket' || price.targetType === 'election') {
+    return `${(price.currentPrice * 100).toFixed(1)}%`;
+  }
+  return price.currentPrice >= 1
+    ? `$${price.currentPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    : `$${price.currentPrice.toFixed(4)}`;
+}
+
+function formatPriceChange(pct: number): string {
+  const sign = pct >= 0 ? '+' : '';
+  return `${sign}${pct.toFixed(2)}%`;
+}
+
+function priceChangeClass(pct: number): string {
+  if (pct > 0) return 'price-up';
+  if (pct < 0) return 'price-down';
+  return 'price-flat';
+}
+
 function formatDate(dateStr: string): string {
   if (!dateStr) return '';
   const date = new Date(dateStr);
@@ -224,6 +260,39 @@ function formatDate(dateStr: string): string {
   flex-direction: column;
   align-items: flex-end;
   gap: 0.125rem;
+}
+
+.inline-price {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.price-value {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-primary, #111827);
+}
+
+.price-change {
+  font-size: 0.625rem;
+  font-weight: 600;
+  padding: 0.0625rem 0.1875rem;
+  border-radius: 3px;
+}
+
+.price-up {
+  color: #16a34a;
+  background: rgba(22, 163, 74, 0.1);
+}
+
+.price-down {
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.1);
+}
+
+.price-flat {
+  color: var(--text-secondary, #6b7280);
 }
 
 .timeframe {

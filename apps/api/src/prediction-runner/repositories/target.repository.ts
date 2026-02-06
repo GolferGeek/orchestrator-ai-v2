@@ -36,6 +36,7 @@ export class TargetRepository {
       .from(this.table)
       .select('*')
       .eq('universe_id', universeId)
+      .or('is_test_data.is.null,is_test_data.eq.false')
       .order('created_at', {
         ascending: false,
       })) as SupabaseSelectListResponse<Target>;
@@ -186,6 +187,7 @@ export class TargetRepository {
       .eq('universe_id', universeId)
       .eq('is_active', true)
       .eq('is_archived', false)
+      .or('is_test_data.is.null,is_test_data.eq.false')
       .order('created_at', {
         ascending: false,
       })) as SupabaseSelectListResponse<Target>;

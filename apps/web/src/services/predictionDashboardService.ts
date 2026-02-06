@@ -82,6 +82,50 @@ export interface PredictionTarget {
   updatedAt: string;
 }
 
+// ============================================================================
+// TYPES - Instrument Price Data
+// ============================================================================
+
+export type PriceHistoryPeriod = 'day' | '2days' | '3days' | 'week' | 'month';
+
+export interface InstrumentPrice {
+  id: string;
+  symbol: string;
+  name: string;
+  targetType: string;
+  universeId: string;
+  currentPrice: number | null;
+  priceUpdatedAt: string | null;
+  change24hAbsolute: number | null;
+  change24hPercent: number | null;
+}
+
+export interface PriceHistoryData {
+  target: {
+    id: string;
+    symbol: string;
+    name: string;
+    targetType: string;
+    currentPrice: number | null;
+  };
+  period: PriceHistoryPeriod;
+  hours: number;
+  snapshots: Array<{
+    id: string;
+    targetId: string;
+    value: number;
+    valueType: string;
+    source: string;
+    createdAt: string;
+  }>;
+  change: {
+    startValue: number | null;
+    endValue: number | null;
+    changeAbsolute: number | null;
+    changePercent: number | null;
+  };
+}
+
 export interface Prediction {
   id: string;
   targetId: string;
@@ -1743,6 +1787,94 @@ class PredictionDashboardService {
       'targets.delete',
       params as unknown as Record<string, unknown>
     );
+  }
+
+  async getInstrumentPrices(): Promise<InstrumentPrice[]> {
+    const response = await this.executeDashboardRequest<Array<{
+      id: string;
+      symbol: string;
+      name: string;
+      target_type: string;
+      universe_id: string;
+      current_price: number | null;
+      price_updated_at: string | null;
+      change_24h_absolute: number | null;
+      change_24h_percent: number | null;
+    }>>('targets.prices');
+
+    if (!response.content) return [];
+
+    return response.content.map(p => ({
+      id: p.id,
+      symbol: p.symbol,
+      name: p.name,
+      targetType: p.target_type,
+      universeId: p.universe_id,
+      currentPrice: p.current_price,
+      priceUpdatedAt: p.price_updated_at,
+      change24hAbsolute: p.change_24h_absolute,
+      change24hPercent: p.change_24h_percent,
+    }));
+  }
+
+  async getTargetPriceHistory(
+    targetId: string,
+    period: PriceHistoryPeriod = 'day'
+  ): Promise<PriceHistoryData | null> {
+    const response = await this.executeDashboardRequest<{
+      target: {
+        id: string;
+        symbol: string;
+        name: string;
+        target_type: string;
+        current_price: number | null;
+      };
+      period: string;
+      hours: number;
+      snapshots: Array<{
+        id: string;
+        target_id: string;
+        value: number;
+        value_type: string;
+        source: string;
+        created_at: string;
+      }>;
+      change: {
+        start_value: number | null;
+        end_value: number | null;
+        change_absolute: number | null;
+        change_percent: number | null;
+      };
+    }>('targets.priceHistory', { targetId, period });
+
+    if (!response.content) return null;
+
+    const c = response.content;
+    return {
+      target: {
+        id: c.target.id,
+        symbol: c.target.symbol,
+        name: c.target.name,
+        targetType: c.target.target_type,
+        currentPrice: c.target.current_price,
+      },
+      period: c.period as PriceHistoryPeriod,
+      hours: c.hours,
+      snapshots: c.snapshots.map(s => ({
+        id: s.id,
+        targetId: s.target_id,
+        value: s.value,
+        valueType: s.value_type,
+        source: s.source,
+        createdAt: s.created_at,
+      })),
+      change: {
+        startValue: c.change.start_value,
+        endValue: c.change.end_value,
+        changeAbsolute: c.change.change_absolute,
+        changePercent: c.change.change_percent,
+      },
+    };
   }
 
   // ==========================================================================

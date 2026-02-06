@@ -336,6 +336,30 @@ export class TargetSnapshotService {
   /**
    * Fetch crypto price from CoinGecko
    */
+  /** Map ticker symbols to CoinGecko coin IDs */
+  private static readonly CRYPTO_SYMBOL_TO_COINGECKO: Record<string, string> = {
+    btc: 'bitcoin',
+    eth: 'ethereum',
+    sol: 'solana',
+    avax: 'avalanche-2',
+    ada: 'cardano',
+    dot: 'polkadot',
+    matic: 'matic-network',
+    link: 'chainlink',
+    uni: 'uniswap',
+    atom: 'cosmos',
+    xrp: 'ripple',
+    doge: 'dogecoin',
+    shib: 'shiba-inu',
+    ltc: 'litecoin',
+    bnb: 'binancecoin',
+    near: 'near',
+    arb: 'arbitrum',
+    op: 'optimism',
+    sui: 'sui',
+    apt: 'aptos',
+  };
+
   private async fetchCryptoPrice(target: Target): Promise<{
     price: number;
     market_cap: number;
@@ -343,9 +367,11 @@ export class TargetSnapshotService {
     change_24h: number;
   } | null> {
     try {
-      // CoinGecko uses coin IDs, not symbols
-      // For now, assume symbol is the coin ID (e.g., 'bitcoin', 'ethereum')
-      const coinId = target.symbol.toLowerCase();
+      // CoinGecko uses coin IDs (e.g. 'bitcoin'), not ticker symbols (e.g. 'BTC')
+      const symbolLower = target.symbol.toLowerCase();
+      const coinId =
+        TargetSnapshotService.CRYPTO_SYMBOL_TO_COINGECKO[symbolLower] ||
+        symbolLower;
 
       const response = await fetch(
         `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd&include_market_cap=true&include_24hr_vol=true&include_24hr_change=true`,

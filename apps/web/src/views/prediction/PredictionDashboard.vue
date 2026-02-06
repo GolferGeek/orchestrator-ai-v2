@@ -37,6 +37,12 @@
       <PredictionActivityFeed @close="showActivityFeed = false" />
     </section>
 
+    <!-- Price Ticker Strip -->
+    <PriceTickerStrip
+      :prices="instrumentPrices"
+      @select="onTickerSelect"
+    />
+
     <!-- Filters Section -->
     <section class="filters-section">
       <div class="filter-group">
@@ -185,6 +191,7 @@
         v-for="group in groupedPredictions"
         :key="group.key"
         :predictions="group.predictions"
+        :prices="pricesMap"
         @click="onGroupClick(group)"
       />
     </section>
@@ -202,6 +209,13 @@
       :prediction="selectedPredictionForPosition"
       @close="closeTakePositionModal"
       @position-created="handlePositionCreated"
+    />
+
+    <!-- Price History Modal -->
+    <PriceHistoryModal
+      :is-open="isPriceHistoryOpen"
+      :target="selectedPriceTarget"
+      @dismiss="closePriceHistoryModal"
     />
 
     <!-- Pagination -->
@@ -241,7 +255,9 @@ import PredictionGroupCard from '@/components/prediction/PredictionGroupCard.vue
 import AnalystCardsModal from '@/components/prediction/AnalystCardsModal.vue';
 import PredictionActivityFeed from '@/components/prediction/PredictionActivityFeed.vue';
 import TakePositionModal from '@/components/prediction/TakePositionModal.vue';
-import type { Prediction } from '@/services/predictionDashboardService';
+import PriceTickerStrip from '@/components/prediction/PriceTickerStrip.vue';
+import PriceHistoryModal from '@/components/prediction/PriceHistoryModal.vue';
+import type { Prediction, InstrumentPrice } from '@/services/predictionDashboardService';
 
 const router = useRouter();
 const route = useRoute();
@@ -280,6 +296,20 @@ const statusFilter = ref<'all' | 'active' | 'resolved' | 'expired' | 'cancelled'
 const domainFilter = ref<string | null>(null);
 const outcomeFilter = ref<'correct' | 'incorrect' | 'pending' | null>(null);
 const showActivityFeed = ref(false);
+
+// Instrument Prices
+const instrumentPrices = ref<InstrumentPrice[]>([]);
+const pricesMap = computed(() => {
+  const map = new Map<string, InstrumentPrice>();
+  for (const p of instrumentPrices.value) {
+    map.set(p.symbol, p);
+  }
+  return map;
+});
+
+// Price History Modal state
+const isPriceHistoryOpen = ref(false);
+const selectedPriceTarget = ref<InstrumentPrice | null>(null);
 
 // Take Position Modal state
 const isTakePositionModalOpen = ref(false);
@@ -385,6 +415,11 @@ async function loadData() {
     if (data.predictions.length > 0) {
       store.setTotalCount(data.predictions.length);
     }
+
+    // Load instrument prices (non-blocking)
+    predictionDashboardService.getInstrumentPrices()
+      .then(prices => { instrumentPrices.value = prices; })
+      .catch(err => console.warn('[PredictionDashboard] Failed to load prices:', err));
   } catch (error) {
     store.setError(error instanceof Error ? error.message : 'Failed to load predictions');
   } finally {
@@ -415,6 +450,16 @@ function onFilterChange() {
 function closeTakePositionModal() {
   isTakePositionModalOpen.value = false;
   selectedPredictionForPosition.value = null;
+}
+
+function onTickerSelect(price: InstrumentPrice) {
+  selectedPriceTarget.value = price;
+  isPriceHistoryOpen.value = true;
+}
+
+function closePriceHistoryModal() {
+  isPriceHistoryOpen.value = false;
+  selectedPriceTarget.value = null;
 }
 
 function handlePositionCreated(result: { positionId: string; symbol: string }) {

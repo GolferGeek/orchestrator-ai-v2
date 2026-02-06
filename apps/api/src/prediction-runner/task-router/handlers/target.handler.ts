@@ -9,6 +9,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import type { ExecutionContext } from '@orchestrator-ai/transport-types';
 import type { DashboardRequestPayload } from '@orchestrator-ai/transport-types';
 import { TargetService } from '../../services/target.service';
+import { TargetSnapshotService } from '../../services/target-snapshot.service';
+import { TargetRepository } from '../../repositories/target.repository';
 import {
   IDashboardHandler,
   DashboardActionResult,
@@ -27,6 +29,8 @@ interface TargetFilters {
 interface TargetParams {
   id?: string;
   universeId?: string;
+  targetId?: string;
+  period?: string;
   filters?: TargetFilters;
   page?: number;
   pageSize?: number;
@@ -77,9 +81,15 @@ export class TargetHandler implements IDashboardHandler {
     'create',
     'update',
     'delete',
+    'prices',
+    'priceHistory',
   ];
 
-  constructor(private readonly targetService: TargetService) {}
+  constructor(
+    private readonly targetService: TargetService,
+    private readonly targetSnapshotService: TargetSnapshotService,
+    private readonly targetRepository: TargetRepository,
+  ) {}
 
   async execute(
     action: string,
@@ -103,6 +113,10 @@ export class TargetHandler implements IDashboardHandler {
         return this.handleUpdate(params, payload);
       case 'delete':
         return this.handleDelete(params);
+      case 'prices':
+        return this.handlePrices();
+      case 'pricehistory':
+        return this.handlePriceHistory(params);
       default:
         return buildDashboardError(
           'UNSUPPORTED_ACTION',
@@ -295,6 +309,124 @@ export class TargetHandler implements IDashboardHandler {
       return buildDashboardError(
         'DELETE_FAILED',
         error instanceof Error ? error.message : 'Failed to delete target',
+      );
+    }
+  }
+
+  private async handlePrices(): Promise<DashboardActionResult> {
+    try {
+      const targets = await this.targetRepository.findAllActive();
+
+      const now = new Date();
+      const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+      const pricesWithChange = await Promise.all(
+        targets.map(async (target) => {
+          let change24h: {
+            change_absolute: number | null;
+            change_percent: number | null;
+          } = { change_absolute: null, change_percent: null };
+
+          try {
+            change24h = await this.targetSnapshotService.calculateChange(
+              target.id,
+              twentyFourHoursAgo.toISOString(),
+              now.toISOString(),
+            );
+          } catch {
+            // Ignore - target may have no snapshots
+          }
+
+          return {
+            id: target.id,
+            symbol: target.symbol,
+            name: target.name,
+            target_type: target.target_type,
+            universe_id: target.universe_id,
+            current_price: target.current_price,
+            price_updated_at: target.price_updated_at,
+            change_24h_absolute: change24h.change_absolute,
+            change_24h_percent: change24h.change_percent,
+          };
+        }),
+      );
+
+      return buildDashboardSuccess(pricesWithChange);
+    } catch (error) {
+      this.logger.error(
+        `Failed to get prices: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return buildDashboardError(
+        'PRICES_FAILED',
+        error instanceof Error ? error.message : 'Failed to get prices',
+      );
+    }
+  }
+
+  private async handlePriceHistory(
+    params?: TargetParams,
+  ): Promise<DashboardActionResult> {
+    const targetId = params?.targetId || params?.id;
+    if (!targetId) {
+      return buildDashboardError(
+        'MISSING_TARGET_ID',
+        'targetId is required for price history',
+      );
+    }
+
+    const periodMap: Record<string, number> = {
+      day: 24,
+      '2days': 48,
+      '3days': 72,
+      week: 168,
+      month: 720,
+    };
+
+    const period = params?.period || 'day';
+    const hours = periodMap[period] || 24;
+
+    try {
+      const target = await this.targetService.findById(targetId);
+      if (!target) {
+        return buildDashboardError(
+          'NOT_FOUND',
+          `Target not found: ${targetId}`,
+        );
+      }
+
+      const snapshots = await this.targetSnapshotService.getHistory(
+        targetId,
+        hours,
+      );
+
+      const now = new Date();
+      const start = new Date(now.getTime() - hours * 60 * 60 * 1000);
+      const changeSummary = await this.targetSnapshotService.calculateChange(
+        targetId,
+        start.toISOString(),
+        now.toISOString(),
+      );
+
+      return buildDashboardSuccess({
+        target: {
+          id: target.id,
+          symbol: target.symbol,
+          name: target.name,
+          target_type: target.target_type,
+          current_price: target.current_price,
+        },
+        period,
+        hours,
+        snapshots,
+        change: changeSummary,
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to get price history: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return buildDashboardError(
+        'PRICE_HISTORY_FAILED',
+        error instanceof Error ? error.message : 'Failed to get price history',
       );
     }
   }
