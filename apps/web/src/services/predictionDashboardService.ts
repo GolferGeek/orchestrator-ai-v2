@@ -2363,13 +2363,13 @@ class PredictionDashboardService {
   // CONVENIENCE METHODS
   // ==========================================================================
 
-  async loadDashboardData(universeId?: string, agentSlug?: string, includeTestData = true): Promise<{
+  async loadDashboardData(universeId?: string, agentSlug?: string, includeTestData = false): Promise<{
     universes: PredictionUniverse[];
     predictions: Prediction[];
     strategies: PredictionStrategy[];
   }> {
     const universeFilters: UniverseListParams | undefined = agentSlug ? { agentSlug } as UniverseListParams : undefined;
-    // Include test data by default since seed data uses is_test_data=true
+    // Exclude test data by default — real predictions are the primary view
     const predictionFilters = universeId
       ? { universeId, includeTestData }
       : { includeTestData };
