@@ -296,7 +296,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import {
   IonButton,
@@ -576,6 +576,11 @@ const deleteCollection = async (collection: RagCollection) => {
     await toast.present();
   }
 };
+
+// Watch for organization changes
+watch(() => authStore.currentOrganization, () => {
+  loadCollections();
+});
 
 // Lifecycle
 onMounted(() => {

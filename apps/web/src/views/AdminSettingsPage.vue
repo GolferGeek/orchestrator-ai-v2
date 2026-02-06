@@ -261,14 +261,6 @@
                   <ion-icon :icon="extensionPuzzleOutline" />
                   <span>MCP Servers & Tools</span>
                 </div>
-                <div
-                  class="nav-item"
-                  :class="{ active: activeSection === 'crawler' }"
-                  @click="selectSection('crawler')"
-                >
-                  <ion-icon :icon="syncOutline" />
-                  <span>Crawler Service</span>
-                </div>
               </div>
             </div>
           </div>
@@ -352,7 +344,6 @@ import {
   libraryOutline,
   documentsOutline,
   chatbubblesOutline,
-  syncOutline,
   chevronDownOutline,
   chevronForwardOutline,
 } from 'ionicons/icons';
@@ -441,8 +432,6 @@ const detailComponents: Record<string, ReturnType<typeof defineAsyncComponent>> 
   // System Configuration
   database: defineAsyncComponent(() => import('@/views/admin/DatabaseAdminPage.vue')),
   mcp: defineAsyncComponent(() => import('@/views/admin/MCPAdminPage.vue')),
-  crawler: defineAsyncComponent(() => import('@/views/admin/CrawlerAdminPage.vue')),
-  
   // Sub-detail components
   'rag-collection': defineAsyncComponent(() => import('@/views/admin/RagCollectionDetailPage.vue')),
   'llm-usage-run': defineAsyncComponent(() => import('@/views/admin/LLMUsageDetailsPage.vue')),

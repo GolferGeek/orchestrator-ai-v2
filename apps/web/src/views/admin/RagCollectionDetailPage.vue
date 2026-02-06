@@ -412,7 +412,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, nextTick } from 'vue';
+import { ref, onMounted, computed, nextTick, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import {
   IonPage,
@@ -893,6 +893,11 @@ const formatFileSize = (bytes: number) => {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
+
+// Watch for organization changes
+watch(() => authStore.currentOrganization, () => {
+  loadCollection();
+});
 
 // Lifecycle
 onMounted(() => {

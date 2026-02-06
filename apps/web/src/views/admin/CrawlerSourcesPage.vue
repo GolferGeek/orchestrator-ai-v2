@@ -2,7 +2,7 @@
   <div class="detail-view">
     <!-- Detail Header -->
     <div class="detail-header">
-      <h2>Crawler Sources</h2>
+      <h2>Central Crawler</h2>
       <div class="header-actions">
         <ion-button fill="clear" size="small" @click="openCreateModal">
           <ion-icon :icon="addOutline" slot="icon-only" />
@@ -17,7 +17,7 @@
       <div class="crawler-sources-container">
         <!-- Header Section -->
         <div class="page-header">
-          <h1>Data Sources</h1>
+          <h1>Crawler Sources &amp; Articles</h1>
           <p>Manage shared data sources for crawling content across all agents</p>
         </div>
 
@@ -35,6 +35,70 @@
             <div class="stat-value">{{ stats.total_articles }}</div>
             <div class="stat-label">Articles</div>
           </div>
+          <div class="stat-card">
+            <div class="stat-value">{{ totalDedup }}</div>
+            <div class="stat-label">Deduplicated</div>
+          </div>
+        </div>
+
+        <!-- Article to Signal Conversion Diagnostic -->
+        <div class="diagnostic-section">
+          <ion-card class="diagnostic-card">
+            <ion-card-header>
+              <ion-card-title>Article &rarr; Signal Conversion</ion-card-title>
+              <ion-card-subtitle>Sample of recent articles</ion-card-subtitle>
+            </ion-card-header>
+            <ion-card-content>
+              <div v-if="loadingSampleData" class="loading-inline">
+                <ion-spinner name="dots" />
+                <span>Loading sample...</span>
+              </div>
+              <div v-else-if="sampleArticles.length > 0" class="sample-stats">
+                <div class="sample-summary">
+                  <h3>{{ totalSignalsInSample }}</h3>
+                  <p>signals from {{ sampleArticles.length }} recent articles</p>
+                  <p class="ratio">Avg: {{ avgSignalsPerArticle }} signals/article</p>
+                </div>
+                <ion-button size="small" fill="clear" @click="loadSampleData">
+                  <ion-icon :icon="refreshOutline" slot="start" />
+                  Refresh Sample
+                </ion-button>
+              </div>
+              <div v-else class="empty-sample">
+                <p>No articles with signals found</p>
+                <ion-button size="small" @click="loadSampleData">Load Sample</ion-button>
+              </div>
+            </ion-card-content>
+          </ion-card>
+        </div>
+
+        <!-- Deduplication Breakdown -->
+        <div class="dedup-stats-section" v-if="stats.deduplication_stats">
+          <ion-card>
+            <ion-card-header>
+              <ion-card-title>Deduplication Breakdown</ion-card-title>
+            </ion-card-header>
+            <ion-card-content>
+              <div class="dedup-grid">
+                <div class="dedup-stat">
+                  <span class="dedup-value">{{ stats.deduplication_stats.exact }}</span>
+                  <span class="dedup-label">Exact Match</span>
+                </div>
+                <div class="dedup-stat">
+                  <span class="dedup-value">{{ stats.deduplication_stats.cross_source }}</span>
+                  <span class="dedup-label">Cross-Source</span>
+                </div>
+                <div class="dedup-stat">
+                  <span class="dedup-value">{{ stats.deduplication_stats.fuzzy_title }}</span>
+                  <span class="dedup-label">Fuzzy Title</span>
+                </div>
+                <div class="dedup-stat">
+                  <span class="dedup-value">{{ stats.deduplication_stats.phrase_overlap }}</span>
+                  <span class="dedup-label">Phrase Overlap</span>
+                </div>
+              </div>
+            </ion-card-content>
+          </ion-card>
         </div>
 
         <!-- Activity Feed Section -->
@@ -80,7 +144,7 @@
         <!-- Filter Toggle -->
         <div class="filter-section">
           <ion-item lines="none">
-            <ion-checkbox v-model="showInactive" @ionChange="loadSources">
+            <ion-checkbox v-model="showInactive" @ionChange="loadSourcesOnly">
               Show Inactive Sources
             </ion-checkbox>
           </ion-item>
@@ -173,10 +237,68 @@
                   <ion-icon :icon="timeOutline" />
                   Last: {{ formatDate(source.last_crawl_at) }}
                 </span>
+                <span v-if="source.crawl_stats">
+                  <ion-icon :icon="analyticsOutline" />
+                  {{ source.crawl_stats.successful_crawls }}/{{ source.crawl_stats.total_crawls }} crawls
+                </span>
                 <span v-if="source.consecutive_errors > 0" class="error-count">
                   <ion-icon :icon="warningOutline" />
                   {{ source.consecutive_errors }} errors
                 </span>
+              </div>
+              <!-- Subscriptions -->
+              <div v-if="source.subscriptions && source.subscriptions.length > 0" class="subscriptions">
+                <strong>Subscriptions:</strong>
+                <ion-chip
+                  v-for="sub in source.subscriptions"
+                  :key="sub.subscription_id"
+                  size="small"
+                  :color="sub.agent_type === 'prediction' ? 'tertiary' : 'success'"
+                >
+                  {{ sub.agent_type }}: {{ sub.target_name || sub.scope_name }}
+                </ion-chip>
+              </div>
+              <!-- Expand to show crawl history -->
+              <ion-button
+                fill="clear"
+                size="small"
+                @click="toggleSourceDetails(source)"
+              >
+                {{ expandedSourceId === source.id ? 'Hide Details' : 'Show Details' }}
+                <ion-icon :icon="expandedSourceId === source.id ? chevronUpOutline : chevronDownOutline" slot="end" />
+              </ion-button>
+              <!-- Expanded Details -->
+              <div v-if="expandedSourceId === source.id" class="source-details">
+                <h4>Recent Crawls</h4>
+                <div v-if="loadingCrawls" class="loading-inline">
+                  <ion-spinner name="dots" />
+                </div>
+                <div v-else-if="sourceCrawls.length === 0" class="no-data">
+                  No crawl history yet
+                </div>
+                <ion-list v-else>
+                  <ion-item v-for="crawl in sourceCrawls" :key="crawl.id" lines="full">
+                    <ion-label>
+                      <h3>
+                        <ion-chip :color="getCrawlStatusColor(crawl.status)" size="small">
+                          {{ crawl.status }}
+                        </ion-chip>
+                        {{ formatDate(crawl.started_at) }}
+                      </h3>
+                      <p>
+                        Found: {{ crawl.articles_found }} |
+                        New: {{ crawl.articles_new }} |
+                        Dedup: {{ crawl.duplicates_exact + crawl.duplicates_cross_source + crawl.duplicates_fuzzy_title + crawl.duplicates_phrase_overlap }}
+                      </p>
+                      <p v-if="crawl.crawl_duration_ms">
+                        Duration: {{ (crawl.crawl_duration_ms / 1000).toFixed(1) }}s
+                      </p>
+                      <p v-if="crawl.error_message" class="error-text">
+                        {{ crawl.error_message }}
+                      </p>
+                    </ion-label>
+                  </ion-item>
+                </ion-list>
               </div>
             </ion-card-content>
           </ion-card>
@@ -245,7 +367,7 @@
                   <h3 class="article-title">{{ article.title || 'Untitled' }}</h3>
                   <p class="article-meta">
                     {{ formatArticleDate(article.first_seen_at) }}
-                    <span v-if="article.author"> • {{ article.author }}</span>
+                    <span v-if="article.author"> &bull; {{ article.author }}</span>
                   </p>
                 </div>
                 <a
@@ -347,6 +469,13 @@
               </ion-select>
             </ion-item>
             <ion-item>
+              <ion-label position="stacked">CSS Selector (optional)</ion-label>
+              <ion-input
+                v-model="sourceForm.crawl_config.selector"
+                placeholder="article.content"
+              />
+            </ion-item>
+            <ion-item>
               <ion-checkbox v-model="sourceForm.is_test">
                 Test Source (not included in production crawls)
               </ion-checkbox>
@@ -370,7 +499,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import {
   IonButton,
   IonIcon,
@@ -411,10 +540,14 @@ import {
   timeOutline,
   warningOutline,
   openOutline,
+  analyticsOutline,
+  chevronDownOutline,
+  chevronUpOutline,
 } from 'ionicons/icons';
 import {
   crawlerService,
   type SourceWithStats,
+  type SourceCrawl,
   type DashboardStats,
   type CreateSourceData,
   type UpdateSourceData,
@@ -438,6 +571,15 @@ const saving = ref(false);
 const showInactive = ref(false);
 const showSourceModal = ref(false);
 const editingSource = ref<SourceWithStats | null>(null);
+
+// Crawl history state
+const expandedSourceId = ref<string | null>(null);
+const sourceCrawls = ref<SourceCrawl[]>([]);
+const loadingCrawls = ref(false);
+
+// Sample data for signal analysis
+const loadingSampleData = ref(false);
+const sampleArticles = ref<Article[]>([]);
 
 // Articles modal state
 const showArticlesModal = ref(false);
@@ -488,6 +630,22 @@ const sourceForm = ref<{
 });
 
 // Computed
+const totalDedup = computed(() => {
+  const d = stats.value.deduplication_stats;
+  return d.exact + d.cross_source + d.fuzzy_title + d.phrase_overlap;
+});
+
+const totalSignalsInSample = computed(() => {
+  return sampleArticles.value.reduce((total, article) => {
+    return total + (article.signals?.length || 0);
+  }, 0);
+});
+
+const avgSignalsPerArticle = computed(() => {
+  if (sampleArticles.value.length === 0) return '0.0';
+  return (totalSignalsInSample.value / sampleArticles.value.length).toFixed(1);
+});
+
 const isFormValid = computed(() => {
   return sourceForm.value.name.trim() !== '' && sourceForm.value.url.trim() !== '';
 });
@@ -536,11 +694,45 @@ async function loadSources() {
     ]);
     stats.value = statsData;
     sources.value = sourcesData;
+
+    // Load sample data after sources are loaded
+    await loadSampleData();
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to load sources';
     console.error('Failed to load sources:', e);
   } finally {
     loading.value = false;
+  }
+}
+
+async function loadSourcesOnly() {
+  try {
+    sources.value = await crawlerService.getSources(getOrgSlug(), showInactive.value);
+  } catch (e) {
+    console.error('Failed to load sources:', e);
+  }
+}
+
+async function loadSampleData() {
+  loadingSampleData.value = true;
+  try {
+    const orgSlug = getOrgSlug();
+    const activeSource = sources.value.find(s => s.is_active && s.article_count > 0);
+    if (!activeSource) {
+      sampleArticles.value = [];
+      return;
+    }
+
+    const result = await crawlerService.getSourceArticles(orgSlug, activeSource.id, {
+      limit: 100,
+      includeSignals: true,
+    });
+
+    sampleArticles.value = result;
+  } catch (e) {
+    console.error('Failed to load sample data:', e);
+  } finally {
+    loadingSampleData.value = false;
   }
 }
 
@@ -647,6 +839,24 @@ async function confirmDeleteSource(source: SourceWithStats) {
   await alert.present();
 }
 
+async function toggleSourceDetails(source: SourceWithStats) {
+  if (expandedSourceId.value === source.id) {
+    expandedSourceId.value = null;
+    sourceCrawls.value = [];
+  } else {
+    expandedSourceId.value = source.id;
+    loadingCrawls.value = true;
+    try {
+      sourceCrawls.value = await crawlerService.getSourceCrawls(getOrgSlug(), source.id, 10);
+    } catch (e) {
+      console.error('Failed to load crawl history:', e);
+      sourceCrawls.value = [];
+    } finally {
+      loadingCrawls.value = false;
+    }
+  }
+}
+
 function getStatusColor(source: SourceWithStats): string {
   if (!source.is_active) return 'medium';
   if (source.consecutive_errors > 0) return 'danger';
@@ -680,6 +890,21 @@ function getTypeColor(type: SourceType): string {
   }
 }
 
+function getCrawlStatusColor(status: string): string {
+  switch (status) {
+    case 'success':
+      return 'success';
+    case 'running':
+      return 'primary';
+    case 'error':
+      return 'danger';
+    case 'timeout':
+      return 'warning';
+    default:
+      return 'medium';
+  }
+}
+
 function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return 'Never';
   const date = new Date(dateStr);
@@ -705,7 +930,6 @@ async function loadArticles() {
   loadingArticles.value = true;
   try {
     const orgSlug = getOrgSlug();
-    // Calculate since date based on filter (fetch more than needed, filter client-side)
     let since: string | undefined;
     if (articleTimeFilter.value !== 'all') {
       const now = new Date();
@@ -763,7 +987,6 @@ function formatArticleDate(dateStr: string): string {
 // Signal display helpers
 function getUniqueSignals(signals: SignalSummary[] | undefined): SignalSummary[] {
   if (!signals || signals.length === 0) return [];
-  // Deduplicate by target_id, keeping the first occurrence
   const seen = new Set<string>();
   return signals.filter((signal) => {
     if (seen.has(signal.target_id)) return false;
@@ -814,11 +1037,10 @@ async function loadRecentActivity() {
   loadingActivity.value = true;
   try {
     const orgSlug = getOrgSlug();
-    // Get recent articles with signals from all sources
     const allArticles: Article[] = [];
-    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(); // Last 24 hours
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
-    for (const source of sources.value.slice(0, 5)) { // Limit to first 5 sources for performance
+    for (const source of sources.value.slice(0, 5)) {
       const sourceArticles = await crawlerService.getSourceArticles(
         orgSlug,
         source.id,
@@ -827,7 +1049,6 @@ async function loadRecentActivity() {
       allArticles.push(...sourceArticles);
     }
 
-    // Filter to only articles with signals, sort by date, take top 10
     recentActivity.value = allArticles
       .filter((a) => a.signals && a.signals.length > 0)
       .sort((a, b) => new Date(b.first_seen_at).getTime() - new Date(a.first_seen_at).getTime())
@@ -840,9 +1061,13 @@ async function loadRecentActivity() {
   }
 }
 
+// Watch for organization changes
+watch(() => authStore.currentOrganization, () => {
+  loadSources();
+});
+
 onMounted(async () => {
   await loadSources();
-  // Load activity after sources are loaded
   if (sources.value.length > 0) {
     loadRecentActivity();
   }
@@ -927,6 +1152,90 @@ onMounted(async () => {
   letter-spacing: 0.05em;
 }
 
+/* Diagnostic section */
+.diagnostic-section {
+  margin-bottom: 1.5rem;
+}
+
+.diagnostic-card {
+  margin: 0;
+}
+
+.sample-stats {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sample-summary h3 {
+  font-size: 1.75rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.sample-summary p {
+  margin: 0;
+  color: var(--ion-color-medium);
+  font-size: 0.875rem;
+}
+
+.sample-summary .ratio {
+  font-weight: 600;
+  color: var(--ion-color-primary);
+}
+
+.empty-sample {
+  text-align: center;
+  padding: 0.5rem;
+}
+
+.empty-sample p {
+  color: var(--ion-color-medium);
+  margin-bottom: 0.5rem;
+}
+
+.loading-inline {
+  padding: 1rem;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+/* Dedup stats */
+.dedup-stats-section {
+  margin-bottom: 1.5rem;
+}
+
+.dedup-stats-section ion-card {
+  margin: 0;
+}
+
+.dedup-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 1rem;
+}
+
+.dedup-stat {
+  text-align: center;
+  padding: 0.5rem;
+}
+
+.dedup-value {
+  display: block;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--ion-color-primary);
+}
+
+.dedup-label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--ion-color-medium);
+}
+
 .filter-section {
   margin-bottom: 1rem;
 }
@@ -1003,6 +1312,40 @@ onMounted(async () => {
 
 .source-meta .error-count {
   color: var(--ion-color-danger);
+}
+
+/* Subscriptions */
+.subscriptions {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--ion-color-light);
+}
+
+.subscriptions strong {
+  margin-right: 0.5rem;
+}
+
+/* Source details / crawl history */
+.source-details {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--ion-color-light);
+}
+
+.source-details h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+}
+
+.no-data {
+  padding: 1rem;
+  text-align: center;
+  color: var(--ion-color-medium);
+}
+
+.error-text {
+  color: var(--ion-color-danger);
+  font-size: 0.8rem;
 }
 
 .modal-actions {

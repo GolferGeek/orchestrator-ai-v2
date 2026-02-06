@@ -263,18 +263,6 @@ const routes: Array<RouteRecordRaw> = [
           description: 'View and manage collection documents'
         }
       },
-      // Central Crawler Admin
-      {
-        path: 'admin/crawler',
-        name: 'CrawlerAdmin',
-        component: () => import('../views/admin/CrawlerAdminPage.vue'),
-        meta: {
-          requiresAuth: true,
-          requiresPermission: 'admin:settings',
-          title: 'Central Crawler',
-          description: 'Manage shared data sources and articles across all agents'
-        }
-      },
       // Marketing Swarm custom UI
       {
         path: 'agents/marketing-swarm',
