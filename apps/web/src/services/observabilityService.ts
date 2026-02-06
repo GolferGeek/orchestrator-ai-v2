@@ -78,8 +78,7 @@ export function createObservabilityStream(
     conversationId?: string;
   },
 ): EventSource {
-  const apiPort = import.meta.env.VITE_API_PORT || '6100';
-  const apiUrl = import.meta.env.VITE_API_URL || `http://localhost:${apiPort}`;
+  const apiUrl = import.meta.env.VITE_API_BASE_URL || `http://localhost:${import.meta.env.VITE_API_PORT || '6100'}`;
   const queryParams = new URLSearchParams();
 
   if (filters?.userId) queryParams.append('userId', filters.userId);
