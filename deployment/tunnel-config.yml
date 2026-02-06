@@ -1,18 +1,30 @@
-tunnel: 66945a87-92a0-466e-ab59-c096ce14ae4d
-credentials-file: /Users/golfergeek/.cloudflared/66945a87-92a0-466e-ab59-c096ce14ae4d.json
+tunnel: 138eba33-8140-432c-8763-ce78beb98b59
+credentials-file: /home/golfergeek/.cloudflared/138eba33-8140-432c-8763-ce78beb98b59.json
 
 ingress:
-  # API Service with WebSocket support
+  # API Service (Docker: 7100)
   - hostname: api.orchestratorai.io
-    service: http://localhost:9000
-      
-  # Web App (root domain)
+    service: http://localhost:7100
+
+  # Web App - root domain (Docker: 7101)
   - hostname: orchestratorai.io
-    service: http://localhost:9001
-      
-  # Web App (app subdomain - for backward compatibility)  
-  - hostname: app.orchestratorai.io  
-    service: http://localhost:9001
-      
+    service: http://localhost:7101
+
+  # Web App - app subdomain for backward compatibility (Docker: 7101)
+  - hostname: app.orchestratorai.io
+    service: http://localhost:7101
+
+  # LangGraph Workflow Engine (Docker: 7200)
+  - hostname: langgraph.orchestratorai.io
+    service: http://localhost:7200
+
+  # Orch Flow React app (Docker: 7102)
+  - hostname: flow.orchestratorai.io
+    service: http://localhost:7102
+
+  # Open Notebook Next.js frontend (Docker: 7201)
+  - hostname: notebook.orchestratorai.io
+    service: http://localhost:7201
+
   # Catch-all rule (required)
   - service: http_status:404

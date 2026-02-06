@@ -209,6 +209,7 @@ export class TargetRepository {
       .select('*')
       .eq('is_active', true)
       .eq('is_archived', false)
+      .or('is_test_data.is.null,is_test_data.eq.false')
       .order('created_at', {
         ascending: false,
       })) as SupabaseSelectListResponse<Target>;

@@ -66,6 +66,9 @@ $$;
 -- UPDATE rag_get_collection FUNCTION TO INCLUDE complexity_type
 -- =============================================================================
 
+-- Must DROP first because RETURNS TABLE signature is changing (adding complexity_type)
+DROP FUNCTION IF EXISTS rag_data.rag_get_collection(UUID, TEXT);
+
 CREATE OR REPLACE FUNCTION rag_data.rag_get_collection(
     p_collection_id UUID,
     p_organization_slug TEXT

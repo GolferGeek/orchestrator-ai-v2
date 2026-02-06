@@ -19,8 +19,16 @@ COPY apps/web ./apps/web
 WORKDIR /app/apps/transport-types
 RUN npm run build
 
-# Build web app
+# Build web app — VITE_ vars must be available at build time
 WORKDIR /app/apps/web
+ARG VITE_API_BASE_URL
+ARG VITE_SUPABASE_URL
+ARG VITE_SUPABASE_ANON_KEY
+ARG VITE_LANGGRAPH_BASE_URL
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
+ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
+ENV VITE_LANGGRAPH_BASE_URL=$VITE_LANGGRAPH_BASE_URL
 RUN npm run build
 
 # Production stage with nginx

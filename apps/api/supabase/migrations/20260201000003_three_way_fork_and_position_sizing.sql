@@ -6,7 +6,18 @@
 --   3. Create configurable position sizing thresholds table
 
 -- ============================================================================
--- STEP 1: Update fork_type from 'agent' to 'ai' in existing records
+-- STEP 1: Drop old CHECK constraints FIRST (before updating data)
+-- ============================================================================
+
+-- Drop old constraints so we can update data
+ALTER TABLE prediction.analyst_portfolios
+DROP CONSTRAINT IF EXISTS analyst_portfolios_fork_type_check;
+
+ALTER TABLE prediction.analyst_context_versions
+DROP CONSTRAINT IF EXISTS analyst_context_versions_fork_type_check;
+
+-- ============================================================================
+-- STEP 2: Update fork_type from 'agent' to 'ai' in existing records
 -- ============================================================================
 
 -- Update analyst_portfolios
@@ -20,27 +31,19 @@ SET fork_type = 'ai'
 WHERE fork_type = 'agent';
 
 -- ============================================================================
--- STEP 2: Update CHECK constraints to allow ('user', 'ai', 'arbitrator')
+-- STEP 3: Add new CHECK constraints with updated values
 -- ============================================================================
-
--- Drop and recreate constraint on analyst_portfolios
-ALTER TABLE prediction.analyst_portfolios
-DROP CONSTRAINT IF EXISTS analyst_portfolios_fork_type_check;
 
 ALTER TABLE prediction.analyst_portfolios
 ADD CONSTRAINT analyst_portfolios_fork_type_check
 CHECK (fork_type IN ('user', 'ai', 'arbitrator'));
-
--- Drop and recreate constraint on analyst_context_versions
-ALTER TABLE prediction.analyst_context_versions
-DROP CONSTRAINT IF EXISTS analyst_context_versions_fork_type_check;
 
 ALTER TABLE prediction.analyst_context_versions
 ADD CONSTRAINT analyst_context_versions_fork_type_check
 CHECK (fork_type IN ('user', 'ai', 'arbitrator'));
 
 -- ============================================================================
--- STEP 3: Create position sizing configuration table
+-- STEP 4: Create position sizing configuration table
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS prediction.position_sizing_config (
@@ -70,7 +73,7 @@ CREATE INDEX IF NOT EXISTS idx_position_sizing_config_org
 ON prediction.position_sizing_config(org_slug, is_active);
 
 -- ============================================================================
--- STEP 4: Insert default position sizing tiers
+-- STEP 5: Insert default position sizing tiers
 -- ============================================================================
 
 INSERT INTO prediction.position_sizing_config
@@ -82,7 +85,7 @@ VALUES
 ON CONFLICT (org_slug, tier_name) DO NOTHING;
 
 -- ============================================================================
--- STEP 5: Add fork_type column to analyst_positions for denormalization
+-- STEP 6: Add fork_type column to analyst_positions for denormalization
 -- ============================================================================
 
 -- Add fork_type directly to positions for easier querying
@@ -106,7 +109,7 @@ ADD CONSTRAINT analyst_positions_fork_type_check
 CHECK (fork_type IN ('user', 'ai', 'arbitrator'));
 
 -- ============================================================================
--- STEP 6: Add context_mode to predictions table
+-- STEP 7: Add context_mode to predictions table
 -- ============================================================================
 
 -- Track which context mode produced each prediction
