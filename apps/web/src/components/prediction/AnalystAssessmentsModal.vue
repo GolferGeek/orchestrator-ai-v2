@@ -44,10 +44,12 @@
           <!-- Three-Way Fork Assessments -->
           <div class="fork-container">
             <!-- Arbitrator Fork (shown first as final decision) -->
-            <div v-if="analyst.arbitratorFork" class="fork-card arbitrator-fork">
+            <div v-if="analyst.arbitratorFork" class="fork-card arbitrator-fork" :class="{ 'inactive-fork': isForkFlat(analyst.arbitratorFork) }">
               <div class="fork-header">
                 <ion-icon :icon="scaleOutline" class="fork-icon"></ion-icon>
                 <span class="fork-title">Arbitrator (Final)</span>
+                <span v-if="!isForkFlat(analyst.arbitratorFork)" class="fork-status-badge active-badge">Active Position</span>
+                <span v-else class="fork-status-badge sitting-out-badge">Sitting Out</span>
               </div>
               <div class="fork-body">
                 <div class="fork-direction" :class="getDirectionClass(analyst.arbitratorFork.direction)">
@@ -60,10 +62,12 @@
             </div>
 
             <!-- User Fork -->
-            <div v-if="analyst.userFork" class="fork-card user-fork">
+            <div v-if="analyst.userFork" class="fork-card user-fork" :class="{ 'inactive-fork': isForkFlat(analyst.userFork) }">
               <div class="fork-header">
                 <ion-icon :icon="personOutline" class="fork-icon"></ion-icon>
                 <span class="fork-title">User Fork</span>
+                <span v-if="!isForkFlat(analyst.userFork)" class="fork-status-badge active-badge">Active Position</span>
+                <span v-else class="fork-status-badge sitting-out-badge">Sitting Out</span>
               </div>
               <div class="fork-body">
                 <div class="fork-direction" :class="getDirectionClass(analyst.userFork.direction)">
@@ -76,10 +80,12 @@
             </div>
 
             <!-- AI Fork -->
-            <div v-if="analyst.aiFork" class="fork-card ai-fork">
+            <div v-if="analyst.aiFork" class="fork-card ai-fork" :class="{ 'inactive-fork': isForkFlat(analyst.aiFork) }">
               <div class="fork-header">
                 <ion-icon :icon="hardwareChipOutline" class="fork-icon"></ion-icon>
                 <span class="fork-title">AI Fork</span>
+                <span v-if="!isForkFlat(analyst.aiFork)" class="fork-status-badge active-badge">Active Position</span>
+                <span v-else class="fork-status-badge sitting-out-badge">Sitting Out</span>
               </div>
               <div class="fork-body">
                 <div class="fork-direction" :class="getDirectionClass(analyst.aiFork.direction)">
@@ -233,6 +239,7 @@ interface ForkAssessment {
   direction: string;
   confidence: number;
   reasoning?: string;
+  is_flat?: boolean;
 }
 
 interface AnalystAssessment {
@@ -369,6 +376,13 @@ function formatDirection(direction: string): string {
   if (dir === 'bullish' || dir === 'up') return 'BULLISH';
   if (dir === 'bearish' || dir === 'down') return 'BEARISH';
   return 'NEUTRAL';
+}
+
+function isForkFlat(fork: ForkAssessment | undefined): boolean {
+  if (!fork) return true;
+  if (fork.is_flat !== undefined) return fork.is_flat;
+  const dir = fork.direction?.toLowerCase();
+  return dir === 'neutral' || dir === 'flat' || dir === 'hold';
 }
 
 function getTierColor(tier: string): string {
@@ -513,6 +527,34 @@ function getTierColor(tier: string): string {
   font-size: 0.9rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  flex: 1;
+}
+
+/* Inactive fork styling */
+.fork-card.inactive-fork {
+  opacity: 0.6;
+  border-style: dashed;
+}
+
+/* Fork status badges */
+.fork-status-badge {
+  font-size: 0.625rem;
+  font-weight: 600;
+  padding: 0.125rem 0.5rem;
+  border-radius: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+.active-badge {
+  background: rgba(34, 197, 94, 0.15);
+  color: #16a34a;
+}
+
+.sitting-out-badge {
+  background: rgba(107, 114, 128, 0.15);
+  color: #6b7280;
 }
 
 .fork-card.user-fork .fork-title {

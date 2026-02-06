@@ -67,10 +67,31 @@ const timeframe = computed(() => props.predictions[0]?.timeframe || '');
 const generatedAt = computed(() => props.predictions[0]?.generatedAt || '');
 const isTest = computed(() => props.predictions[0]?.isTest || false);
 
-// Build analyst summary from predictions
+// Check if a prediction represents a flat-only analyst (both user and AI forks are flat)
+function isFlatOnlyAnalyst(p: Prediction): boolean {
+  const ensemble = (p as Record<string, unknown>).analystEnsemble as {
+    user_fork?: { is_flat?: boolean; direction?: string };
+    ai_fork?: { is_flat?: boolean; direction?: string };
+    active_forks?: string[];
+  } | undefined;
+  if (!ensemble) return false;
+
+  // Use active_forks if available (new format)
+  if (ensemble.active_forks) {
+    return ensemble.active_forks.length === 0;
+  }
+
+  // Fallback: check is_flat flags on individual forks
+  const userFlat = !ensemble.user_fork || ensemble.user_fork.is_flat === true;
+  const aiFlat = !ensemble.ai_fork || ensemble.ai_fork.is_flat === true;
+  return userFlat && aiFlat;
+}
+
+// Build analyst summary from predictions (excluding flat-only analysts)
 const analysts = computed<AnalystSummary[]>(() => {
   return props.predictions
     .filter(p => p.analystSlug && p.analystSlug !== 'arbitrator')
+    .filter(p => !isFlatOnlyAnalyst(p))
     .map(p => ({
       slug: p.analystSlug!,
       name: formatAnalystName(p.analystSlug!),

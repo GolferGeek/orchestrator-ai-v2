@@ -392,6 +392,16 @@ export class PredictionGenerationService {
     // but we'll store all three forks for display
     const ensembleResult: EnsembleResult = threeWayResult.final;
 
+    // Filter out flat-only analysts (both user AND ai forks are flat/neutral)
+    const filtered = this.filterFlatOnlyAnalysts(threeWayResult);
+
+    if (filtered.arbitratorForkAssessments.length === 0) {
+      this.logger.log(
+        `All analysts are flat for ${target.symbol} — no predictions created, predictors remain active`,
+      );
+      return null as unknown as Prediction;
+    }
+
     // Calculate common parameters
     const horizonHours = this.determineHorizon(predictors);
     const expiresAt = new Date();
@@ -409,16 +419,15 @@ export class PredictionGenerationService {
 
     // Create per-analyst predictions using ONLY arbitrator fork assessments (one per analyst)
     // The arbitrator fork has the combined context and is the "official" analyst assessment
-    // Note: ensembleResult.assessments contains ALL forks (15 total = 5 analysts × 3 forks)
-    // We only want 5 predictions (one per unique analyst), using their arbitrator fork assessment
-    const arbitratorForkAssessments = threeWayResult.arbitratorForkAssessments;
+    // Only includes analysts that passed the flat-only filter
+    const arbitratorForkAssessments = filtered.arbitratorForkAssessments;
 
     for (const assessment of arbitratorForkAssessments) {
       // Find the corresponding user and ai fork assessments for this analyst
-      const userFork = threeWayResult.userForkAssessments.find(
+      const userFork = filtered.userForkAssessments.find(
         (a) => a.analyst.slug === assessment.analyst.slug,
       );
-      const aiFork = threeWayResult.aiForkAssessments.find(
+      const aiFork = filtered.aiForkAssessments.find(
         (a) => a.analyst.slug === assessment.analyst.slug,
       );
 
@@ -492,11 +501,18 @@ export class PredictionGenerationService {
     });
 
     // Create positions for all three forks (user, ai, arbitrator)
+    // Uses filtered assessments so flat-only analysts don't get positions
     if (primaryPrediction) {
+      const filteredThreeWayResult: ThreeWayForkEnsembleResult = {
+        ...threeWayResult,
+        userForkAssessments: filtered.userForkAssessments,
+        aiForkAssessments: filtered.aiForkAssessments,
+        arbitratorForkAssessments: filtered.arbitratorForkAssessments,
+      };
       await this.createThreeWayForkPositions(
         ctx,
         target,
-        threeWayResult,
+        filteredThreeWayResult,
         primaryPrediction.id,
       );
     }
@@ -639,6 +655,7 @@ export class PredictionGenerationService {
               direction: userAssessment.direction,
               confidence: userAssessment.confidence,
               reasoning: userAssessment.reasoning,
+              is_flat: this.isDirectionFlat(userAssessment.direction),
             }
           : undefined,
         ai_fork: aiAssessment
@@ -646,13 +663,21 @@ export class PredictionGenerationService {
               direction: aiAssessment.direction,
               confidence: aiAssessment.confidence,
               reasoning: aiAssessment.reasoning,
+              is_flat: this.isDirectionFlat(aiAssessment.direction),
             }
           : undefined,
         arbitrator_fork: {
           direction: assessment.direction,
           confidence: assessment.confidence,
           reasoning: assessment.reasoning,
+          is_flat: this.isDirectionFlat(assessment.direction),
         },
+        // Track which forks are actively trading (non-flat)
+        active_forks: [
+          ...(userAssessment && !this.isDirectionFlat(userAssessment.direction) ? ['user'] : []),
+          ...(aiAssessment && !this.isDirectionFlat(aiAssessment.direction) ? ['ai'] : []),
+          ...(!this.isDirectionFlat(assessment.direction) ? ['arbitrator'] : []),
+        ],
       },
       llm_ensemble: {
         direction: assessment.direction,
@@ -896,6 +921,69 @@ export class PredictionGenerationService {
   }
 
   /**
+   * Check if a direction string represents a flat/neutral/hold position
+   */
+  private isDirectionFlat(direction: string): boolean {
+    const normalized = direction.toLowerCase();
+    return (
+      normalized === 'neutral' ||
+      normalized === 'flat' ||
+      normalized === 'hold'
+    );
+  }
+
+  /**
+   * Filter out analysts where BOTH user fork AND AI fork are flat/neutral.
+   * Returns filtered assessment arrays with only analysts that have at least one directional fork.
+   */
+  private filterFlatOnlyAnalysts(threeWayResult: ThreeWayForkEnsembleResult): {
+    userForkAssessments: AnalystAssessmentResult[];
+    aiForkAssessments: AnalystAssessmentResult[];
+    arbitratorForkAssessments: AnalystAssessmentResult[];
+    filteredSlugs: string[];
+  } {
+    // Build lookup maps by analyst slug
+    const userBySlug = new Map(
+      threeWayResult.userForkAssessments.map((a) => [a.analyst.slug, a]),
+    );
+    const aiBySlug = new Map(
+      threeWayResult.aiForkAssessments.map((a) => [a.analyst.slug, a]),
+    );
+
+    // Determine which analysts are flat-only (both user AND ai forks are flat)
+    const allSlugs = new Set([...userBySlug.keys(), ...aiBySlug.keys()]);
+    const filteredSlugs: string[] = [];
+
+    for (const slug of allSlugs) {
+      const userAssessment = userBySlug.get(slug);
+      const aiAssessment = aiBySlug.get(slug);
+
+      const userFlat = !userAssessment || this.isDirectionFlat(userAssessment.direction);
+      const aiFlat = !aiAssessment || this.isDirectionFlat(aiAssessment.direction);
+
+      if (userFlat && aiFlat) {
+        filteredSlugs.push(slug);
+      }
+    }
+
+    if (filteredSlugs.length > 0) {
+      this.logger.log(
+        `Filtering ${filteredSlugs.length} flat-only analyst(s): ${filteredSlugs.join(', ')}`,
+      );
+    }
+
+    const keepSlug = (a: AnalystAssessmentResult) =>
+      !filteredSlugs.includes(a.analyst.slug);
+
+    return {
+      userForkAssessments: threeWayResult.userForkAssessments.filter(keepSlug),
+      aiForkAssessments: threeWayResult.aiForkAssessments.filter(keepSlug),
+      arbitratorForkAssessments: threeWayResult.arbitratorForkAssessments.filter(keepSlug),
+      filteredSlugs,
+    };
+  }
+
+  /**
    * Map analyst direction (bullish/bearish/neutral) to prediction direction (up/down/flat)
    */
   private mapAnalystDirection(direction: string): PredictionDirection {
@@ -956,6 +1044,14 @@ export class PredictionGenerationService {
 
       for (const assessment of assessments) {
         try {
+          // Skip flat/neutral forks — only directional forks create positions
+          if (this.isDirectionFlat(assessment.direction)) {
+            this.logger.debug(
+              `Skipping ${forkType} position for ${assessment.analyst.slug}: direction is ${assessment.direction} (flat)`,
+            );
+            continue;
+          }
+
           // Add fork_type to assessment for position service
           const assessmentWithFork: AnalystAssessmentResult = {
             ...assessment,

@@ -375,16 +375,19 @@ export class PredictionHandler implements IDashboardHandler {
               direction: string;
               confidence: number;
               reasoning?: string;
+              is_flat?: boolean;
             };
             ai_fork?: {
               direction: string;
               confidence: number;
               reasoning?: string;
+              is_flat?: boolean;
             };
             arbitrator_fork?: {
               direction: string;
               confidence: number;
               reasoning?: string;
+              is_flat?: boolean;
             };
           }>;
           fork_metadata?: {
@@ -434,6 +437,7 @@ export class PredictionHandler implements IDashboardHandler {
                         reasoning:
                           a.user_fork.reasoning ||
                           'No user fork reasoning provided',
+                        is_flat: a.user_fork.is_flat,
                       }
                     : undefined,
                   aiFork: a.ai_fork
@@ -443,6 +447,7 @@ export class PredictionHandler implements IDashboardHandler {
                         reasoning:
                           a.ai_fork.reasoning ||
                           'No AI fork reasoning provided',
+                        is_flat: a.ai_fork.is_flat,
                       }
                     : undefined,
                   arbitratorFork: a.arbitrator_fork
@@ -452,6 +457,7 @@ export class PredictionHandler implements IDashboardHandler {
                         reasoning:
                           a.arbitrator_fork.reasoning ||
                           'No arbitrator fork reasoning provided',
+                        is_flat: a.arbitrator_fork.is_flat,
                       }
                     : undefined,
                 };
@@ -778,16 +784,19 @@ export class PredictionHandler implements IDashboardHandler {
             direction: string;
             confidence: number;
             reasoning?: string;
+            is_flat?: boolean;
           };
           ai_fork?: {
             direction: string;
             confidence: number;
             reasoning?: string;
+            is_flat?: boolean;
           };
           arbitrator_fork?: {
             direction: string;
             confidence: number;
             reasoning?: string;
+            is_flat?: boolean;
           };
         }>;
         fork_metadata?: {
@@ -806,16 +815,19 @@ export class PredictionHandler implements IDashboardHandler {
           direction: string;
           confidence: number;
           reasoning?: string;
+          is_flat?: boolean;
         };
         ai_fork?: {
           direction: string;
           confidence: number;
           reasoning?: string;
+          is_flat?: boolean;
         };
         arbitrator_fork?: {
           direction: string;
           confidence: number;
           reasoning?: string;
+          is_flat?: boolean;
         };
       } | null;
 
@@ -853,12 +865,19 @@ export class PredictionHandler implements IDashboardHandler {
           direction: string;
           confidence: number;
           reasoning?: string;
+          is_flat?: boolean;
         };
-        aiFork?: { direction: string; confidence: number; reasoning?: string };
+        aiFork?: {
+          direction: string;
+          confidence: number;
+          reasoning?: string;
+          is_flat?: boolean;
+        };
         arbitratorFork?: {
           direction: string;
           confidence: number;
           reasoning?: string;
+          is_flat?: boolean;
         };
       }> = [];
 
@@ -882,6 +901,7 @@ export class PredictionHandler implements IDashboardHandler {
                   direction: a.user_fork.direction,
                   confidence: a.user_fork.confidence,
                   reasoning: a.user_fork.reasoning,
+                  is_flat: a.user_fork.is_flat,
                 }
               : undefined,
             aiFork: a.ai_fork
@@ -889,6 +909,7 @@ export class PredictionHandler implements IDashboardHandler {
                   direction: a.ai_fork.direction,
                   confidence: a.ai_fork.confidence,
                   reasoning: a.ai_fork.reasoning,
+                  is_flat: a.ai_fork.is_flat,
                 }
               : undefined,
             arbitratorFork: a.arbitrator_fork
@@ -896,6 +917,7 @@ export class PredictionHandler implements IDashboardHandler {
                   direction: a.arbitrator_fork.direction,
                   confidence: a.arbitrator_fork.confidence,
                   reasoning: a.arbitrator_fork.reasoning,
+                  is_flat: a.arbitrator_fork.is_flat,
                 }
               : undefined,
           };
@@ -932,6 +954,7 @@ export class PredictionHandler implements IDashboardHandler {
                   direction: analystEnsembleData.user_fork.direction,
                   confidence: analystEnsembleData.user_fork.confidence,
                   reasoning: analystEnsembleData.user_fork.reasoning,
+                  is_flat: analystEnsembleData.user_fork.is_flat,
                 }
               : undefined,
             aiFork: analystEnsembleData.ai_fork
@@ -939,6 +962,7 @@ export class PredictionHandler implements IDashboardHandler {
                   direction: analystEnsembleData.ai_fork.direction,
                   confidence: analystEnsembleData.ai_fork.confidence,
                   reasoning: analystEnsembleData.ai_fork.reasoning,
+                  is_flat: analystEnsembleData.ai_fork.is_flat,
                 }
               : undefined,
             arbitratorFork: analystEnsembleData.arbitrator_fork
@@ -946,6 +970,7 @@ export class PredictionHandler implements IDashboardHandler {
                   direction: analystEnsembleData.arbitrator_fork.direction,
                   confidence: analystEnsembleData.arbitrator_fork.confidence,
                   reasoning: analystEnsembleData.arbitrator_fork.reasoning,
+                  is_flat: analystEnsembleData.arbitrator_fork.is_flat,
                 }
               : undefined,
           },
