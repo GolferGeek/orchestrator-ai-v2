@@ -258,7 +258,7 @@ const _authStore = useAuthStore();
 const isVideoModalOpen = ref(false);
 const currentVideo = ref<VideoPlayerVideo | null>(null);
 
-function goToDemo() {
+function _goToDemo() {
   router.push('/login');
 }
 

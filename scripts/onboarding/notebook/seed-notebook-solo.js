@@ -77,37 +77,35 @@ async function seedNotebookSolo(orgSlug) {
         for (const docTemplate of notebookTemplate.documents || []) {
           console.log(`    📄 Creating document: ${docTemplate.title}`);
 
-          // Create markdown file on disk first
-          const filePath = await createSourceFile(
-            team.id,
-            `temp-${Date.now()}`, // Temporary source ID, will be replaced after API call
-            docTemplate.filename || `${docTemplate.title.toLowerCase().replace(/\s+/g, '-')}.md`,
-            docTemplate.content
-          );
+          // Create a temporary file for upload (API will save it to correct location)
+          const os = require('os');
+          const path = require('path');
+          const fs = require('fs').promises;
+          
+          const tempDir = os.tmpdir();
+          const tempFileName = `${docTemplate.title.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}.md`;
+          const tempFilePath = path.join(tempDir, tempFileName);
+          
+          // Write content to temp file
+          await fs.writeFile(tempFilePath, docTemplate.content, 'utf8');
 
-          // Create source via API (which will create proper folder structure)
-          const source = await createSource(notebookClient, {
-            type: 'upload',
-            notebookId: notebook.id || notebook.name,
-            filePath: filePath,
-            title: docTemplate.title,
-            teamId: team.id,
-          });
+          try {
+            // Create source via API (which will save file to correct location)
+            const source = await createSource(notebookClient, {
+              type: 'upload',
+              notebookId: notebook.id || notebook.name,
+              filePath: tempFilePath,
+              title: docTemplate.title,
+              teamId: team.id,
+            });
 
-          // Now create the file in the correct location (using actual source ID)
-          if (source.id) {
-            const correctFilePath = await createSourceFile(
-              team.id,
-              source.id,
-              docTemplate.filename || `${docTemplate.title.toLowerCase().replace(/\s+/g, '-')}.md`,
-              docTemplate.content
-            );
-            // Delete the temporary file
-            const fs = require('fs').promises;
+            console.log(`    ✅ Created source: ${source.id || 'unknown'}`);
+          } finally {
+            // Always clean up temp file
             try {
-              await fs.unlink(filePath);
+              await fs.unlink(tempFilePath);
             } catch (e) {
-              // Ignore if already deleted
+              // Ignore errors deleting temp file
             }
           }
 

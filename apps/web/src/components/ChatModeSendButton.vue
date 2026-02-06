@@ -9,9 +9,9 @@
         :fill="currentMode === mode.value ? 'solid' : 'outline'"
         :color="currentMode === mode.value ? 'primary' : 'medium'"
         @click="selectMode(mode.value)"
-        :disabled="disabled"
+        :disabled="disabled || mode.modeDisabled"
         class="mode-button"
-        :title="mode.description"
+        :title="mode.modeDisabled ? mode.disabledTooltip : mode.description"
       >
         <ion-icon :icon="mode.icon" slot="start"></ion-icon>
         {{ mode.name }}
@@ -88,12 +88,22 @@ const allowedModes = computed(() => {
 });
 
 const modes = computed(() => {
-  // Show all modes that are allowed for this conversation
-  const filtered = baseModes.filter(mode => allowedModes.value.includes(mode.value));
+  const conversation = chatStore.activeConversation;
+  const agent = conversation?.agent;
+  const planSupported = Boolean(agent?.plan_structure);
+  const buildSupported = Boolean(agent?.deliverable_structure);
 
-  // Don't filter out plan mode - agent should handle it gracefully if not supported
-  // The backend will return an error if plan mode isn't available
-  return filtered;
+  return baseModes
+    .filter(mode => allowedModes.value.includes(mode.value) || mode.value === 'plan' || mode.value === 'build')
+    .map(mode => {
+      if (mode.value === 'plan' && !planSupported) {
+        return { ...mode, modeDisabled: true, disabledTooltip: 'This agent does not support planning' };
+      }
+      if (mode.value === 'build' && !buildSupported) {
+        return { ...mode, modeDisabled: true, disabledTooltip: 'This agent does not support building' };
+      }
+      return { ...mode, modeDisabled: !allowedModes.value.includes(mode.value), disabledTooltip: undefined };
+    });
 });
 
 const currentModeConfig = computed(() => {

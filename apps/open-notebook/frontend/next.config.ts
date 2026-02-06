@@ -16,6 +16,10 @@ const nextConfig: NextConfig = {
   // Skip trailing slash redirect to reduce static generation
   skipTrailingSlashRedirect: true,
 
+  // Turbopack configuration (Next.js 16+ default)
+  // Empty config to silence error - Turbopack handles file watching efficiently by default
+  turbopack: {},
+
   // Pass environment variables to the client
   // These become available as process.env.NEXT_PUBLIC_*
   env: {

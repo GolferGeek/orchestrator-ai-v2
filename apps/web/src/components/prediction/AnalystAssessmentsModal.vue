@@ -301,9 +301,9 @@ async function loadAssessments() {
     } else {
       console.warn('[AnalystAssessmentsModal] No analyst assessments found in response');
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[AnalystAssessmentsModal] Error loading assessments:', err);
-    error.value = err?.message || 'Failed to load analyst assessments';
+    error.value = err instanceof Error ? err.message : 'Failed to load analyst assessments';
   } finally {
     isLoading.value = false;
   }

@@ -47,10 +47,14 @@ const selectableModes = computed<SelectableMode[]>(() => {
   const allowed = conv?.allowedChatModes?.length ? conv.allowedChatModes : DEFAULT_CHAT_MODES;
   const agent = conv?.agent;
   const planSupported = Boolean(agent?.plan_structure);
+  const buildSupported = Boolean(agent?.deliverable_structure);
 
   return BASE_MODE_OPTIONS.filter(option => {
     if (option.value === 'plan') {
       return allowed.includes(option.value) || !planSupported;
+    }
+    if (option.value === 'build') {
+      return allowed.includes(option.value) || !buildSupported;
     }
     return allowed.includes(option.value);
   }).map(option => {
@@ -59,6 +63,14 @@ const selectableModes = computed<SelectableMode[]>(() => {
         ...option,
         disabled: true,
         tooltip: 'This agent does not support planning',
+      };
+    }
+
+    if (option.value === 'build' && !buildSupported) {
+      return {
+        ...option,
+        disabled: true,
+        tooltip: 'This agent does not support building',
       };
     }
 

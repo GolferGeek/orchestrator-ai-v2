@@ -116,9 +116,16 @@ async function fetchConfig(): Promise<AppConfig> {
   try {
     console.log('🔧 [Config] Fetching backend config from:', `${baseUrl}/api/config`)
     // Try to fetch runtime config from backend API
+    // Add timeout to prevent hanging (5 seconds)
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 5000)
+    
     const response = await fetch(`${baseUrl}/api/config`, {
       cache: 'no-store',
+      signal: controller.signal,
     })
+    
+    clearTimeout(timeoutId)
 
     if (response.ok) {
       const data: BackendConfigResponse = await response.json()

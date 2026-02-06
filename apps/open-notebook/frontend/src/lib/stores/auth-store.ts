@@ -100,9 +100,18 @@ export const useAuthStore = create<AuthState>()(
       login: async (email: string, password: string) => {
         set({ isLoading: true, error: null })
         try {
-          // Authenticate through main API (api.orchestratorai.io) - same as main website
+          // For local development, use Notebook API's login endpoint
+          // For production, use main API (api.orchestratorai.io)
+          const { getApiUrl } = await import('@/lib/config')
+          const notebookApiUrl = await getApiUrl()
           const mainApiUrl = getMainApiUrl()
-          const response = await fetch(`${mainApiUrl}/auth/login`, {
+          
+          // Use Notebook API if it's localhost (local dev), otherwise use main API
+          const isLocalDev = notebookApiUrl.includes('localhost') || notebookApiUrl.includes('127.0.0.1')
+          const authApiUrl = isLocalDev ? notebookApiUrl : mainApiUrl
+          const authEndpoint = isLocalDev ? '/api/auth/login' : '/auth/login'
+          
+          const response = await fetch(`${authApiUrl}${authEndpoint}`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
@@ -134,8 +143,8 @@ export const useAuthStore = create<AuthState>()(
           }
 
           const data = await response.json()
-          // Main API returns accessToken (not access_token)
-          const token = data.accessToken || data.access_token
+          // Notebook API returns access_token, Main API returns accessToken
+          const token = data.access_token || data.accessToken
 
           if (!token) {
             set({

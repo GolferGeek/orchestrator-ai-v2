@@ -157,9 +157,9 @@ start-all:
 	@sleep 2
 	@echo "🌐 Starting Next.js frontend..."
 	@echo "✅ All services started!"
-	@echo "📱 Frontend: http://localhost:3000"
-	@echo "🔗 API: http://localhost:5055"
-	@echo "📚 API Docs: http://localhost:5055/docs"
+	@echo "📱 Frontend: http://localhost:$${OPEN_NOTEBOOK_FRONTEND_PORT:-6201}"
+	@echo "🔗 API: http://localhost:$${OPEN_NOTEBOOK_API_PORT:-6202}"
+	@echo "📚 API Docs: http://localhost:$${OPEN_NOTEBOOK_API_PORT:-6202}/docs"
 	cd frontend && npm run dev
 
 stop-all:

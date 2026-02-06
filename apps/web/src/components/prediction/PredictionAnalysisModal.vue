@@ -249,7 +249,7 @@ import {
   linkOutline,
 } from 'ionicons/icons';
 import { ref, watch } from 'vue';
-import { predictionDashboardService } from '@/services/predictionDashboardService';
+import { predictionDashboardService, type PredictionDeepDive } from '@/services/predictionDashboardService';
 
 interface Props {
   isOpen: boolean;
@@ -263,7 +263,7 @@ const emit = defineEmits<{
 
 const isLoading = ref(false);
 const error = ref<string | null>(null);
-const deepDive = ref<any>(null);
+const deepDive = ref<PredictionDeepDive | null>(null);
 
 // Load analysis when modal opens and predictionId is provided
 watch(
@@ -296,9 +296,9 @@ async function loadAnalysis() {
 
     // Extract the actual deep dive data from the response
     deepDive.value = response?.content || response;
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[PredictionAnalysisModal] Error loading deep dive:', err);
-    error.value = err?.message || 'Failed to load prediction analysis';
+    error.value = err instanceof Error ? err.message : 'Failed to load prediction analysis';
   } finally {
     isLoading.value = false;
   }

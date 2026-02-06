@@ -67,6 +67,22 @@ const getApiBaseUrl = () => {
   return process.env.MAIN_API_URL || process.env.NEXT_PUBLIC_MAIN_API_URL || 'https://api.orchestratorai.io'
 }
 
+// Check if we're running in local development
+// This checks both the browser hostname and whether the main API URL is local
+const isLocalDev = () => {
+  if (typeof window === 'undefined') return false
+  const hostname = window.location.hostname
+  const apiBaseUrl = getApiBaseUrl()
+  
+  // Consider it local dev if:
+  // 1. Browser is accessing via localhost/127.0.0.1, OR
+  // 2. Main API URL is localhost/127.0.0.1 (even if accessed via domain)
+  const isBrowserLocal = hostname === 'localhost' || hostname === '127.0.0.1'
+  const isApiLocal = apiBaseUrl.includes('localhost') || apiBaseUrl.includes('127.0.0.1')
+  
+  return isBrowserLocal || isApiLocal
+}
+
 export const useTeamContextStore = create<TeamContextState>()(
   persist(
     (set, get) => ({
@@ -102,17 +118,69 @@ export const useTeamContextStore = create<TeamContextState>()(
             return
           }
 
+          // In local development, skip fetching user context if main API is not available
+          // This prevents CORS errors when the main API isn't running locally
+          if (isLocalDev()) {
+            const apiBaseUrl = getApiBaseUrl()
+            // Check if the main API is accessible (not localhost)
+            const isMainApiLocal = apiBaseUrl.includes('localhost') || apiBaseUrl.includes('127.0.0.1')
+            
+            if (isMainApiLocal) {
+              // Main API is also local, try to fetch
+              // If it fails, we'll handle it gracefully below
+            } else {
+              // Main API is production, but we're running locally
+              // Skip fetching to avoid CORS issues
+              console.warn('⚠️ Skipping user context fetch in local dev (main API not accessible)')
+              set({
+                isLoading: false,
+                error: null,
+                // Use empty context - app will work without team context
+                userContext: {
+                  user: {
+                    id: authState.userEmail || 'local-user',
+                    email: authState.userEmail || 'local@example.com',
+                  },
+                  organizations: [],
+                  teams: [],
+                },
+                lastFetch: now,
+              })
+              return
+            }
+          }
+
           const apiBaseUrl = getApiBaseUrl()
           const response = await fetch(`${apiBaseUrl}/users/me/context`, {
             headers: {
               'Authorization': `Bearer ${authState.token}`,
               'Content-Type': 'application/json',
             },
+            // Add timeout to prevent hanging
+            signal: AbortSignal.timeout(5000),
           })
 
           if (!response.ok) {
             if (response.status === 401) {
               set({ isLoading: false, error: 'Authentication expired' })
+              return
+            }
+            // In local dev, don't throw error - just use empty context
+            if (isLocalDev()) {
+              console.warn('⚠️ Failed to fetch user context, using empty context')
+              set({
+                isLoading: false,
+                error: null,
+                userContext: {
+                  user: {
+                    id: authState.userEmail || 'local-user',
+                    email: authState.userEmail || 'local@example.com',
+                  },
+                  organizations: [],
+                  teams: [],
+                },
+                lastFetch: now,
+              })
               return
             }
             throw new Error(`Failed to fetch user context: ${response.status}`)
@@ -144,10 +212,30 @@ export const useTeamContextStore = create<TeamContextState>()(
           })
         } catch (error) {
           console.error('Error fetching user context:', error)
-          set({
-            isLoading: false,
-            error: error instanceof Error ? error.message : 'Failed to fetch user context',
-          })
+          // In local dev, use empty context instead of showing error
+          if (isLocalDev() && (error instanceof TypeError || error instanceof DOMException)) {
+            console.warn('⚠️ User context fetch failed (likely CORS or network), using empty context')
+            const authStorage = localStorage.getItem('auth-storage')
+            const authState = authStorage ? JSON.parse(authStorage).state : null
+            set({
+              isLoading: false,
+              error: null,
+              userContext: {
+                user: {
+                  id: authState?.userEmail || 'local-user',
+                  email: authState?.userEmail || 'local@example.com',
+                },
+                organizations: [],
+                teams: [],
+              },
+              lastFetch: now,
+            })
+          } else {
+            set({
+              isLoading: false,
+              error: error instanceof Error ? error.message : 'Failed to fetch user context',
+            })
+          }
         }
       },
 
