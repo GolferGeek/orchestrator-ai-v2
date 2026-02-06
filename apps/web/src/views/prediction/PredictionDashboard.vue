@@ -253,9 +253,10 @@ const agentsStore = useAgentsStore();
 const agentSlug = computed(() => route.query.agentSlug as string | undefined);
 
 // Look up the agent by slug to get its organizationSlug
+// Falls back to default prediction agent if no query param
+const defaultAgentSlug = 'us-tech-stocks';
 const currentAgent = computed(() => {
-  const slug = agentSlug.value;
-  if (!slug) return null;
+  const slug = agentSlug.value || defaultAgentSlug;
   return agentsStore.availableAgents.find(a => a.slug === slug || a.name === slug) || null;
 });
 

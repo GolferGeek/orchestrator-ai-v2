@@ -1496,12 +1496,14 @@ class PredictionDashboardService {
       return authOrg;
     }
 
-    // If we have a current agent slug, look up its org from the agents store
+    // Look up org from the agent in the agents store
+    // Uses currentAgentSlug if set, otherwise falls back to defaultAgentSlug
     // This handles the case where user is in "all orgs" mode but has selected a specific agent
-    if (this.currentAgentSlug) {
+    const effectiveAgentSlug = this.getAgentSlug();
+    if (effectiveAgentSlug) {
       const agentsStore = useAgentsStore();
       const agent = agentsStore.availableAgents?.find(
-        (a) => a.slug === this.currentAgentSlug || a.name === this.currentAgentSlug
+        (a) => a.slug === effectiveAgentSlug || a.name === effectiveAgentSlug
       );
       if (agent?.organizationSlug && agent.organizationSlug !== '*') {
         const orgSlug = Array.isArray(agent.organizationSlug)
