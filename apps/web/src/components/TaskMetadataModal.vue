@@ -46,29 +46,29 @@
         <div class="metadata-section" v-if="hasAgentInfo">
           <h3>Agent Information</h3>
           <div class="metadata-grid">
-            <div class="metadata-item" v-if="taskData.metadata?.agentName">
+            <div class="metadata-item" v-if="taskMetadata?.agentName">
               <span class="label">Agent Name:</span>
-              <span class="value">{{ taskData.metadata.agentName }}</span>
+              <span class="value">{{ taskMetadata.agentName }}</span>
             </div>
-            <div class="metadata-item" v-if="taskData.metadata?.agentType">
+            <div class="metadata-item" v-if="taskMetadata?.agentType">
               <span class="label">Agent Type:</span>
-              <span class="value">{{ taskData.metadata.agentType }}</span>
+              <span class="value">{{ taskMetadata.agentType }}</span>
             </div>
             <div class="metadata-item" v-if="taskData.agentConversationId">
               <span class="label">Conversation ID:</span>
               <span class="value">{{ taskData.agentConversationId }}</span>
             </div>
-            <div class="metadata-item" v-if="taskData.metadata?.delegatedTo">
+            <div class="metadata-item" v-if="taskMetadata?.delegatedTo">
               <span class="label">Delegated To:</span>
-              <span class="value">{{ taskData.metadata.delegatedTo }}</span>
+              <span class="value">{{ taskMetadata.delegatedTo }}</span>
             </div>
-            <div class="metadata-item" v-if="taskData.metadata?.delegationReason">
+            <div class="metadata-item" v-if="taskMetadata?.delegationReason">
               <span class="label">Delegation Reason:</span>
-              <span class="value">{{ taskData.metadata.delegationReason }}</span>
+              <span class="value">{{ taskMetadata.delegationReason }}</span>
             </div>
-            <div class="metadata-item" v-if="taskData.metadata?.confidence">
+            <div class="metadata-item" v-if="taskMetadata?.confidence">
               <span class="label">Confidence:</span>
-              <span class="value">{{ (taskData.metadata.confidence * 100).toFixed(1) }}%</span>
+              <span class="value">{{ ((taskMetadata.confidence as number) * 100).toFixed(1) }}%</span>
             </div>
           </div>
         </div>
@@ -106,17 +106,17 @@
         <div class="metadata-section" v-if="hasCIDAFMInfo">
           <h3>CIDAFM (Behavior Modification)</h3>
           <div class="metadata-grid">
-            <div class="metadata-item" v-if="getLLMMetadata()?.cidafmOptions?.activeStateModifiers?.length">
+            <div class="metadata-item" v-if="(cidafmOptions?.activeStateModifiers as string[] | undefined)?.length">
               <span class="label">State Modifiers:</span>
-              <span class="value">{{ getLLMMetadata()?.cidafmOptions?.activeStateModifiers?.join(', ') }}</span>
+              <span class="value">{{ (cidafmOptions?.activeStateModifiers as string[] | undefined)?.join(', ') }}</span>
             </div>
-            <div class="metadata-item" v-if="getLLMMetadata()?.cidafmOptions?.responseModifiers?.length">
+            <div class="metadata-item" v-if="(cidafmOptions?.responseModifiers as string[] | undefined)?.length">
               <span class="label">Response Modifiers:</span>
-              <span class="value">{{ getLLMMetadata()?.cidafmOptions?.responseModifiers?.join(', ') }}</span>
+              <span class="value">{{ (cidafmOptions?.responseModifiers as string[] | undefined)?.join(', ') }}</span>
             </div>
-            <div class="metadata-item" v-if="getLLMMetadata()?.cidafmOptions?.executedCommands?.length">
+            <div class="metadata-item" v-if="(cidafmOptions?.executedCommands as string[] | undefined)?.length">
               <span class="label">Executed Commands:</span>
-              <span class="value">{{ getLLMMetadata()?.cidafmOptions?.executedCommands?.join(', ') }}</span>
+              <span class="value">{{ (cidafmOptions?.executedCommands as string[] | undefined)?.join(', ') }}</span>
             </div>
           </div>
         </div>
@@ -124,17 +124,17 @@
         <div class="metadata-section" v-if="hasUsageInfo">
           <h3>Token Usage</h3>
           <div class="metadata-grid">
-            <div class="metadata-item" v-if="taskData.responseMetadata?.usage?.inputTokens">
+            <div class="metadata-item" v-if="usage?.inputTokens">
               <span class="label">Input Tokens:</span>
-              <span class="value">{{ taskData.responseMetadata.usage.inputTokens.toLocaleString() }}</span>
+              <span class="value">{{ (usage.inputTokens as number).toLocaleString() }}</span>
             </div>
-            <div class="metadata-item" v-if="taskData.responseMetadata?.usage?.outputTokens">
+            <div class="metadata-item" v-if="usage?.outputTokens">
               <span class="label">Output Tokens:</span>
-              <span class="value">{{ taskData.responseMetadata.usage.outputTokens.toLocaleString() }}</span>
+              <span class="value">{{ (usage.outputTokens as number).toLocaleString() }}</span>
             </div>
-            <div class="metadata-item" v-if="taskData.responseMetadata?.usage?.inputTokens && taskData.responseMetadata?.usage?.outputTokens">
+            <div class="metadata-item" v-if="usage?.inputTokens && usage?.outputTokens">
               <span class="label">Total Tokens:</span>
-              <span class="value">{{ (taskData.responseMetadata.usage.inputTokens + taskData.responseMetadata.usage.outputTokens).toLocaleString() }}</span>
+              <span class="value">{{ ((usage.inputTokens as number) + (usage.outputTokens as number)).toLocaleString() }}</span>
             </div>
           </div>
         </div>
@@ -142,21 +142,21 @@
         <div class="metadata-section" v-if="hasCostInfo">
           <h3>Cost Information</h3>
           <div class="metadata-grid">
-            <div class="metadata-item" v-if="taskData.responseMetadata?.costCalculation?.inputCost">
+            <div class="metadata-item" v-if="costCalculation?.inputCost">
               <span class="label">Input Cost:</span>
-              <span class="value">${{ formatCost(taskData.responseMetadata.costCalculation.inputCost) }}</span>
+              <span class="value">${{ formatCost(costCalculation.inputCost as number) }}</span>
             </div>
-            <div class="metadata-item" v-if="taskData.responseMetadata?.costCalculation?.outputCost">
+            <div class="metadata-item" v-if="costCalculation?.outputCost">
               <span class="label">Output Cost:</span>
-              <span class="value">${{ formatCost(taskData.responseMetadata.costCalculation.outputCost) }}</span>
+              <span class="value">${{ formatCost(costCalculation.outputCost as number) }}</span>
             </div>
-            <div class="metadata-item" v-if="taskData.responseMetadata?.costCalculation?.totalCost">
+            <div class="metadata-item" v-if="costCalculation?.totalCost">
               <span class="label">Total Cost:</span>
-              <span class="value total-cost">${{ formatCost(taskData.responseMetadata.costCalculation.totalCost) }}</span>
+              <span class="value total-cost">${{ formatCost(costCalculation.totalCost as number) }}</span>
             </div>
-            <div class="metadata-item" v-if="taskData.responseMetadata?.costCalculation?.currency">
+            <div class="metadata-item" v-if="costCalculation?.currency">
               <span class="label">Currency:</span>
-              <span class="value">{{ taskData.responseMetadata.costCalculation.currency }}</span>
+              <span class="value">{{ costCalculation.currency as string }}</span>
             </div>
           </div>
         </div>
@@ -164,25 +164,25 @@
         <div class="metadata-section" v-if="hasEvaluationInfo">
           <h3>Task Evaluation</h3>
           <div class="metadata-grid">
-            <div class="metadata-item" v-if="taskData.evaluation?.userRating">
+            <div class="metadata-item" v-if="evaluation?.userRating">
               <span class="label">User Rating:</span>
-              <span class="value">{{ taskData.evaluation.userRating }}/5</span>
+              <span class="value">{{ evaluation.userRating }}/5</span>
             </div>
-            <div class="metadata-item" v-if="taskData.evaluation?.speedRating">
+            <div class="metadata-item" v-if="evaluation?.speedRating">
               <span class="label">Speed Rating:</span>
-              <span class="value">{{ taskData.evaluation.speedRating }}/5</span>
+              <span class="value">{{ evaluation.speedRating }}/5</span>
             </div>
-            <div class="metadata-item" v-if="taskData.evaluation?.accuracyRating">
+            <div class="metadata-item" v-if="evaluation?.accuracyRating">
               <span class="label">Accuracy Rating:</span>
-              <span class="value">{{ taskData.evaluation.accuracyRating }}/5</span>
+              <span class="value">{{ evaluation.accuracyRating }}/5</span>
             </div>
-            <div class="metadata-item" v-if="taskData.evaluation?.evaluationTimestamp">
+            <div class="metadata-item" v-if="evaluation?.evaluationTimestamp">
               <span class="label">Evaluated At:</span>
-              <span class="value">{{ formatTimestamp(taskData.evaluation.evaluationTimestamp) }}</span>
+              <span class="value">{{ formatTimestamp(evaluation.evaluationTimestamp as string) }}</span>
             </div>
-            <div class="metadata-item" v-if="taskData.evaluation?.userNotes">
+            <div class="metadata-item" v-if="evaluation?.userNotes">
               <span class="label">User Notes:</span>
-              <span class="value">{{ taskData.evaluation.userNotes }}</span>
+              <span class="value">{{ evaluation.userNotes }}</span>
             </div>
           </div>
         </div>
@@ -277,6 +277,43 @@ const emit = defineEmits<{
 const taskData = ref<TaskDetail | null>(null);
 const isLoading = ref(false);
 const llmStore = useLLMPreferencesStore();
+
+// Computed property to break deep type instantiation
+const taskMetadata = computed(() => {
+  return taskData.value?.metadata as Record<string, unknown> | undefined;
+});
+
+// Computed property for CIDAFM options to avoid deep type instantiation
+const cidafmOptions = computed(() => {
+  const llmMeta = getLLMMetadata();
+  return (llmMeta as Record<string, unknown> | undefined)?.cidafmOptions as Record<string, unknown> | undefined;
+});
+
+// Computed property for response metadata to avoid deep type instantiation
+const responseMetadata = computed(() => {
+  return taskData.value?.responseMetadata as Record<string, unknown> | undefined;
+});
+
+// Computed properties for nested metadata to avoid deep type instantiation
+const usage = computed(() => {
+  const meta = responseMetadata.value;
+  return meta?.usage as Record<string, unknown> | undefined;
+});
+
+const costCalculation = computed(() => {
+  const meta = responseMetadata.value;
+  return meta?.costCalculation as Record<string, unknown> | undefined;
+});
+
+// Computed property for evaluation to avoid deep type instantiation
+const evaluation = computed(() => {
+  return taskData.value?.evaluation as Record<string, unknown> | undefined;
+});
+
+// Computed property for llmMetadata to avoid deep type instantiation
+const llmMetadata = computed(() => {
+  return taskData.value?.llmMetadata as Record<string, unknown> | undefined;
+});
 const handleClose = () => {
   emit('close');
 };
@@ -305,37 +342,42 @@ watch(() => props.isOpen, (isOpen) => {
     loadTaskData();
   }
 });
-const hasAgentInfo = computed(() => {
-  return taskData.value?.metadata?.agentName || 
-         taskData.value?.metadata?.agentType || 
+const hasAgentInfo = computed((): boolean => {
+  const meta = taskMetadata.value;
+  return !!(meta?.agentName ||
+         meta?.agentType ||
          taskData.value?.agentConversationId ||
-         taskData.value?.metadata?.delegatedTo || 
-         taskData.value?.metadata?.delegationReason || 
-         taskData.value?.metadata?.confidence;
+         meta?.delegatedTo ||
+         meta?.delegationReason ||
+         meta?.confidence);
 });
-const hasLLMInfo = computed(() => {
-  const hasInfo = taskData.value?.llmMetadata?.originalLLMSelection || taskData.value?.metadata?.llmMetadata?.originalLLMSelection;
-  return hasInfo;
+const hasLLMInfo = computed((): boolean => {
+  const metaAsRecord = taskMetadata.value as Record<string, unknown> | undefined;
+  const llmMetadataField = metaAsRecord?.llmMetadata as Record<string, unknown> | undefined;
+  const hasInfo = (llmMetadata.value as Record<string, unknown> | undefined)?.originalLLMSelection || llmMetadataField?.originalLLMSelection;
+  return !!hasInfo;
 });
-const hasCIDAFMInfo = computed(() => {
-  const llmMeta = taskData.value?.llmMetadata?.originalLLMSelection || taskData.value?.metadata?.llmMetadata?.originalLLMSelection;
-  return llmMeta?.cidafmOptions;
+const hasCIDAFMInfo = computed((): boolean => {
+  const llmMeta = getLLMMetadata();
+  return !!(llmMeta as Record<string, unknown> | undefined)?.cidafmOptions;
 });
-const hasUsageInfo = computed(() => {
-  return taskData.value?.responseMetadata?.usage;
+const hasUsageInfo = computed((): boolean => {
+  const meta = responseMetadata.value as Record<string, unknown> | undefined;
+  return !!meta?.usage;
 });
-const hasCostInfo = computed(() => {
-  return taskData.value?.responseMetadata?.costCalculation;
+const hasCostInfo = computed((): boolean => {
+  const meta = responseMetadata.value as Record<string, unknown> | undefined;
+  return !!meta?.costCalculation;
 });
-const hasEvaluationInfo = computed(() => {
-  const hasInfo = taskData.value?.evaluation;
-  return hasInfo;
+const hasEvaluationInfo = computed((): boolean => {
+  const hasInfo = evaluation.value;
+  return !!hasInfo;
 });
-const hasTimingInfo = computed(() => {
-  return taskData.value?.createdAt || taskData.value?.startedAt || taskData.value?.completedAt || taskData.value?.updatedAt;
+const hasTimingInfo = computed((): boolean => {
+  return !!(taskData.value?.createdAt || taskData.value?.startedAt || taskData.value?.completedAt || taskData.value?.updatedAt);
 });
-const hasErrorInfo = computed(() => {
-  return taskData.value?.errorCode || taskData.value?.errorMessage;
+const hasErrorInfo = computed((): boolean => {
+  return !!(taskData.value?.errorCode || taskData.value?.errorMessage);
 });
 const getStatusClass = (status: string): string => {
   switch (status) {
@@ -373,23 +415,25 @@ const calculateExecutionTime = (startTime: string, endTime: string): string => {
   }
 };
 // Helper to get LLM metadata from the correct location
-const getLLMMetadata = () => {
+const getLLMMetadata = (): Record<string, unknown> | undefined => {
   // The LLM metadata is nested under originalLLMSelection
-  const llmMeta = taskData.value?.llmMetadata?.originalLLMSelection || taskData.value?.metadata?.llmMetadata?.originalLLMSelection;
-  return llmMeta;
+  const metaAsRecord = taskMetadata.value as Record<string, unknown> | undefined;
+  const llmMetadataField = metaAsRecord?.llmMetadata as Record<string, unknown> | undefined;
+  const llmMeta = (llmMetadata.value as Record<string, unknown> | undefined)?.originalLLMSelection || llmMetadataField?.originalLLMSelection;
+  return llmMeta as Record<string, unknown> | undefined;
 };
 const getLLMProviderName = (): string => {
   const llmMetadata = getLLMMetadata();
   if (!llmMetadata) return '';
   // First try direct name fields
-  if (llmMetadata.providerName) return llmMetadata.providerName;
-  if (llmMetadata.provider) return llmMetadata.provider;
+  if (llmMetadata.providerName) return llmMetadata.providerName as string;
+  if (llmMetadata.provider) return llmMetadata.provider as string;
   // Legacy fallback for old data with IDs
   if (llmMetadata.providerId) {
-    const provider = llmStore.getProviderByName(llmMetadata.providerId);
+    const provider = llmStore.getProviderByName(llmMetadata.providerId as string);
     if (provider) return provider.name;
     // If store lookup fails, show ID as fallback
-    return `Provider ID: ${llmMetadata.providerId}`;
+    return `Provider ID: ${llmMetadata.providerId as string}`;
   }
   return '';
 };
@@ -397,15 +441,15 @@ const getLLMModelName = (): string => {
   const llmMetadata = getLLMMetadata();
   if (!llmMetadata) return '';
   // First try direct name fields
-  if (llmMetadata.modelName) return llmMetadata.modelName;
-  if (llmMetadata.model) return llmMetadata.model;
+  if (llmMetadata.modelName) return llmMetadata.modelName as string;
+  if (llmMetadata.model) return llmMetadata.model as string;
   // Legacy fallback for old data with IDs
   if (llmMetadata.modelId) {
     // For legacy data, try to find by name if the ID is actually a name
-    const model = llmStore.getModelByName(llmMetadata.providerName || '', llmMetadata.modelId);
+    const model = llmStore.getModelByName((llmMetadata.providerName as string) || '', llmMetadata.modelId as string);
     if (model) return model.name;
     // If store lookup fails, show ID as fallback
-    return `Model ID: ${llmMetadata.modelId}`;
+    return `Model ID: ${llmMetadata.modelId as string}`;
   }
   return '';
 };

@@ -5,6 +5,10 @@ import { SubjectRepository } from '../../repositories/subject.repository';
 import { DimensionRepository } from '../../repositories/dimension.repository';
 import { AssessmentRepository } from '../../repositories/assessment.repository';
 import { CompositeScoreRepository } from '../../repositories/composite-score.repository';
+import {
+  PredictorReaderRepository,
+  PredictorForRisk,
+} from '../../repositories/predictor-reader.repository';
 import { DimensionAnalyzerService } from '../dimension-analyzer.service';
 import { ScoreAggregationService } from '../score-aggregation.service';
 import { DebateService } from '../debate.service';
@@ -27,6 +31,7 @@ describe('RiskAnalysisService', () => {
   let dimensionRepo: jest.Mocked<DimensionRepository>;
   let assessmentRepo: jest.Mocked<AssessmentRepository>;
   let compositeScoreRepo: jest.Mocked<CompositeScoreRepository>;
+  let predictorReaderRepo: jest.Mocked<PredictorReaderRepository>;
   let dimensionAnalyzer: jest.Mocked<DimensionAnalyzerService>;
   let scoreAggregation: jest.Mocked<ScoreAggregationService>;
   let debateService: jest.Mocked<DebateService>;
@@ -212,6 +217,30 @@ describe('RiskAnalysisService', () => {
     completed_at: '2024-01-01',
   };
 
+  const mockPredictors: PredictorForRisk[] = [
+    {
+      id: 'predictor-1',
+      article_id: 'article-1',
+      target_id: 'target-1',
+      target_symbol: 'AAPL',
+      direction: 'bullish',
+      strength: 0.7,
+      confidence: 0.8,
+      reasoning: 'Positive earnings expected',
+      analyst_slug: 'market-analyst',
+      analyst_assessment: {
+        direction: 'bullish',
+        confidence: 0.8,
+        reasoning: 'Strong fundamentals',
+        key_factors: ['Revenue growth', 'Market expansion'],
+        risks: ['Competition', 'Regulatory'],
+      },
+      created_at: new Date().toISOString(),
+      article_title: 'Apple Reports Strong Quarter',
+      article_url: 'https://example.com/article',
+    },
+  ];
+
   beforeEach(async () => {
     // Store original env value
     const originalEnv = process.env.RISK_RADAR_ENABLED;
@@ -252,6 +281,12 @@ describe('RiskAnalysisService', () => {
           },
         },
         {
+          provide: PredictorReaderRepository,
+          useValue: {
+            findPredictorsBySymbol: jest.fn(),
+          },
+        },
+        {
           provide: DimensionAnalyzerService,
           useValue: {
             analyzeDimension: jest.fn(),
@@ -288,6 +323,7 @@ describe('RiskAnalysisService', () => {
     dimensionRepo = module.get(DimensionRepository);
     assessmentRepo = module.get(AssessmentRepository);
     compositeScoreRepo = module.get(CompositeScoreRepository);
+    predictorReaderRepo = module.get(PredictorReaderRepository);
     dimensionAnalyzer = module.get(DimensionAnalyzerService);
     scoreAggregation = module.get(ScoreAggregationService);
     debateService = module.get(DebateService);
@@ -304,6 +340,9 @@ describe('RiskAnalysisService', () => {
   describe('analyzeSubject', () => {
     beforeEach(() => {
       // Setup default mocks for successful analysis
+      predictorReaderRepo.findPredictorsBySymbol.mockResolvedValue(
+        mockPredictors,
+      );
       dimensionRepo.findByScope.mockResolvedValue([mockDimension]);
       dimensionAnalyzer.analyzeDimension.mockResolvedValue(mockAnalyzerOutput);
       assessmentRepo.createBatch.mockResolvedValue([mockAssessment]);
@@ -471,6 +510,9 @@ describe('RiskAnalysisService', () => {
 
   describe('analyzeScope', () => {
     beforeEach(() => {
+      predictorReaderRepo.findPredictorsBySymbol.mockResolvedValue(
+        mockPredictors,
+      );
       dimensionRepo.findByScope.mockResolvedValue([mockDimension]);
       dimensionAnalyzer.analyzeDimension.mockResolvedValue(mockAnalyzerOutput);
       assessmentRepo.createBatch.mockResolvedValue([mockAssessment]);
@@ -507,15 +549,17 @@ describe('RiskAnalysisService', () => {
       ];
       subjectRepo.findByScope.mockResolvedValue(subjects);
 
-      // First subject fails, second succeeds
-      dimensionAnalyzer.analyzeDimension
-        .mockRejectedValueOnce(new Error('Failed'))
-        .mockResolvedValue(mockAnalyzerOutput);
+      // First subject has no predictors (fails early with no-data), second succeeds
+      predictorReaderRepo.findPredictorsBySymbol
+        .mockResolvedValueOnce([]) // No predictors for AAPL
+        .mockResolvedValueOnce(mockPredictors); // Predictors for GOOGL
 
       const results = await service.analyzeScope(mockScope, mockContext);
 
-      // Only the second subject should succeed
-      expect(results).toHaveLength(1);
+      // Both subjects should return results (first with noDataAvailable, second with analysis)
+      expect(results).toHaveLength(2);
+      expect(results[0]!.noDataAvailable).toBe(true);
+      expect(results[1]!.noDataAvailable).toBeUndefined();
     });
 
     it('should return empty array when no subjects in scope', async () => {

@@ -100,7 +100,7 @@ describe('TestScenarioBatchService', () => {
     scenarioRunService = module.get(ScenarioRunService);
     testScenarioRepository = module.get(TestScenarioRepository);
     testAuditLogRepository = module.get(TestAuditLogRepository);
-    supabaseService = module.get(SupabaseService);
+    _supabaseService = module.get(SupabaseService);
     observabilityEventsService = module.get(ObservabilityEventsService);
   });
 

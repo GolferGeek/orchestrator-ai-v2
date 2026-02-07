@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PredictorManagementService } from '../predictor-management.service';
 import { PredictorRepository } from '../../repositories/predictor.repository';
+import { TargetRepository } from '../../repositories/target.repository';
 import { ObservabilityEventsService } from '@/observability/observability-events.service';
 import { Predictor } from '../../interfaces/predictor.interface';
 
@@ -46,6 +47,16 @@ describe('PredictorManagementService', () => {
             findActiveByTarget: jest.fn(),
             expireOldPredictors: jest.fn(),
             consumePredictor: jest.fn(),
+          },
+        },
+        {
+          provide: TargetRepository,
+          useValue: {
+            findById: jest.fn().mockResolvedValue({
+              id: 'target-456',
+              symbol: 'AAPL',
+              created_at: '2026-01-01',
+            }),
           },
         },
         {
@@ -98,7 +109,7 @@ describe('PredictorManagementService', () => {
 
   describe('evaluateThreshold', () => {
     it('should return meetsThreshold=false when too few predictors', async () => {
-      // Only 2 predictors, need 3
+      // Only 2 predictors, need 5 (default min_predictors)
       const predictors = [createMockPredictor(), createMockPredictor()];
       predictorRepository.expireOldPredictors.mockResolvedValue(0);
       predictorRepository.findActiveByTarget.mockResolvedValue(predictors);
@@ -110,8 +121,10 @@ describe('PredictorManagementService', () => {
     });
 
     it('should return meetsThreshold=false when combined strength is too low', async () => {
-      // 3 predictors with low strength (3 each = 9 total, need 15)
+      // 5 predictors with low strength (3 each = 15 total, need 20)
       const predictors = [
+        createMockPredictor({ strength: 3 }),
+        createMockPredictor({ strength: 3 }),
         createMockPredictor({ strength: 3 }),
         createMockPredictor({ strength: 3 }),
         createMockPredictor({ strength: 3 }),
@@ -122,15 +135,17 @@ describe('PredictorManagementService', () => {
       const result = await service.evaluateThreshold('target-456');
 
       expect(result.meetsThreshold).toBe(false);
-      expect(result.combinedStrength).toBe(9);
+      expect(result.combinedStrength).toBe(15);
     });
 
     it('should return meetsThreshold=false when consensus is too low', async () => {
-      // 3 predictors with no consensus (1 each direction)
+      // 5 predictors with low consensus (3 bullish, 2 bearish = 60% < 75% threshold)
       const predictors = [
         createMockPredictor({ direction: 'bullish', strength: 6 }),
+        createMockPredictor({ direction: 'bullish', strength: 6 }),
+        createMockPredictor({ direction: 'bullish', strength: 6 }),
         createMockPredictor({ direction: 'bearish', strength: 6 }),
-        createMockPredictor({ direction: 'neutral', strength: 6 }),
+        createMockPredictor({ direction: 'bearish', strength: 6 }),
       ];
       predictorRepository.expireOldPredictors.mockResolvedValue(0);
       predictorRepository.findActiveByTarget.mockResolvedValue(predictors);
@@ -138,15 +153,18 @@ describe('PredictorManagementService', () => {
       const result = await service.evaluateThreshold('target-456');
 
       expect(result.meetsThreshold).toBe(false);
-      expect(result.directionConsensus).toBeCloseTo(0.333, 2);
+      expect(result.directionConsensus).toBeCloseTo(0.6, 2);
     });
 
     it('should return meetsThreshold=true when all criteria are met', async () => {
-      // 3 bullish predictors with strength 6 each = 18 total, 100% consensus
+      // 5 bullish predictors with strength 5 each = 25 total, 100% consensus
+      // Meets default thresholds: min_predictors=5, min_combined_strength=20, min_direction_consensus=0.75
       const predictors = [
-        createMockPredictor({ direction: 'bullish', strength: 6 }),
-        createMockPredictor({ direction: 'bullish', strength: 6 }),
-        createMockPredictor({ direction: 'bullish', strength: 6 }),
+        createMockPredictor({ direction: 'bullish', strength: 5 }),
+        createMockPredictor({ direction: 'bullish', strength: 5 }),
+        createMockPredictor({ direction: 'bullish', strength: 5 }),
+        createMockPredictor({ direction: 'bullish', strength: 5 }),
+        createMockPredictor({ direction: 'bullish', strength: 5 }),
       ];
       predictorRepository.expireOldPredictors.mockResolvedValue(0);
       predictorRepository.findActiveByTarget.mockResolvedValue(predictors);
@@ -154,8 +172,8 @@ describe('PredictorManagementService', () => {
       const result = await service.evaluateThreshold('target-456');
 
       expect(result.meetsThreshold).toBe(true);
-      expect(result.activeCount).toBe(3);
-      expect(result.combinedStrength).toBe(18);
+      expect(result.activeCount).toBe(5);
+      expect(result.combinedStrength).toBe(25);
       expect(result.directionConsensus).toBe(1.0);
       expect(result.dominantDirection).toBe('bullish');
     });
@@ -311,7 +329,7 @@ describe('PredictorManagementService', () => {
 
   describe('wouldMeetThreshold', () => {
     it('should return false if still below min_predictors', async () => {
-      // Only 1 existing predictor, adding 1 more = 2, need 3
+      // Only 1 existing predictor, adding 1 more = 2, need 5 (default min_predictors)
       const predictors = [createMockPredictor()];
       predictorRepository.expireOldPredictors.mockResolvedValue(0);
       predictorRepository.findActiveByTarget.mockResolvedValue(predictors);
@@ -326,8 +344,10 @@ describe('PredictorManagementService', () => {
     });
 
     it('should return false if combined strength still too low', async () => {
-      // 2 existing predictors with strength 3 each, adding strength 3 = 9, need 15
+      // 4 existing predictors with strength 3 each, adding strength 3 = 15 total, need 20
       const predictors = [
+        createMockPredictor({ strength: 3 }),
+        createMockPredictor({ strength: 3 }),
         createMockPredictor({ strength: 3 }),
         createMockPredictor({ strength: 3 }),
       ];
@@ -344,17 +364,20 @@ describe('PredictorManagementService', () => {
     });
 
     it('should return true if adding predictor would meet threshold', async () => {
-      // 2 existing bullish with strength 6 each, adding bullish strength 6 = 18
+      // 4 existing bullish with strength 5 each, adding bullish strength 5 = 25 total, 5 predictors
+      // Meets default thresholds: min_predictors=5, min_combined_strength=20, min_direction_consensus=0.75
       const predictors = [
-        createMockPredictor({ direction: 'bullish', strength: 6 }),
-        createMockPredictor({ direction: 'bullish', strength: 6 }),
+        createMockPredictor({ direction: 'bullish', strength: 5 }),
+        createMockPredictor({ direction: 'bullish', strength: 5 }),
+        createMockPredictor({ direction: 'bullish', strength: 5 }),
+        createMockPredictor({ direction: 'bullish', strength: 5 }),
       ];
       predictorRepository.expireOldPredictors.mockResolvedValue(0);
       predictorRepository.findActiveByTarget.mockResolvedValue(predictors);
 
       const result = await service.wouldMeetThreshold(
         'target-456',
-        6,
+        5,
         'bullish',
       );
 
@@ -362,9 +385,12 @@ describe('PredictorManagementService', () => {
     });
 
     it('should return false if consensus would drop below threshold', async () => {
-      // 2 bullish predictors, adding bearish would make 2/3 = 66% consensus = passes
-      // But 1 bullish, 1 bearish, adding neutral = 1/3 = 33% = fails
+      // 4 bullish predictors with strength 6 each, adding 1 bearish would make 4/5 = 80% consensus (passes)
+      // But adding 2 bearish = 4/6 = 67% (fails < 75% threshold)
+      // To test this, we use 3 bullish, 1 bearish, adding bearish = 3/5 = 60% < 75%
       const predictors = [
+        createMockPredictor({ direction: 'bullish', strength: 6 }),
+        createMockPredictor({ direction: 'bullish', strength: 6 }),
         createMockPredictor({ direction: 'bullish', strength: 6 }),
         createMockPredictor({ direction: 'bearish', strength: 6 }),
       ];
@@ -374,7 +400,7 @@ describe('PredictorManagementService', () => {
       const result = await service.wouldMeetThreshold(
         'target-456',
         6,
-        'neutral',
+        'bearish',
       );
 
       expect(result).toBe(false);

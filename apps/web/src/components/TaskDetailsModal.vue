@@ -167,7 +167,7 @@
                   </div>
                 </ion-accordion>
                 <!-- Metadata -->
-                <ion-accordion v-if="task.llmMetadata || task.evaluation" value="metadata">
+                <ion-accordion v-if="hasMetadataOrEvaluation(task)" value="metadata">
                   <ion-item slot="header">
                     <ion-label>Metadata & Evaluation</ion-label>
                   </ion-item>
@@ -310,6 +310,11 @@ const cancelTask = async (task: TaskDetail) => {
 const handleTaskCreated = () => {
   showCreateTaskModal.value = false;
   refreshTasks();
+};
+// Type helpers to avoid deep instantiation errors with JsonObject in templates
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const hasMetadataOrEvaluation = (t: any): boolean => {
+  return !!(t?.llmMetadata || t?.evaluation);
 };
 // Utility functions
 const formatAgentName = (name: string) => {

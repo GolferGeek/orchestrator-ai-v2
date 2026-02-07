@@ -187,7 +187,7 @@
         </ion-card>
 
         <!-- Applied Learnings -->
-        <ion-card v-if="deepDive.context?.appliedLearnings?.length" class="learnings-card">
+        <ion-card v-if="(deepDive as any).context?.appliedLearnings?.length" class="learnings-card">
           <ion-card-header>
             <ion-card-subtitle>
               <ion-icon :icon="schoolOutline" class="section-icon"></ion-icon>
@@ -197,7 +197,7 @@
           <ion-card-content>
             <div class="learnings-list">
               <div
-                v-for="learning in deepDive.context.appliedLearnings"
+                v-for="learning in (deepDive as any).context.appliedLearnings"
                 :key="learning.id"
                 class="learning-item"
               >

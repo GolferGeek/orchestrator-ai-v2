@@ -214,25 +214,24 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue';
-import { IonPage, IonContent, IonButton, IonIcon, IonCard, IonCardHeader, IonCardTitle, IonCardContent } from '@ionic/vue';
-import { 
-  playCircleOutline,
-  peopleOutline,
-  flashOutline,
+import { ref, onMounted, onUnmounted } from 'vue';
+import { IonPage, IonContent, IonIcon } from '@ionic/vue';
+// Import ionicons
+import {
   trendingUpOutline,
-  callOutline,
   bulbOutline,
-  mailOutline,
+  flashOutline,
+  peopleOutline,
   flagOutline,
   schoolOutline,
   eyeOutline,
-  diamondOutline
+  diamondOutline,
+  callOutline,
+  mailOutline
 } from 'ionicons/icons';
 // Import remaining components
 import LandingHeader from '@/components/landing/LandingHeader.vue';
 import VideoModal from '@/components/landing/VideoModal.vue';
-import VideoPlayer from '@/components/landing/VideoPlayer.vue';
 import HeroSection from '@/components/landing/HeroSection.vue';
 import PricingSection from '@/components/landing/PricingSection.vue';
 // Landing page store

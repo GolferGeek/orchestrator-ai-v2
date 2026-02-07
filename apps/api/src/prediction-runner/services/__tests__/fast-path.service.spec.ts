@@ -68,7 +68,7 @@ describe('FastPathService', () => {
 
     module.useLogger(false);
     service = module.get<FastPathService>(FastPathService);
-    snapshotService = module.get(SnapshotService);
+    _snapshotService = module.get(SnapshotService);
   });
 
   afterEach(() => {

@@ -76,7 +76,8 @@ export const hitlBuilder = {
    * Using the wrong taskId will create a new execution instead of resuming.
    */
   resume: (payload: HitlResumePayload): StrictA2ARequest => {
-    const ctx = getContext();
+    // Get context from store (required for store-first approach, even if not used)
+    getContext();
     validateRequired(payload.decision, 'decision');
     validateRequired(payload.originalTaskId, 'originalTaskId');
 

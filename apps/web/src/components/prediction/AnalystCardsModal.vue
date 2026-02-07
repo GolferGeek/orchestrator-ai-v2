@@ -127,7 +127,7 @@ const generatedAt = computed(() => props.predictions[0]?.generatedAt || '');
 
 // Check if a prediction represents a flat-only analyst (both user and AI forks are flat)
 function isFlatOnlyAnalyst(p: Prediction): boolean {
-  const ensemble = (p as Record<string, unknown>).analystEnsemble as {
+  const ensemble = (p as unknown as Record<string, unknown>).analystEnsemble as {
     user_fork?: { is_flat?: boolean; direction?: string };
     ai_fork?: { is_flat?: boolean; direction?: string };
     active_forks?: string[];

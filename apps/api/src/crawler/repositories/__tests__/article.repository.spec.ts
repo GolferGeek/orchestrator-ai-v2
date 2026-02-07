@@ -137,6 +137,9 @@ describe('ArticleRepository', () => {
     return {
       schema: jest.fn().mockReturnValue({
         from: jest.fn().mockImplementation(() => createChain()),
+        rpc: jest.fn().mockReturnValue({
+          then: (resolve: (v: unknown) => void) => resolve(rpcResult),
+        }),
       }),
       rpc: jest.fn().mockReturnValue({
         then: (resolve: (v: unknown) => void) => resolve(rpcResult),

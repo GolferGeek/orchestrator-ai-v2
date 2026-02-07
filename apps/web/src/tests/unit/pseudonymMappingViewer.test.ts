@@ -70,23 +70,10 @@ vi.mock('ionicons/icons', () => ({
   lockClosedOutline: 'lock-closed-outline',
 }));
 
-// Create mock mapping data
-const mockMapping = {
-  id: 'test-mapping-1',
-  pseudonym: 'USER_ABC123',
-  dataType: 'email',
-  usageCount: 5,
-  lastUsedAt: new Date().toISOString(),
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
-  context: 'test-context',
-  originalHash: 'abc123def456',
-  originalValue: '[REDACTED]',
-};
-
 // Mock the privacy store with proper data to avoid reduce error
 // Note: vi.mock is hoisted, so we inline the mock data
 vi.mock('@/stores/privacyStore', () => {
+  // Create mock mapping data inline to avoid hoisting issues
   const inlineMockMapping = {
     id: 'test-mapping-1',
     pseudonym: 'USER_ABC123',

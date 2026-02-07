@@ -77,6 +77,17 @@ const createWrapper = (props = {}) => {
   });
 };
 
+// Type helper for accessing internal component properties in tests
+type ChatInputInstance = {
+  inputText: string;
+  sendMessage: () => void;
+  togglePtt: () => void;
+  isRecording: boolean;
+  handleEnterKey: (event: KeyboardEvent) => void;
+  uiStore: { isPttRecording: boolean };
+  $nextTick: () => Promise<void>;
+};
+
 describe('ChatInput', () => {
   beforeEach(() => {
     // Reset mocks
@@ -129,7 +140,7 @@ describe('ChatInput', () => {
       await wrapper.vm.$nextTick();
 
       // Check internal state
-      expect(wrapper.vm.inputText).toBe('Hello, world!');
+      expect((wrapper.vm as unknown as ChatInputInstance).inputText).toBe('Hello, world!');
     });
 
     it('clears input after sending message', async () => {
@@ -140,17 +151,17 @@ describe('ChatInput', () => {
       await wrapper.vm.$nextTick();
 
       // Send message
-      wrapper.vm.sendMessage();
+      (wrapper.vm as unknown as ChatInputInstance).sendMessage();
       await wrapper.vm.$nextTick();
 
-      expect(wrapper.vm.inputText).toBe('');
+      expect((wrapper.vm as unknown as ChatInputInstance).inputText).toBe('');
     });
 
     it('trims whitespace from message before sending', async () => {
       const wrapper = createWrapper();
 
-      wrapper.vm.inputText = '  Hello  ';
-      wrapper.vm.sendMessage();
+      (wrapper.vm as unknown as ChatInputInstance).inputText ='  Hello  ';
+      (wrapper.vm as unknown as ChatInputInstance).sendMessage();
 
       expect(wrapper.emitted('sendMessage')?.[0]).toEqual(['Hello']);
     });
@@ -174,7 +185,7 @@ describe('ChatInput', () => {
     it('does not emit sendMessage when input is empty', async () => {
       const wrapper = createWrapper();
 
-      wrapper.vm.sendMessage();
+      (wrapper.vm as unknown as ChatInputInstance).sendMessage();
       await wrapper.vm.$nextTick();
 
       expect(wrapper.emitted('sendMessage')).toBeFalsy();
@@ -183,8 +194,8 @@ describe('ChatInput', () => {
     it('does not emit sendMessage when input contains only whitespace', async () => {
       const wrapper = createWrapper();
 
-      wrapper.vm.inputText = '   ';
-      wrapper.vm.sendMessage();
+      (wrapper.vm as unknown as ChatInputInstance).inputText ='   ';
+      (wrapper.vm as unknown as ChatInputInstance).sendMessage();
 
       expect(wrapper.emitted('sendMessage')).toBeFalsy();
     });
@@ -194,7 +205,7 @@ describe('ChatInput', () => {
 
       // Call togglePtt directly instead of clicking button
       // (since the stub doesn't perfectly replicate Ionic's click handling)
-      wrapper.vm.togglePtt();
+      (wrapper.vm as unknown as ChatInputInstance).togglePtt();
       await wrapper.vm.$nextTick();
 
       // The recognition.start() will trigger onstart callback
@@ -205,7 +216,7 @@ describe('ChatInput', () => {
 
       // Should not emit pttToggle on start (only on end)
       // But isRecording should be true
-      expect(wrapper.vm.isRecording).toBe(true);
+      expect((wrapper.vm as unknown as ChatInputInstance).isRecording).toBe(true);
     });
   });
 
@@ -221,7 +232,7 @@ describe('ChatInput', () => {
         key: 'Enter',
         shiftKey: false,
       });
-      wrapper.vm.handleEnterKey(enterEvent);
+      (wrapper.vm as unknown as ChatInputInstance).handleEnterKey(enterEvent);
 
       expect(wrapper.emitted('sendMessage')).toBeTruthy();
       expect(wrapper.emitted('sendMessage')?.[0]).toEqual(['Test message']);
@@ -230,12 +241,12 @@ describe('ChatInput', () => {
     it('does not send message on Shift+Enter', async () => {
       const wrapper = createWrapper();
 
-      wrapper.vm.inputText = 'Test message';
+      (wrapper.vm as unknown as ChatInputInstance).inputText ='Test message';
       const shiftEnterEvent = new KeyboardEvent('keydown', {
         key: 'Enter',
         shiftKey: true,
       });
-      wrapper.vm.handleEnterKey(shiftEnterEvent);
+      (wrapper.vm as unknown as ChatInputInstance).handleEnterKey(shiftEnterEvent);
 
       expect(wrapper.emitted('sendMessage')).toBeFalsy();
     });
@@ -243,14 +254,14 @@ describe('ChatInput', () => {
     it('does not send message on Enter when recording', async () => {
       const wrapper = createWrapper();
 
-      wrapper.vm.inputText = 'Test message';
-      wrapper.vm.isRecording = true;
+      (wrapper.vm as unknown as ChatInputInstance).inputText ='Test message';
+      (wrapper.vm as unknown as ChatInputInstance).isRecording =true;
 
       const enterEvent = new KeyboardEvent('keydown', {
         key: 'Enter',
         shiftKey: false,
       });
-      wrapper.vm.handleEnterKey(enterEvent);
+      (wrapper.vm as unknown as ChatInputInstance).handleEnterKey(enterEvent);
 
       expect(wrapper.emitted('sendMessage')).toBeFalsy();
     });
@@ -278,8 +289,8 @@ describe('ChatInput', () => {
     it('disables send button when recording', async () => {
       const wrapper = createWrapper();
 
-      wrapper.vm.inputText = 'Test message';
-      wrapper.vm.isRecording = true;
+      (wrapper.vm as unknown as ChatInputInstance).inputText ='Test message';
+      (wrapper.vm as unknown as ChatInputInstance).isRecording =true;
       await wrapper.vm.$nextTick();
 
       const sendButton = wrapper.findAll('button')[1];
@@ -289,7 +300,7 @@ describe('ChatInput', () => {
     it('changes PTT button color when recording', async () => {
       const wrapper = createWrapper();
 
-      wrapper.vm.isRecording = true;
+      (wrapper.vm as unknown as ChatInputInstance).isRecording =true;
       await wrapper.vm.$nextTick();
 
       const pttButton = wrapper.findAll('button')[0];
@@ -316,7 +327,7 @@ describe('ChatInput', () => {
 
     it('stops recording when PTT button is clicked while recording', async () => {
       const wrapper = createWrapper();
-      wrapper.vm.isRecording = true;
+      (wrapper.vm as unknown as ChatInputInstance).isRecording =true;
 
       const pttButton = wrapper.findAll('button')[0];
       await pttButton.trigger('click');
@@ -326,7 +337,7 @@ describe('ChatInput', () => {
 
     it('clears input text when starting recording', async () => {
       const wrapper = createWrapper();
-      wrapper.vm.inputText = 'Previous text';
+      (wrapper.vm as unknown as ChatInputInstance).inputText ='Previous text';
 
       const pttButton = wrapper.findAll('button')[0];
       await pttButton.trigger('click');
@@ -337,34 +348,34 @@ describe('ChatInput', () => {
       if (mockRecognition.onstart) {
         mockRecognition.onstart();
       }
-      expect(wrapper.vm.inputText).toBe('');
+      expect((wrapper.vm as unknown as ChatInputInstance).inputText).toBe('');
     });
 
     it('updates isRecording state on recognition start', () => {
       const wrapper = createWrapper();
-      wrapper.vm.isRecording = false;
+      (wrapper.vm as unknown as ChatInputInstance).isRecording =false;
 
       // Simulate recognition start event
       if (mockRecognition.onstart) {
         mockRecognition.onstart();
       }
-      expect(wrapper.vm.isRecording).toBe(true);
+      expect((wrapper.vm as unknown as ChatInputInstance).isRecording).toBe(true);
     });
 
     it('updates isRecording state on recognition end', () => {
       const wrapper = createWrapper();
-      wrapper.vm.isRecording = true;
+      (wrapper.vm as unknown as ChatInputInstance).isRecording =true;
 
       // Simulate recognition end event
       if (mockRecognition.onend) {
         mockRecognition.onend();
       }
-      expect(wrapper.vm.isRecording).toBe(false);
+      expect((wrapper.vm as unknown as ChatInputInstance).isRecording).toBe(false);
     });
 
     it('emits pttToggle event with false when recording ends', () => {
       const wrapper = createWrapper();
-      wrapper.vm.isRecording = true;
+      (wrapper.vm as unknown as ChatInputInstance).isRecording =true;
 
       // Simulate recognition end event
       if (mockRecognition.onend) {
@@ -380,9 +391,9 @@ describe('ChatInput', () => {
   describe('Store Integration', () => {
     it('updates UI store PTT recording state when recording starts', async () => {
       const wrapper = createWrapper();
-      const uiStore = wrapper.vm.uiStore;
+      const uiStore = (wrapper.vm as unknown as ChatInputInstance).uiStore;
 
-      wrapper.vm.isRecording = true;
+      (wrapper.vm as unknown as ChatInputInstance).isRecording =true;
       await wrapper.vm.$nextTick();
 
       expect(uiStore.isPttRecording).toBe(true);
@@ -390,12 +401,12 @@ describe('ChatInput', () => {
 
     it('updates UI store PTT recording state when recording stops', async () => {
       const wrapper = createWrapper();
-      const uiStore = wrapper.vm.uiStore;
+      const uiStore = (wrapper.vm as unknown as ChatInputInstance).uiStore;
 
-      wrapper.vm.isRecording = true;
+      (wrapper.vm as unknown as ChatInputInstance).isRecording =true;
       await wrapper.vm.$nextTick();
 
-      wrapper.vm.isRecording = false;
+      (wrapper.vm as unknown as ChatInputInstance).isRecording =false;
       await wrapper.vm.$nextTick();
 
       expect(uiStore.isPttRecording).toBe(false);
@@ -406,7 +417,7 @@ describe('ChatInput', () => {
     it('handles multiple rapid Enter key presses', async () => {
       const wrapper = createWrapper();
 
-      wrapper.vm.inputText = 'Test message';
+      (wrapper.vm as unknown as ChatInputInstance).inputText ='Test message';
 
       const enterEvent = new KeyboardEvent('keydown', {
         key: 'Enter',
@@ -414,9 +425,9 @@ describe('ChatInput', () => {
       });
 
       // Simulate rapid pressing
-      wrapper.vm.handleEnterKey(enterEvent);
-      wrapper.vm.handleEnterKey(enterEvent);
-      wrapper.vm.handleEnterKey(enterEvent);
+      (wrapper.vm as unknown as ChatInputInstance).handleEnterKey(enterEvent);
+      (wrapper.vm as unknown as ChatInputInstance).handleEnterKey(enterEvent);
+      (wrapper.vm as unknown as ChatInputInstance).handleEnterKey(enterEvent);
 
       // Only first should emit (input is cleared after first send)
       expect(wrapper.emitted('sendMessage')?.length).toBe(1);
@@ -425,15 +436,15 @@ describe('ChatInput', () => {
     it('handles sending message with newlines from Shift+Enter', async () => {
       const wrapper = createWrapper();
 
-      wrapper.vm.inputText = 'Line 1\nLine 2';
-      wrapper.vm.sendMessage();
+      (wrapper.vm as unknown as ChatInputInstance).inputText ='Line 1\nLine 2';
+      (wrapper.vm as unknown as ChatInputInstance).sendMessage();
 
       expect(wrapper.emitted('sendMessage')?.[0]).toEqual(['Line 1\nLine 2']);
     });
 
     it('handles component unmount while recording', () => {
       const wrapper = createWrapper();
-      wrapper.vm.isRecording = true;
+      (wrapper.vm as unknown as ChatInputInstance).isRecording =true;
 
       // Unmount should stop recording
       wrapper.unmount();

@@ -4,15 +4,23 @@ import {
   SourceSubscriptionRepository,
   CrawlerArticle,
 } from '../../repositories/source-subscription.repository';
-import { SignalRepository } from '../../repositories/signal.repository';
 import { TargetRepository } from '../../repositories/target.repository';
+import { PredictorRepository } from '../../repositories/predictor.repository';
+import { TargetSnapshotRepository } from '../../repositories/target-snapshot.repository';
+import { AnalystEnsembleService } from '../analyst-ensemble.service';
+import { LlmTierResolverService } from '../llm-tier-resolver.service';
+import { LLMService } from '@/llms/llm.service';
 import { ObservabilityEventsService } from '@/observability/observability-events.service';
 
 describe('ArticleProcessorService', () => {
   let service: ArticleProcessorService;
   let mockSubscriptionRepository: Partial<SourceSubscriptionRepository>;
-  let mockSignalRepository: Partial<SignalRepository>;
   let mockTargetRepository: Partial<TargetRepository>;
+  let mockPredictorRepository: Partial<PredictorRepository>;
+  let mockTargetSnapshotRepository: Partial<TargetSnapshotRepository>;
+  let mockAnalystEnsembleService: Partial<AnalystEnsembleService>;
+  let mockLlmTierResolverService: Partial<LlmTierResolverService>;
+  let mockLlmService: Partial<LLMService>;
   let mockObservabilityService: Partial<ObservabilityEventsService>;
 
   const mockSubscription = {
@@ -75,20 +83,39 @@ describe('ArticleProcessorService', () => {
   beforeEach(async () => {
     mockSubscriptionRepository = {
       findById: jest.fn(),
+      findByTarget: jest.fn(),
       getNewArticles: jest.fn(),
-      getNewArticlesForTarget: jest.fn(),
       updateWatermark: jest.fn(),
-    };
-
-    mockSignalRepository = {
-      create: jest.fn(),
     };
 
     mockTargetRepository = {
       findById: jest.fn(),
+      findAllActive: jest.fn(),
     };
 
-    mockObservabilityService = {};
+    mockPredictorRepository = {
+      create: jest.fn(),
+    };
+
+    mockTargetSnapshotRepository = {
+      findLatest: jest.fn(),
+    };
+
+    mockAnalystEnsembleService = {
+      runEnsemble: jest.fn(),
+    };
+
+    mockLlmTierResolverService = {
+      resolveTier: jest.fn(),
+    };
+
+    mockLlmService = {
+      generateResponse: jest.fn(),
+    };
+
+    mockObservabilityService = {
+      push: jest.fn(),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -97,8 +124,21 @@ describe('ArticleProcessorService', () => {
           provide: SourceSubscriptionRepository,
           useValue: mockSubscriptionRepository,
         },
-        { provide: SignalRepository, useValue: mockSignalRepository },
+        { provide: PredictorRepository, useValue: mockPredictorRepository },
         { provide: TargetRepository, useValue: mockTargetRepository },
+        {
+          provide: TargetSnapshotRepository,
+          useValue: mockTargetSnapshotRepository,
+        },
+        {
+          provide: AnalystEnsembleService,
+          useValue: mockAnalystEnsembleService,
+        },
+        {
+          provide: LlmTierResolverService,
+          useValue: mockLlmTierResolverService,
+        },
+        { provide: LLMService, useValue: mockLlmService },
         {
           provide: ObservabilityEventsService,
           useValue: mockObservabilityService,
@@ -118,20 +158,52 @@ describe('ArticleProcessorService', () => {
   // =============================================================================
 
   describe('processSubscription', () => {
-    it('should process articles for a subscription and create signals', async () => {
-      const articles = [createMockArticle()];
+    it('should process articles for a subscription and create predictors', async () => {
+      const articles = [
+        createMockArticle({
+          title: 'AAPL Stock Market Surges on Positive News',
+          content: 'Apple Inc stock showed strong gains today',
+        }),
+      ];
 
       (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(
         mockSubscription,
       );
+      (mockSubscriptionRepository.findByTarget as jest.Mock).mockResolvedValue([
+        mockSubscription,
+      ]);
       (
         mockSubscriptionRepository.getNewArticles as jest.Mock
       ).mockResolvedValue(articles);
       (mockTargetRepository.findById as jest.Mock).mockResolvedValue(
         mockTarget,
       );
-      (mockSignalRepository.create as jest.Mock).mockResolvedValue({
-        id: 'signal-123',
+      (mockTargetRepository.findAllActive as jest.Mock).mockResolvedValue([
+        mockTarget,
+      ]);
+      (mockLlmTierResolverService.resolveTier as jest.Mock).mockResolvedValue({
+        provider: 'openai',
+        model: 'gpt-4',
+      });
+      (mockLlmService.generateResponse as jest.Mock).mockResolvedValue({
+        content: '{"direction": "bullish", "reasoning": "positive news"}',
+      });
+      (mockAnalystEnsembleService.runEnsemble as jest.Mock).mockResolvedValue({
+        aggregated: {
+          direction: 'bullish',
+          confidence: 0.8,
+          consensus_strength: 0.7,
+          reasoning: 'Strong positive sentiment',
+        },
+        assessments: [
+          {
+            key_factors: ['positive earnings', 'market growth'],
+            risks: ['market volatility'],
+          },
+        ],
+      });
+      (mockPredictorRepository.create as jest.Mock).mockResolvedValue({
+        id: 'predictor-123',
       });
       (
         mockSubscriptionRepository.updateWatermark as jest.Mock
@@ -139,12 +211,12 @@ describe('ArticleProcessorService', () => {
 
       const result = await service.processSubscription('sub-123');
 
-      expect(result.subscription_id).toBe('sub-123');
+      expect(result.subscription_id).toBe('all');
       expect(result.target_id).toBe('target-123');
       expect(result.articles_processed).toBe(1);
-      expect(result.signals_created).toBe(1);
+      expect(result.predictors_created).toBe(1);
       expect(result.errors).toHaveLength(0);
-      expect(mockSignalRepository.create).toHaveBeenCalled();
+      expect(mockPredictorRepository.create).toHaveBeenCalled();
       expect(mockSubscriptionRepository.updateWatermark).toHaveBeenCalled();
     });
 
@@ -162,6 +234,9 @@ describe('ArticleProcessorService', () => {
       (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(
         mockSubscription,
       );
+      (mockSubscriptionRepository.findByTarget as jest.Mock).mockResolvedValue([
+        mockSubscription,
+      ]);
       (
         mockSubscriptionRepository.getNewArticles as jest.Mock
       ).mockResolvedValue([createMockArticle()]);
@@ -173,21 +248,27 @@ describe('ArticleProcessorService', () => {
       expect(result.errors[0]).toContain('Target not found');
     });
 
-    it('should skip articles that fail keyword filters', async () => {
-      const spamArticle = createMockArticle({
-        title: 'Spam content with spam keywords',
-        content: 'This is spam article that should be filtered',
+    it('should skip articles not relevant to any targets', async () => {
+      const irrelevantArticle = createMockArticle({
+        title: 'Weather forecast today',
+        content: 'Sunny weather expected tomorrow',
       });
 
       (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(
         mockSubscription,
       );
+      (mockSubscriptionRepository.findByTarget as jest.Mock).mockResolvedValue([
+        mockSubscription,
+      ]);
       (
         mockSubscriptionRepository.getNewArticles as jest.Mock
-      ).mockResolvedValue([spamArticle]);
+      ).mockResolvedValue([irrelevantArticle]);
       (mockTargetRepository.findById as jest.Mock).mockResolvedValue(
         mockTarget,
       );
+      (mockTargetRepository.findAllActive as jest.Mock).mockResolvedValue([
+        mockTarget,
+      ]);
       (
         mockSubscriptionRepository.updateWatermark as jest.Mock
       ).mockResolvedValue(undefined);
@@ -195,37 +276,36 @@ describe('ArticleProcessorService', () => {
       const result = await service.processSubscription('sub-123');
 
       expect(result.articles_processed).toBe(1);
-      expect(result.signals_skipped).toBe(1);
-      expect(result.signals_created).toBe(0);
+      expect(result.predictors_created).toBe(0);
     });
 
-    it('should mark test articles correctly for test targets', async () => {
+    it('should skip test targets (T_ prefix)', async () => {
       const articles = [createMockArticle()];
 
       (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue({
         ...mockSubscription,
         target_id: 'test-target-123',
       });
+      (mockSubscriptionRepository.findByTarget as jest.Mock).mockResolvedValue([
+        { ...mockSubscription, target_id: 'test-target-123' },
+      ]);
       (
         mockSubscriptionRepository.getNewArticles as jest.Mock
       ).mockResolvedValue(articles);
       (mockTargetRepository.findById as jest.Mock).mockResolvedValue(
         mockTestTarget,
       );
-      (mockSignalRepository.create as jest.Mock).mockResolvedValue({
-        id: 'signal-123',
-      });
+      (mockTargetRepository.findAllActive as jest.Mock).mockResolvedValue([
+        mockTestTarget,
+      ]);
       (
         mockSubscriptionRepository.updateWatermark as jest.Mock
       ).mockResolvedValue(undefined);
 
-      await service.processSubscription('sub-123');
+      const result = await service.processSubscription('sub-123');
 
-      expect(mockSignalRepository.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          is_test: true,
-        }),
-      );
+      // Test targets are skipped in processArticleForAllTargets
+      expect(result.predictors_created).toBe(0);
     });
 
     it('should update watermark after processing', async () => {
@@ -235,14 +315,36 @@ describe('ArticleProcessorService', () => {
       (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(
         mockSubscription,
       );
+      (mockSubscriptionRepository.findByTarget as jest.Mock).mockResolvedValue([
+        mockSubscription,
+      ]);
       (
         mockSubscriptionRepository.getNewArticles as jest.Mock
       ).mockResolvedValue(articles);
       (mockTargetRepository.findById as jest.Mock).mockResolvedValue(
         mockTarget,
       );
-      (mockSignalRepository.create as jest.Mock).mockResolvedValue({
-        id: 'signal-123',
+      (mockTargetRepository.findAllActive as jest.Mock).mockResolvedValue([
+        mockTarget,
+      ]);
+      (mockLlmTierResolverService.resolveTier as jest.Mock).mockResolvedValue({
+        provider: 'openai',
+        model: 'gpt-4',
+      });
+      (mockLlmService.generateResponse as jest.Mock).mockResolvedValue({
+        content: '{"direction": "bullish", "reasoning": "positive"}',
+      });
+      (mockAnalystEnsembleService.runEnsemble as jest.Mock).mockResolvedValue({
+        aggregated: {
+          direction: 'bullish',
+          confidence: 0.8,
+          consensus_strength: 0.7,
+          reasoning: 'positive',
+        },
+        assessments: [{ key_factors: [], risks: [] }],
+      });
+      (mockPredictorRepository.create as jest.Mock).mockResolvedValue({
+        id: 'predictor-123',
       });
       (
         mockSubscriptionRepository.updateWatermark as jest.Mock
@@ -251,7 +353,7 @@ describe('ArticleProcessorService', () => {
       await service.processSubscription('sub-123');
 
       expect(mockSubscriptionRepository.updateWatermark).toHaveBeenCalledWith(
-        'sub-123',
+        mockSubscription.id,
         new Date(articleTime),
       );
     });
@@ -260,62 +362,108 @@ describe('ArticleProcessorService', () => {
       (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(
         mockSubscription,
       );
+      (mockSubscriptionRepository.findByTarget as jest.Mock).mockResolvedValue([
+        mockSubscription,
+      ]);
       (
         mockSubscriptionRepository.getNewArticles as jest.Mock
       ).mockResolvedValue([]);
       (mockTargetRepository.findById as jest.Mock).mockResolvedValue(
         mockTarget,
       );
+      (mockTargetRepository.findAllActive as jest.Mock).mockResolvedValue([
+        mockTarget,
+      ]);
 
       await service.processSubscription('sub-123');
 
       expect(mockSubscriptionRepository.updateWatermark).not.toHaveBeenCalled();
     });
 
-    it('should handle individual article processing errors', async () => {
+    it('should handle individual predictor creation errors gracefully', async () => {
       const articles = [
-        createMockArticle(),
-        createMockArticle({ id: 'article-456' }),
+        createMockArticle({
+          title: 'AAPL stock gains',
+          content: 'Apple Inc shows growth',
+        }),
+        createMockArticle({
+          id: 'article-456',
+          title: 'AAPL news error',
+          content: 'Apple stock report',
+        }),
       ];
 
       (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(
         mockSubscription,
       );
+      (mockSubscriptionRepository.findByTarget as jest.Mock).mockResolvedValue([
+        mockSubscription,
+      ]);
       (
         mockSubscriptionRepository.getNewArticles as jest.Mock
       ).mockResolvedValue(articles);
       (mockTargetRepository.findById as jest.Mock).mockResolvedValue(
         mockTarget,
       );
-      (mockSignalRepository.create as jest.Mock)
-        .mockResolvedValueOnce({ id: 'signal-123' })
+      (mockTargetRepository.findAllActive as jest.Mock).mockResolvedValue([
+        mockTarget,
+      ]);
+      (mockLlmTierResolverService.resolveTier as jest.Mock).mockResolvedValue({
+        provider: 'openai',
+        model: 'gpt-4',
+      });
+      (mockLlmService.generateResponse as jest.Mock).mockResolvedValue({
+        content: '{"direction": "bullish", "reasoning": "positive"}',
+      });
+      (mockAnalystEnsembleService.runEnsemble as jest.Mock)
+        .mockResolvedValueOnce({
+          aggregated: {
+            direction: 'bullish',
+            confidence: 0.8,
+            consensus_strength: 0.7,
+            reasoning: 'positive',
+          },
+          assessments: [{ key_factors: [], risks: [] }],
+        })
         .mockRejectedValueOnce(new Error('Database error'));
+      (mockPredictorRepository.create as jest.Mock).mockResolvedValue({
+        id: 'predictor-123',
+      });
       (
         mockSubscriptionRepository.updateWatermark as jest.Mock
       ).mockResolvedValue(undefined);
 
       const result = await service.processSubscription('sub-123');
 
-      expect(result.signals_created).toBe(1);
-      expect(result.errors).toHaveLength(1);
-      expect(result.errors[0]).toContain('article-456');
+      // Both articles are processed (no article-level errors)
+      expect(result.articles_processed).toBe(2);
+      // Predictor creation errors are logged but don't fail article processing
+      expect(result.predictors_created).toBe(1);
+      // No article-level errors
+      expect(result.errors).toHaveLength(0);
     });
 
     it('should respect limit parameter', async () => {
       (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(
         mockSubscription,
       );
+      (mockSubscriptionRepository.findByTarget as jest.Mock).mockResolvedValue([
+        mockSubscription,
+      ]);
       (
         mockSubscriptionRepository.getNewArticles as jest.Mock
       ).mockResolvedValue([]);
       (mockTargetRepository.findById as jest.Mock).mockResolvedValue(
         mockTarget,
       );
+      (mockTargetRepository.findAllActive as jest.Mock).mockResolvedValue([
+        mockTarget,
+      ]);
 
       await service.processSubscription('sub-123', 50);
 
       expect(mockSubscriptionRepository.getNewArticles).toHaveBeenCalledWith(
-        'sub-123',
+        mockSubscription.id,
         50,
       );
     });
@@ -327,25 +475,41 @@ describe('ArticleProcessorService', () => {
 
   describe('processTarget', () => {
     it('should process articles for a target across all subscriptions', async () => {
-      const articlesWithSub = [
-        { ...createMockArticle(), subscription_id: 'sub-1' },
-        {
-          ...createMockArticle({ id: 'article-456' }),
-          subscription_id: 'sub-2',
-        },
+      const articles = [
+        createMockArticle({ title: 'AAPL news' }),
+        createMockArticle({ id: 'article-456', title: 'Apple stock' }),
       ];
 
       (mockTargetRepository.findById as jest.Mock).mockResolvedValue(
         mockTarget,
       );
-      (
-        mockSubscriptionRepository.getNewArticlesForTarget as jest.Mock
-      ).mockResolvedValue(articlesWithSub);
-      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(
+      (mockTargetRepository.findAllActive as jest.Mock).mockResolvedValue([
+        mockTarget,
+      ]);
+      (mockSubscriptionRepository.findByTarget as jest.Mock).mockResolvedValue([
         mockSubscription,
-      );
-      (mockSignalRepository.create as jest.Mock).mockResolvedValue({
-        id: 'signal-123',
+      ]);
+      (
+        mockSubscriptionRepository.getNewArticles as jest.Mock
+      ).mockResolvedValue(articles);
+      (mockLlmTierResolverService.resolveTier as jest.Mock).mockResolvedValue({
+        provider: 'openai',
+        model: 'gpt-4',
+      });
+      (mockLlmService.generateResponse as jest.Mock).mockResolvedValue({
+        content: '{"direction": "bullish", "reasoning": "positive"}',
+      });
+      (mockAnalystEnsembleService.runEnsemble as jest.Mock).mockResolvedValue({
+        aggregated: {
+          direction: 'bullish',
+          confidence: 0.8,
+          consensus_strength: 0.7,
+          reasoning: 'positive',
+        },
+        assessments: [{ key_factors: [], risks: [] }],
+      });
+      (mockPredictorRepository.create as jest.Mock).mockResolvedValue({
+        id: 'predictor-123',
       });
       (
         mockSubscriptionRepository.updateWatermark as jest.Mock
@@ -356,13 +520,12 @@ describe('ArticleProcessorService', () => {
       expect(result.target_id).toBe('target-123');
       expect(result.subscription_id).toBe('all');
       expect(result.articles_processed).toBe(2);
-      expect(mockSubscriptionRepository.updateWatermark).toHaveBeenCalledTimes(
-        2,
-      );
+      expect(mockSubscriptionRepository.updateWatermark).toHaveBeenCalled();
     });
 
     it('should return error when target not found', async () => {
       (mockTargetRepository.findById as jest.Mock).mockResolvedValue(null);
+      (mockTargetRepository.findAllActive as jest.Mock).mockResolvedValue([]);
 
       const result = await service.processTarget('nonexistent');
 
@@ -370,39 +533,49 @@ describe('ArticleProcessorService', () => {
       expect(result.errors[0]).toContain('Target not found');
     });
 
-    it('should group articles by subscription for watermark updates', async () => {
-      const articlesWithSub = [
-        {
-          ...createMockArticle({ first_seen_at: '2024-01-15T12:00:00Z' }),
-          subscription_id: 'sub-1',
-        },
-        {
-          ...createMockArticle({
-            id: 'article-2',
-            first_seen_at: '2024-01-15T14:00:00Z',
-          }),
-          subscription_id: 'sub-1',
-        },
-        {
-          ...createMockArticle({
-            id: 'article-3',
-            first_seen_at: '2024-01-15T13:00:00Z',
-          }),
-          subscription_id: 'sub-2',
-        },
+    it('should update watermark with latest article time', async () => {
+      const articles = [
+        createMockArticle({
+          title: 'AAPL news',
+          first_seen_at: '2024-01-15T12:00:00Z',
+        }),
+        createMockArticle({
+          id: 'article-2',
+          title: 'Apple stock',
+          first_seen_at: '2024-01-15T14:00:00Z',
+        }),
       ];
 
       (mockTargetRepository.findById as jest.Mock).mockResolvedValue(
         mockTarget,
       );
-      (
-        mockSubscriptionRepository.getNewArticlesForTarget as jest.Mock
-      ).mockResolvedValue(articlesWithSub);
-      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(
+      (mockTargetRepository.findAllActive as jest.Mock).mockResolvedValue([
+        mockTarget,
+      ]);
+      (mockSubscriptionRepository.findByTarget as jest.Mock).mockResolvedValue([
         mockSubscription,
-      );
-      (mockSignalRepository.create as jest.Mock).mockResolvedValue({
-        id: 'signal-123',
+      ]);
+      (
+        mockSubscriptionRepository.getNewArticles as jest.Mock
+      ).mockResolvedValue(articles);
+      (mockLlmTierResolverService.resolveTier as jest.Mock).mockResolvedValue({
+        provider: 'openai',
+        model: 'gpt-4',
+      });
+      (mockLlmService.generateResponse as jest.Mock).mockResolvedValue({
+        content: '{"direction": "bullish", "reasoning": "positive"}',
+      });
+      (mockAnalystEnsembleService.runEnsemble as jest.Mock).mockResolvedValue({
+        aggregated: {
+          direction: 'bullish',
+          confidence: 0.8,
+          consensus_strength: 0.7,
+          reasoning: 'positive',
+        },
+        assessments: [{ key_factors: [], risks: [] }],
+      });
+      (mockPredictorRepository.create as jest.Mock).mockResolvedValue({
+        id: 'predictor-123',
       });
       (
         mockSubscriptionRepository.updateWatermark as jest.Mock
@@ -410,41 +583,58 @@ describe('ArticleProcessorService', () => {
 
       await service.processTarget('target-123');
 
-      // sub-1 should get the latest time (14:00)
+      // Should update watermark with latest article time (14:00)
       expect(mockSubscriptionRepository.updateWatermark).toHaveBeenCalledWith(
-        'sub-1',
+        mockSubscription.id,
         new Date('2024-01-15T14:00:00Z'),
       );
-      // sub-2 should get its own latest time (13:00)
-      expect(mockSubscriptionRepository.updateWatermark).toHaveBeenCalledWith(
-        'sub-2',
-        new Date('2024-01-15T13:00:00Z'),
-      );
     });
   });
 
   // =============================================================================
-  // KEYWORD FILTERING (passesFilters - private method tested via processSubscription)
+  // INSTRUMENT RELEVANCE (checkInstrumentMention - private method)
   // =============================================================================
 
-  describe('keyword filtering', () => {
-    it('should pass articles with include keywords', async () => {
+  describe('instrument relevance', () => {
+    it('should detect articles mentioning target symbol', async () => {
       const article = createMockArticle({
-        title: 'Stock market rally',
-        content: 'Stock prices are up',
+        title: 'AAPL stock rally',
+        content: 'Apple stock prices are up',
       });
 
       (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(
         mockSubscription,
       );
+      (mockSubscriptionRepository.findByTarget as jest.Mock).mockResolvedValue([
+        mockSubscription,
+      ]);
       (
         mockSubscriptionRepository.getNewArticles as jest.Mock
       ).mockResolvedValue([article]);
       (mockTargetRepository.findById as jest.Mock).mockResolvedValue(
         mockTarget,
       );
-      (mockSignalRepository.create as jest.Mock).mockResolvedValue({
-        id: 'signal-123',
+      (mockTargetRepository.findAllActive as jest.Mock).mockResolvedValue([
+        mockTarget,
+      ]);
+      (mockLlmTierResolverService.resolveTier as jest.Mock).mockResolvedValue({
+        provider: 'openai',
+        model: 'gpt-4',
+      });
+      (mockLlmService.generateResponse as jest.Mock).mockResolvedValue({
+        content: '{"direction": "bullish", "reasoning": "positive"}',
+      });
+      (mockAnalystEnsembleService.runEnsemble as jest.Mock).mockResolvedValue({
+        aggregated: {
+          direction: 'bullish',
+          confidence: 0.8,
+          consensus_strength: 0.7,
+          reasoning: 'positive',
+        },
+        assessments: [{ key_factors: [], risks: [] }],
+      });
+      (mockPredictorRepository.create as jest.Mock).mockResolvedValue({
+        id: 'predictor-123',
       });
       (
         mockSubscriptionRepository.updateWatermark as jest.Mock
@@ -452,110 +642,84 @@ describe('ArticleProcessorService', () => {
 
       const result = await service.processSubscription('sub-123');
 
-      expect(result.signals_created).toBe(1);
+      expect(result.predictors_created).toBe(1);
     });
 
-    it('should filter articles with exclude keywords', async () => {
+    it('should skip articles not relevant to any targets', async () => {
       const article = createMockArticle({
-        title: 'Spam stock market spam',
-        content: 'This article contains spam',
+        title: 'Weather forecast',
+        content: 'Sunny weather tomorrow',
       });
 
       (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(
         mockSubscription,
       );
-      (
-        mockSubscriptionRepository.getNewArticles as jest.Mock
-      ).mockResolvedValue([article]);
-      (mockTargetRepository.findById as jest.Mock).mockResolvedValue(
-        mockTarget,
-      );
-      (
-        mockSubscriptionRepository.updateWatermark as jest.Mock
-      ).mockResolvedValue(undefined);
-
-      const result = await service.processSubscription('sub-123');
-
-      expect(result.signals_skipped).toBe(1);
-      expect(result.signals_created).toBe(0);
-    });
-
-    it('should filter articles without any include keywords when include list is set', async () => {
-      const article = createMockArticle({
-        title: 'Weather forecast today',
-        content: 'Sunny with no clouds',
-      });
-
-      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(
+      (mockSubscriptionRepository.findByTarget as jest.Mock).mockResolvedValue([
         mockSubscription,
-      );
+      ]);
       (
         mockSubscriptionRepository.getNewArticles as jest.Mock
       ).mockResolvedValue([article]);
       (mockTargetRepository.findById as jest.Mock).mockResolvedValue(
         mockTarget,
       );
-      (
-        mockSubscriptionRepository.updateWatermark as jest.Mock
-      ).mockResolvedValue(undefined);
-
-      const result = await service.processSubscription('sub-123');
-
-      expect(result.signals_skipped).toBe(1);
-    });
-
-    it('should pass all articles when no include keywords specified', async () => {
-      const article = createMockArticle({
-        title: 'Random article',
-        content: 'Some content here',
-      });
-
-      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue({
-        ...mockSubscription,
-        filter_config: { keywords_include: [], keywords_exclude: [] },
-      });
-      (
-        mockSubscriptionRepository.getNewArticles as jest.Mock
-      ).mockResolvedValue([article]);
-      (mockTargetRepository.findById as jest.Mock).mockResolvedValue(
+      (mockTargetRepository.findAllActive as jest.Mock).mockResolvedValue([
         mockTarget,
-      );
-      (mockSignalRepository.create as jest.Mock).mockResolvedValue({
-        id: 'signal-123',
-      });
+      ]);
       (
         mockSubscriptionRepository.updateWatermark as jest.Mock
       ).mockResolvedValue(undefined);
 
       const result = await service.processSubscription('sub-123');
 
-      expect(result.signals_created).toBe(1);
+      expect(result.predictors_created).toBe(0);
     });
   });
 
   // =============================================================================
-  // SIGNAL DIRECTION INFERENCE (inferDirection - private method tested via processSubscription)
+  // DIRECTION INFERENCE (inferDirection - private method using LLM)
   // =============================================================================
 
-  describe('signal direction inference', () => {
-    it('should infer bullish direction from positive keywords', async () => {
+  describe('direction inference', () => {
+    it('should infer bullish direction using LLM', async () => {
       const article = createMockArticle({
-        title: 'Stock Surges Rally Growth',
-        content: 'Market shows bullish gains with positive outlook',
+        title: 'AAPL Stock Surges Rally Growth',
+        content: 'Apple shows strong gains with positive outlook',
       });
 
-      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue({
-        ...mockSubscription,
-        filter_config: {},
-      });
+      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(
+        mockSubscription,
+      );
+      (mockSubscriptionRepository.findByTarget as jest.Mock).mockResolvedValue([
+        mockSubscription,
+      ]);
       (
         mockSubscriptionRepository.getNewArticles as jest.Mock
       ).mockResolvedValue([article]);
       (mockTargetRepository.findById as jest.Mock).mockResolvedValue(
         mockTarget,
       );
-      (mockSignalRepository.create as jest.Mock).mockResolvedValue({
-        id: 'signal-123',
+      (mockTargetRepository.findAllActive as jest.Mock).mockResolvedValue([
+        mockTarget,
+      ]);
+      (mockLlmTierResolverService.resolveTier as jest.Mock).mockResolvedValue({
+        provider: 'openai',
+        model: 'gpt-4',
+      });
+      (mockLlmService.generateResponse as jest.Mock).mockResolvedValue({
+        content: '{"direction": "bullish", "reasoning": "positive outlook"}',
+      });
+      (mockAnalystEnsembleService.runEnsemble as jest.Mock).mockResolvedValue({
+        aggregated: {
+          direction: 'bullish',
+          confidence: 0.8,
+          consensus_strength: 0.7,
+          reasoning: 'positive',
+        },
+        assessments: [{ key_factors: [], risks: [] }],
+      });
+      (mockPredictorRepository.create as jest.Mock).mockResolvedValue({
+        id: 'predictor-123',
       });
       (
         mockSubscriptionRepository.updateWatermark as jest.Mock
@@ -563,31 +727,52 @@ describe('ArticleProcessorService', () => {
 
       await service.processSubscription('sub-123');
 
-      expect(mockSignalRepository.create).toHaveBeenCalledWith(
+      expect(mockPredictorRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({
           direction: 'bullish',
         }),
       );
     });
 
-    it('should infer bearish direction from negative keywords', async () => {
+    it('should infer bearish direction using LLM', async () => {
       const article = createMockArticle({
-        title: 'Stock Drops Fall Decline',
-        content: 'Market shows bearish losses with crash fears',
+        title: 'AAPL Stock Drops Fall Decline',
+        content: 'Apple shows losses with crash fears',
       });
 
-      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue({
-        ...mockSubscription,
-        filter_config: {},
-      });
+      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(
+        mockSubscription,
+      );
+      (mockSubscriptionRepository.findByTarget as jest.Mock).mockResolvedValue([
+        mockSubscription,
+      ]);
       (
         mockSubscriptionRepository.getNewArticles as jest.Mock
       ).mockResolvedValue([article]);
       (mockTargetRepository.findById as jest.Mock).mockResolvedValue(
         mockTarget,
       );
-      (mockSignalRepository.create as jest.Mock).mockResolvedValue({
-        id: 'signal-123',
+      (mockTargetRepository.findAllActive as jest.Mock).mockResolvedValue([
+        mockTarget,
+      ]);
+      (mockLlmTierResolverService.resolveTier as jest.Mock).mockResolvedValue({
+        provider: 'openai',
+        model: 'gpt-4',
+      });
+      (mockLlmService.generateResponse as jest.Mock).mockResolvedValue({
+        content: '{"direction": "bearish", "reasoning": "negative outlook"}',
+      });
+      (mockAnalystEnsembleService.runEnsemble as jest.Mock).mockResolvedValue({
+        aggregated: {
+          direction: 'bearish',
+          confidence: 0.8,
+          consensus_strength: 0.7,
+          reasoning: 'negative',
+        },
+        assessments: [{ key_factors: [], risks: [] }],
+      });
+      (mockPredictorRepository.create as jest.Mock).mockResolvedValue({
+        id: 'predictor-123',
       });
       (
         mockSubscriptionRepository.updateWatermark as jest.Mock
@@ -595,31 +780,52 @@ describe('ArticleProcessorService', () => {
 
       await service.processSubscription('sub-123');
 
-      expect(mockSignalRepository.create).toHaveBeenCalledWith(
+      expect(mockPredictorRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({
           direction: 'bearish',
         }),
       );
     });
 
-    it('should infer neutral direction when no clear sentiment', async () => {
+    it('should fallback to neutral when LLM fails', async () => {
       const article = createMockArticle({
-        title: 'Company Announces New Product',
-        content: 'The company released a statement today',
+        title: 'AAPL Company Announces New Product',
+        content: 'Apple released a statement today',
       });
 
-      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue({
-        ...mockSubscription,
-        filter_config: {},
-      });
+      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(
+        mockSubscription,
+      );
+      (mockSubscriptionRepository.findByTarget as jest.Mock).mockResolvedValue([
+        mockSubscription,
+      ]);
       (
         mockSubscriptionRepository.getNewArticles as jest.Mock
       ).mockResolvedValue([article]);
       (mockTargetRepository.findById as jest.Mock).mockResolvedValue(
         mockTarget,
       );
-      (mockSignalRepository.create as jest.Mock).mockResolvedValue({
-        id: 'signal-123',
+      (mockTargetRepository.findAllActive as jest.Mock).mockResolvedValue([
+        mockTarget,
+      ]);
+      (mockLlmTierResolverService.resolveTier as jest.Mock).mockResolvedValue({
+        provider: 'openai',
+        model: 'gpt-4',
+      });
+      (mockLlmService.generateResponse as jest.Mock).mockRejectedValue(
+        new Error('LLM error'),
+      );
+      (mockAnalystEnsembleService.runEnsemble as jest.Mock).mockResolvedValue({
+        aggregated: {
+          direction: 'neutral',
+          confidence: 0.8,
+          consensus_strength: 0.7,
+          reasoning: 'neutral',
+        },
+        assessments: [{ key_factors: [], risks: [] }],
+      });
+      (mockPredictorRepository.create as jest.Mock).mockResolvedValue({
+        id: 'predictor-123',
       });
       (
         mockSubscriptionRepository.updateWatermark as jest.Mock
@@ -627,7 +833,7 @@ describe('ArticleProcessorService', () => {
 
       await service.processSubscription('sub-123');
 
-      expect(mockSignalRepository.create).toHaveBeenCalledWith(
+      expect(mockPredictorRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({
           direction: 'neutral',
         }),
@@ -636,25 +842,46 @@ describe('ArticleProcessorService', () => {
   });
 
   // =============================================================================
-  // SIGNAL CREATION
+  // PREDICTOR CREATION
   // =============================================================================
 
-  describe('signal creation', () => {
-    it('should create signal with correct metadata', async () => {
-      const article = createMockArticle();
+  describe('predictor creation', () => {
+    it('should create predictor with correct metadata', async () => {
+      const article = createMockArticle({ title: 'AAPL news' });
 
-      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue({
-        ...mockSubscription,
-        filter_config: {},
-      });
+      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(
+        mockSubscription,
+      );
+      (mockSubscriptionRepository.findByTarget as jest.Mock).mockResolvedValue([
+        mockSubscription,
+      ]);
       (
         mockSubscriptionRepository.getNewArticles as jest.Mock
       ).mockResolvedValue([article]);
       (mockTargetRepository.findById as jest.Mock).mockResolvedValue(
         mockTarget,
       );
-      (mockSignalRepository.create as jest.Mock).mockResolvedValue({
-        id: 'signal-123',
+      (mockTargetRepository.findAllActive as jest.Mock).mockResolvedValue([
+        mockTarget,
+      ]);
+      (mockLlmTierResolverService.resolveTier as jest.Mock).mockResolvedValue({
+        provider: 'openai',
+        model: 'gpt-4',
+      });
+      (mockLlmService.generateResponse as jest.Mock).mockResolvedValue({
+        content: '{"direction": "bullish", "reasoning": "positive"}',
+      });
+      (mockAnalystEnsembleService.runEnsemble as jest.Mock).mockResolvedValue({
+        aggregated: {
+          direction: 'bullish',
+          confidence: 0.8,
+          consensus_strength: 0.7,
+          reasoning: 'Strong positive sentiment',
+        },
+        assessments: [{ key_factors: ['growth'], risks: ['volatility'] }],
+      });
+      (mockPredictorRepository.create as jest.Mock).mockResolvedValue({
+        id: 'predictor-123',
       });
       (
         mockSubscriptionRepository.updateWatermark as jest.Mock
@@ -662,84 +889,103 @@ describe('ArticleProcessorService', () => {
 
       await service.processSubscription('sub-123');
 
-      expect(mockSignalRepository.create).toHaveBeenCalledWith(
+      expect(mockPredictorRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({
+          article_id: 'article-123',
           target_id: 'target-123',
-          source_id: 'source-123',
-          url: 'https://example.com/article/1',
-          detected_at: '2024-01-15T12:00:00Z',
-          metadata: expect.objectContaining({
-            crawler_article_id: 'article-123',
-            headline: 'Stock Market Surges on Positive News',
-            content_hash: 'abc123hash',
-            key_phrases: ['stock market', 'positive news', 'tech stocks'],
-          }),
+          direction: 'bullish',
+          confidence: 0.8,
+          analyst_slug: 'ensemble',
         }),
       );
     });
 
-    it('should use article content for signal content', async () => {
-      const article = createMockArticle({
-        content: 'Main article content',
-        summary: 'Article summary',
-      });
+    it('should not create predictor when confidence is too low', async () => {
+      const article = createMockArticle({ title: 'AAPL news' });
 
-      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue({
-        ...mockSubscription,
-        filter_config: {},
-      });
+      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(
+        mockSubscription,
+      );
+      (mockSubscriptionRepository.findByTarget as jest.Mock).mockResolvedValue([
+        mockSubscription,
+      ]);
       (
         mockSubscriptionRepository.getNewArticles as jest.Mock
       ).mockResolvedValue([article]);
       (mockTargetRepository.findById as jest.Mock).mockResolvedValue(
         mockTarget,
       );
-      (mockSignalRepository.create as jest.Mock).mockResolvedValue({
-        id: 'signal-123',
+      (mockTargetRepository.findAllActive as jest.Mock).mockResolvedValue([
+        mockTarget,
+      ]);
+      (mockLlmTierResolverService.resolveTier as jest.Mock).mockResolvedValue({
+        provider: 'openai',
+        model: 'gpt-4',
+      });
+      (mockLlmService.generateResponse as jest.Mock).mockResolvedValue({
+        content: '{"direction": "neutral", "reasoning": "unclear"}',
+      });
+      (mockAnalystEnsembleService.runEnsemble as jest.Mock).mockResolvedValue({
+        aggregated: {
+          direction: 'neutral',
+          confidence: 0.3,
+          consensus_strength: 0.4,
+          reasoning: 'Low confidence',
+        },
+        assessments: [{ key_factors: [], risks: [] }],
       });
       (
         mockSubscriptionRepository.updateWatermark as jest.Mock
       ).mockResolvedValue(undefined);
 
-      await service.processSubscription('sub-123');
+      const result = await service.processSubscription('sub-123');
 
-      expect(mockSignalRepository.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          content: 'Main article content',
-        }),
-      );
+      expect(mockPredictorRepository.create).not.toHaveBeenCalled();
+      expect(result.predictors_created).toBe(0);
     });
 
-    it('should fallback to summary when no content', async () => {
-      const article = createMockArticle({
-        content: null,
-        summary: 'Article summary fallback',
-      });
+    it('should not create predictor when consensus is too low', async () => {
+      const article = createMockArticle({ title: 'AAPL news' });
 
-      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue({
-        ...mockSubscription,
-        filter_config: {},
-      });
+      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(
+        mockSubscription,
+      );
+      (mockSubscriptionRepository.findByTarget as jest.Mock).mockResolvedValue([
+        mockSubscription,
+      ]);
       (
         mockSubscriptionRepository.getNewArticles as jest.Mock
       ).mockResolvedValue([article]);
       (mockTargetRepository.findById as jest.Mock).mockResolvedValue(
         mockTarget,
       );
-      (mockSignalRepository.create as jest.Mock).mockResolvedValue({
-        id: 'signal-123',
+      (mockTargetRepository.findAllActive as jest.Mock).mockResolvedValue([
+        mockTarget,
+      ]);
+      (mockLlmTierResolverService.resolveTier as jest.Mock).mockResolvedValue({
+        provider: 'openai',
+        model: 'gpt-4',
+      });
+      (mockLlmService.generateResponse as jest.Mock).mockResolvedValue({
+        content: '{"direction": "bullish", "reasoning": "positive"}',
+      });
+      (mockAnalystEnsembleService.runEnsemble as jest.Mock).mockResolvedValue({
+        aggregated: {
+          direction: 'bullish',
+          confidence: 0.8,
+          consensus_strength: 0.3,
+          reasoning: 'Low consensus',
+        },
+        assessments: [{ key_factors: [], risks: [] }],
       });
       (
         mockSubscriptionRepository.updateWatermark as jest.Mock
       ).mockResolvedValue(undefined);
 
-      await service.processSubscription('sub-123');
+      const result = await service.processSubscription('sub-123');
 
-      expect(mockSignalRepository.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          content: 'Article summary fallback',
-        }),
-      );
+      expect(mockPredictorRepository.create).not.toHaveBeenCalled();
+      expect(result.predictors_created).toBe(0);
     });
   });
 });

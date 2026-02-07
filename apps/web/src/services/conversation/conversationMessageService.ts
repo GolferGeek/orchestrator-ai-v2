@@ -310,7 +310,7 @@ export class ConversationMessageService {
                   
                   // Also add full llmMetadata for compatibility
                   if (!assistantMessage.metadata.llmMetadata) {
-                    assistantMessage.metadata.llmMetadata = llm;
+                    assistantMessage.metadata.llmMetadata = llm as import('@/types').JsonObject;
                   }
                 }
                 

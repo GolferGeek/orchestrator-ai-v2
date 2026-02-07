@@ -45,6 +45,7 @@ describe('TargetRepository', () => {
       const chainableResult: Record<string, unknown> = {
         select: jest.fn(),
         eq: jest.fn(),
+        or: jest.fn(),
         order: jest.fn(),
         single: jest.fn(),
         insert: jest.fn(),
@@ -55,6 +56,7 @@ describe('TargetRepository', () => {
 
       (chainableResult.select as jest.Mock).mockReturnValue(chainableResult);
       (chainableResult.eq as jest.Mock).mockReturnValue(chainableResult);
+      (chainableResult.or as jest.Mock).mockReturnValue(chainableResult);
       (chainableResult.order as jest.Mock).mockReturnValue(chainableResult);
       (chainableResult.single as jest.Mock).mockReturnValue({
         ...chainableResult,

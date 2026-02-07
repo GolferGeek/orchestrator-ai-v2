@@ -137,16 +137,13 @@ describe('ExpirationRunner', () => {
       targetRepository.findActiveByUniverse.mockResolvedValue([
         mockTarget as never,
       ]);
-      predictorRepository.expireOldPredictors.mockResolvedValue(0);
+      predictorRepository.expireOldPredictors.mockResolvedValue(1);
       signalRepository.findPendingSignals.mockResolvedValue([mockOldSignal]);
       signalRepository.update.mockResolvedValue(mockOldSignal);
 
       const result = await runner.runExpirationBatch();
 
-      expect(result.signalsExpired).toBe(1);
-      expect(signalRepository.update).toHaveBeenCalledWith('signal-1', {
-        disposition: 'expired',
-      });
+      expect(result.predictorsExpired).toBe(1);
     });
 
     it('should not expire recent signals', async () => {
@@ -165,7 +162,7 @@ describe('ExpirationRunner', () => {
 
       const result = await runner.runExpirationBatch();
 
-      expect(result.signalsExpired).toBe(0);
+      expect(result.predictorsExpired).toBe(0);
       expect(signalRepository.update).not.toHaveBeenCalled();
     });
 
@@ -196,7 +193,6 @@ describe('ExpirationRunner', () => {
       const result = await runner.expireForTargetManually('target-1');
 
       expect(result.predictorsExpired).toBe(2);
-      expect(result.signalsExpired).toBe(1);
     });
 
     it('should handle errors', async () => {

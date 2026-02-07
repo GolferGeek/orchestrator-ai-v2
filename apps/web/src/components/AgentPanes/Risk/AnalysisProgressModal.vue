@@ -12,7 +12,7 @@
             </div>
             <div class="batch-progress-dots">
               <span
-                v-for="(subject, idx) in batchProgress.subjects"
+                v-for="subject in batchProgress.subjects"
                 :key="subject"
                 class="batch-dot"
                 :class="{

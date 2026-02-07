@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { PredictionGenerationService } from '../prediction-generation.service';
 import { PredictionRepository } from '../../repositories/prediction.repository';
 import { PortfolioRepository } from '../../repositories/portfolio.repository';
+import { TargetSnapshotRepository } from '../../repositories/target-snapshot.repository';
 import { PredictorManagementService } from '../predictor-management.service';
 import { SnapshotService } from '../snapshot.service';
 import { AnalystEnsembleService } from '../analyst-ensemble.service';
@@ -61,7 +62,7 @@ describe('PredictionGenerationService', () => {
   const mockPredictor: Predictor = {
     id: 'predictor-123',
     target_id: 'target-123',
-    signal_id: 'signal-123',
+    article_id: 'article-123',
     analyst_slug: 'technical-analyst',
     direction: 'bullish',
     strength: 8,
@@ -217,6 +218,10 @@ describe('PredictionGenerationService', () => {
           },
         },
         {
+          provide: TargetSnapshotRepository,
+          useValue: {},
+        },
+        {
           provide: PredictorManagementService,
           useValue: {
             evaluateThreshold: jest.fn(),
@@ -305,11 +310,11 @@ describe('PredictionGenerationService', () => {
       expect(result).toBeNull();
     });
 
-    it('should return existing prediction if arbitrator prediction exists and no refresh needed', async () => {
+    it('should return existing prediction if analyst prediction exists and no refresh needed', async () => {
       const existingPrediction: Prediction = {
         ...mockPrediction,
-        is_arbitrator: true,
-        analyst_slug: 'arbitrator',
+        is_arbitrator: false,
+        analyst_slug: 'technical-analyst',
       };
       predictionRepository.findByTarget.mockResolvedValue([existingPrediction]);
       predictorManagementService.evaluateThreshold.mockResolvedValue({
@@ -342,8 +347,8 @@ describe('PredictionGenerationService', () => {
       );
       predictionRepository.create.mockResolvedValue({
         ...mockPrediction,
-        is_arbitrator: true,
-        analyst_slug: 'arbitrator',
+        is_arbitrator: false,
+        analyst_slug: 'technical-analyst',
       });
 
       const result = await service.attemptPredictionGeneration(
@@ -352,7 +357,7 @@ describe('PredictionGenerationService', () => {
       );
 
       expect(result).toBeDefined();
-      expect(result?.is_arbitrator).toBe(true);
+      expect(result?.is_arbitrator).toBe(false);
       expect(predictorManagementService.consumePredictors).toHaveBeenCalled();
       expect(snapshotService.createSnapshot).toHaveBeenCalled();
     });
@@ -360,8 +365,8 @@ describe('PredictionGenerationService', () => {
     it('should refresh prediction when confidence shifts significantly', async () => {
       const existingPrediction: Prediction = {
         ...mockPrediction,
-        is_arbitrator: true,
-        analyst_slug: 'arbitrator',
+        is_arbitrator: false,
+        analyst_slug: 'technical-analyst',
         confidence: 0.5, // Low confidence, will trigger refresh
       };
       predictionRepository.findByTarget.mockResolvedValue([existingPrediction]);
@@ -397,8 +402,8 @@ describe('PredictionGenerationService', () => {
     it('should refresh prediction when direction changes', async () => {
       const existingPrediction: Prediction = {
         ...mockPrediction,
-        is_arbitrator: true,
-        analyst_slug: 'arbitrator',
+        is_arbitrator: false,
+        analyst_slug: 'technical-analyst',
         direction: 'down', // Existing direction is down
       };
       predictionRepository.findByTarget.mockResolvedValue([existingPrediction]);
@@ -429,7 +434,7 @@ describe('PredictionGenerationService', () => {
   });
 
   describe('generatePrediction', () => {
-    it('should create analyst predictions and arbitrator prediction', async () => {
+    it('should create analyst predictions with three-way fork assessments', async () => {
       targetService.findByIdOrThrow.mockResolvedValue(mockTarget);
       predictorManagementService.getActivePredictors.mockResolvedValue([
         mockPredictor,
@@ -454,10 +459,10 @@ describe('PredictionGenerationService', () => {
       );
 
       expect(result).toBeDefined();
-      expect(result.is_arbitrator).toBe(true);
-      // Should create predictions for each analyst + arbitrator
+      expect(result.is_arbitrator).toBe(false);
+      // Should create predictions for each analyst (no separate arbitrator)
       expect(predictionRepository.create).toHaveBeenCalledTimes(
-        mockEnsembleResult.assessments.length + 1,
+        mockEnsembleResult.assessments.length,
       );
     });
 
@@ -474,7 +479,7 @@ describe('PredictionGenerationService', () => {
       );
       predictionRepository.create.mockResolvedValue({
         ...mockPrediction,
-        is_arbitrator: true,
+        is_arbitrator: false,
       });
 
       await service.generatePrediction(
@@ -503,7 +508,7 @@ describe('PredictionGenerationService', () => {
       );
       predictionRepository.create.mockResolvedValue({
         ...mockPrediction,
-        is_arbitrator: true,
+        is_arbitrator: false,
       });
 
       await service.generatePrediction(
@@ -522,8 +527,8 @@ describe('PredictionGenerationService', () => {
     it('should update prediction with new values', async () => {
       const existingPrediction: Prediction = {
         ...mockPrediction,
-        is_arbitrator: true,
-        analyst_slug: 'arbitrator',
+        is_arbitrator: false,
+        analyst_slug: 'technical-analyst',
       };
       targetService.findByIdOrThrow.mockResolvedValue(mockTarget);
       predictorManagementService.getActivePredictors.mockResolvedValue([
@@ -559,8 +564,8 @@ describe('PredictionGenerationService', () => {
     it('should update analyst ensemble with version history', async () => {
       const existingPrediction: Prediction = {
         ...mockPrediction,
-        is_arbitrator: true,
-        analyst_slug: 'arbitrator',
+        is_arbitrator: false,
+        analyst_slug: 'technical-analyst',
         analyst_ensemble: {
           predictor_count: 2,
           versions: [],
@@ -620,12 +625,10 @@ describe('PredictionGenerationService', () => {
 
       await service.attemptPredictionGeneration(mockContext, 'target-123');
 
-      // Find the arbitrator prediction call
+      // Find the analyst prediction call
       const calls = predictionRepository.create.mock.calls;
-      const arbitratorCall = calls.find(
-        (call) => call[0].is_arbitrator === true,
-      );
-      expect(arbitratorCall?.[0].direction).toBe('up');
+      const analystCall = calls.find((call) => call[0].is_arbitrator === false);
+      expect(analystCall?.[0].direction).toBe('up');
     });
 
     it('should map bearish to down correctly', async () => {
@@ -650,6 +653,9 @@ describe('PredictionGenerationService', () => {
       };
       ensembleService.runThreeWayForkEnsemble.mockResolvedValue({
         ...mockThreeWayResult,
+        userForkAssessments: [bearishAssessment],
+        aiForkAssessments: [bearishAssessment],
+        arbitratorForkAssessments: [bearishAssessment],
         final: {
           ...mockEnsembleResult,
           assessments: [bearishAssessment],
@@ -671,10 +677,8 @@ describe('PredictionGenerationService', () => {
       await service.attemptPredictionGeneration(mockContext, 'target-123');
 
       const calls = predictionRepository.create.mock.calls;
-      const arbitratorCall = calls.find(
-        (call) => call[0].is_arbitrator === true,
-      );
-      expect(arbitratorCall?.[0].direction).toBe('down');
+      const analystCall = calls.find((call) => call[0].is_arbitrator === false);
+      expect(analystCall?.[0].direction).toBe('down');
     });
 
     it('should map neutral to flat correctly', async () => {
@@ -698,8 +702,16 @@ describe('PredictionGenerationService', () => {
         ...mockEnsembleResult.assessments[0]!,
         direction: 'neutral',
       };
+      // Make user fork bullish so analyst isn't filtered out (flat-only filter requires BOTH forks to be flat)
+      const bullishAssessment = {
+        ...mockEnsembleResult.assessments[0]!,
+        direction: 'bullish',
+      };
       ensembleService.runThreeWayForkEnsemble.mockResolvedValue({
         ...mockThreeWayResult,
+        userForkAssessments: [bullishAssessment], // Non-flat to avoid filtering
+        aiForkAssessments: [neutralAssessment],
+        arbitratorForkAssessments: [neutralAssessment], // This is what determines prediction direction
         final: {
           ...mockEnsembleResult,
           assessments: [neutralAssessment],
@@ -721,10 +733,8 @@ describe('PredictionGenerationService', () => {
       await service.attemptPredictionGeneration(mockContext, 'target-123');
 
       const calls = predictionRepository.create.mock.calls;
-      const arbitratorCall = calls.find(
-        (call) => call[0].is_arbitrator === true,
-      );
-      expect(arbitratorCall?.[0].direction).toBe('flat');
+      const analystCall = calls.find((call) => call[0].is_arbitrator === false);
+      expect(analystCall?.[0].direction).toBe('flat');
     });
   });
 
@@ -745,6 +755,9 @@ describe('PredictionGenerationService', () => {
       };
       ensembleService.runThreeWayForkEnsemble.mockResolvedValue({
         ...mockThreeWayResult,
+        userForkAssessments: [lowConfidenceAssessment],
+        aiForkAssessments: [lowConfidenceAssessment],
+        arbitratorForkAssessments: [lowConfidenceAssessment],
         final: {
           ...mockEnsembleResult,
           assessments: [lowConfidenceAssessment],
@@ -766,10 +779,8 @@ describe('PredictionGenerationService', () => {
       await service.attemptPredictionGeneration(mockContext, 'target-123');
 
       const calls = predictionRepository.create.mock.calls;
-      const arbitratorCall = calls.find(
-        (call) => call[0].is_arbitrator === true,
-      );
-      expect(arbitratorCall?.[0].magnitude).toBe('small');
+      const analystCall = calls.find((call) => call[0].is_arbitrator === false);
+      expect(analystCall?.[0].magnitude).toBe('small');
     });
   });
 });

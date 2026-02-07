@@ -39,6 +39,17 @@ vi.mock('@/services/conversationHelpers', () => ({
   },
 }));
 
+// Type helper for accessing internal component properties in tests
+type ConversationTabsInstance = {
+  switchToConversation: (conversationId: string) => Promise<void>;
+  closeConversation: (conversationId: string) => void;
+  shouldUseTwoPaneView: boolean;
+  handleSendMessage: (message: string) => Promise<void>;
+  activeConversation: unknown;
+  openTabs: Array<{ id: string; title: string }>;
+  $nextTick: () => Promise<void>;
+};
+
 // Create wrapper helper - uses the active Pinia instance
 const createWrapper = (pinia: ReturnType<typeof createPinia>) => {
   return mount(ConversationTabs, {
@@ -235,7 +246,7 @@ describe('ConversationTabs', () => {
         },
       ]);
 
-      await wrapper.vm.switchToConversation('conv-1');
+      await (wrapper.vm as unknown as ConversationTabsInstance).switchToConversation('conv-1');
       await wrapper.vm.$nextTick();
 
       expect(mockGetBackendConversation).toHaveBeenCalledWith('conv-1');
@@ -290,7 +301,7 @@ describe('ConversationTabs', () => {
       chatUiStore.openConversationTab('conv-1');
       await wrapper.vm.$nextTick();
 
-      wrapper.vm.closeConversation('conv-1');
+      (wrapper.vm as unknown as ConversationTabsInstance).closeConversation('conv-1');
       await wrapper.vm.$nextTick();
 
       // Conversation should still exist in store
@@ -319,7 +330,7 @@ describe('ConversationTabs', () => {
       chatUiStore.setActiveConversation('conv-1');
       await wrapper.vm.$nextTick();
 
-      expect(wrapper.vm.shouldUseTwoPaneView).toBe(true);
+      expect((wrapper.vm as unknown as ConversationTabsInstance).shouldUseTwoPaneView).toBe(true);
     });
 
     it('renders ConversationView for two-pane mode', async () => {
@@ -349,7 +360,7 @@ describe('ConversationTabs', () => {
       chatUiStore.setChatMode('converse');
       await wrapper.vm.$nextTick();
 
-      await wrapper.vm.handleSendMessage('Hello, world!');
+      await (wrapper.vm as unknown as ConversationTabsInstance).handleSendMessage('Hello, world!');
 
       expect(mockSendMessage).toHaveBeenCalledWith('Hello, world!');
     });
@@ -367,7 +378,7 @@ describe('ConversationTabs', () => {
       chatUiStore.setChatMode('plan');
       await wrapper.vm.$nextTick();
 
-      await wrapper.vm.handleSendMessage('Create a plan');
+      await (wrapper.vm as unknown as ConversationTabsInstance).handleSendMessage('Create a plan');
 
       expect(mockCreatePlan).toHaveBeenCalledWith('Create a plan');
     });
@@ -385,7 +396,7 @@ describe('ConversationTabs', () => {
       chatUiStore.setChatMode('build');
       await wrapper.vm.$nextTick();
 
-      await wrapper.vm.handleSendMessage('Build something');
+      await (wrapper.vm as unknown as ConversationTabsInstance).handleSendMessage('Build something');
 
       expect(mockCreateDeliverable).toHaveBeenCalledWith('Build something');
     });
@@ -398,7 +409,7 @@ describe('ConversationTabs', () => {
 
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-      await wrapper.vm.handleSendMessage('Hello');
+      await (wrapper.vm as unknown as ConversationTabsInstance).handleSendMessage('Hello');
 
       expect(mockSendMessage).not.toHaveBeenCalled();
       expect(consoleSpy).toHaveBeenCalledWith('Cannot send message: no active conversation');
@@ -416,7 +427,7 @@ describe('ConversationTabs', () => {
       const wrapper = createWrapper(pinia);
       await wrapper.vm.$nextTick();
 
-      expect(wrapper.vm.activeConversation).toEqual(conv);
+      expect((wrapper.vm as unknown as ConversationTabsInstance).activeConversation).toEqual(conv);
     });
 
     it('computes openTabs from chatUiStore', async () => {
@@ -431,9 +442,9 @@ describe('ConversationTabs', () => {
       const wrapper = createWrapper(pinia);
       await wrapper.vm.$nextTick();
 
-      expect(wrapper.vm.openTabs.length).toBe(2);
-      expect(wrapper.vm.openTabs[0].id).toBe('conv-1');
-      expect(wrapper.vm.openTabs[1].id).toBe('conv-2');
+      expect((wrapper.vm as unknown as ConversationTabsInstance).openTabs.length).toBe(2);
+      expect((wrapper.vm as unknown as ConversationTabsInstance).openTabs[0].id).toBe('conv-1');
+      expect((wrapper.vm as unknown as ConversationTabsInstance).openTabs[1].id).toBe('conv-2');
     });
 
     it('filters out undefined conversations from openTabs', async () => {
@@ -442,7 +453,7 @@ describe('ConversationTabs', () => {
       chatUiStore.openConversationTab('non-existent-conv');
       await wrapper.vm.$nextTick();
 
-      expect(wrapper.vm.openTabs.length).toBe(0);
+      expect((wrapper.vm as unknown as ConversationTabsInstance).openTabs.length).toBe(0);
     });
   });
 
@@ -465,7 +476,7 @@ describe('ConversationTabs', () => {
       await wrapper.vm.$nextTick();
 
       // Switch to same conversation
-      await wrapper.vm.switchToConversation('conv-1');
+      await (wrapper.vm as unknown as ConversationTabsInstance).switchToConversation('conv-1');
 
       expect(chatUiStore.activeConversationId).toBe('conv-1');
     });
@@ -482,7 +493,7 @@ describe('ConversationTabs', () => {
       // Before closing, should have active conversation
       expect(chatUiStore.activeConversationId).toBe('conv-1');
 
-      wrapper.vm.closeConversation('conv-1');
+      (wrapper.vm as unknown as ConversationTabsInstance).closeConversation('conv-1');
       await wrapper.vm.$nextTick();
 
       // After closing last tab, active conversation should be null

@@ -172,7 +172,7 @@ describe('LearningPromotionHandler', () => {
 
     handler = moduleRef.get<LearningPromotionHandler>(LearningPromotionHandler);
     promotionService = moduleRef.get(LearningPromotionService);
-    learningService = moduleRef.get(LearningService);
+    _learningService = moduleRef.get(LearningService);
     learningRepository = moduleRef.get(LearningRepository);
   });
 

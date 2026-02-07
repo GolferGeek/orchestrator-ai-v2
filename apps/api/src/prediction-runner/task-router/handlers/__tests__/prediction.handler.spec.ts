@@ -99,7 +99,7 @@ describe('PredictionHandler', () => {
 
   const mockPredictor = {
     id: 'predictor-1',
-    signal_id: 'signal-1',
+    article_id: 'article-1',
     target_id: 'target-1',
     analyst_slug: 'technical-tina',
     direction: 'bullish' as const,

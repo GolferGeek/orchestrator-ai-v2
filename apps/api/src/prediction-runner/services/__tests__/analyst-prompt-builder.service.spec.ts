@@ -180,7 +180,9 @@ describe('AnalystPromptBuilderService', () => {
 
       const result = service.buildPrompt(context);
 
-      expect(result.userPrompt).toContain('Suggested direction: bullish');
+      // Direction is no longer included in the prompt - analysts provide independent assessment
+      expect(result.userPrompt).toContain('Test signal');
+      expect(result.userPrompt).toContain('your independent assessment');
     });
 
     it('should include metadata in user prompt when provided', () => {
@@ -247,7 +249,9 @@ describe('AnalystPromptBuilderService', () => {
       const result = service.buildPrompt(context);
 
       expect(result.systemPrompt).toContain('Direction Decision Guidelines');
-      expect(result.systemPrompt).toContain('Be decisive');
+      expect(result.systemPrompt).toContain(
+        'Choose "bullish" if your analysis leans even slightly toward upside',
+      );
     });
   });
 

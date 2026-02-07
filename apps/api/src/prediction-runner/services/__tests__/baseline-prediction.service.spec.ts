@@ -96,7 +96,7 @@ describe('BaselinePredictionService', () => {
     service = module.get<BaselinePredictionService>(BaselinePredictionService);
     supabaseService = module.get(SupabaseService);
     predictionRepository = module.get(PredictionRepository);
-    targetSnapshotService = module.get(TargetSnapshotService);
+    _targetSnapshotService = module.get(TargetSnapshotService);
   });
 
   afterEach(() => {

@@ -1,8 +1,9 @@
-import type { JsonObject, JsonValue } from '@orchestrator-ai/transport-types';
+import type { JsonObject } from '@orchestrator-ai/transport-types';
 import type { AgentLLMRecommendation } from './evaluation';
 import type { SovereignPolicy } from '@/stores/privacyStore';
 
 // LLM Evaluation Types for Frontend
+// Note: JsonValue from transport-types is available but not currently used in this file
 export type AuthType = 'api_key' | 'oauth' | 'none';
 export type ProviderStatus = 'active' | 'inactive' | 'maintenance';
 export type CIDAFMCommandType = '^' | '&' | '!';

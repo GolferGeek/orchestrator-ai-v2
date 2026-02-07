@@ -833,7 +833,7 @@ const isSavingSource = ref(false);
 const isDeletingSource = ref(false);
 
 // Pipeline state
-const pipelineInProgress = ref<'crawl' | 'signals' | 'predictions' | 'full' | null>(null);
+const pipelineInProgress = ref<'crawl' | 'signals' | 'predictions' | 'articles' | 'full' | null>(null);
 const pipelineResult = ref<{
   isError: boolean;
   title: string;

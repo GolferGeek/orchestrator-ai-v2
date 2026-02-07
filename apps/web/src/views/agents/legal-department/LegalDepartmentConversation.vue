@@ -119,10 +119,7 @@
               <span>Legal Department AI Response</span>
             </div>
             <!-- eslint-disable-next-line vue/no-v-html -- Intentional: Rendering sanitized markdown/HTML content from trusted source -->
-            <div
-              class="response-content markdown-content"
-              v-html="marked(analysisResults.summary || '')"
-            ></div>
+            <div class="response-content markdown-content" v-html="marked(analysisResults.summary || '')"></div>
             <div class="response-hint">
               <ion-icon :icon="informationCircleOutline" />
               <span>Upload a document for detailed specialist analysis</span>

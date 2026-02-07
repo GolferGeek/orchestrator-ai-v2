@@ -1819,19 +1819,19 @@ const refreshDataForOrganization = async (organization: string) => {
       const filteredHierarchyResult = hierarchy
         ? filterHierarchyByOrganization(hierarchy, organization)
         : null;
-      finalHierarchy = filteredHierarchyResult as HierarchyNode | null;
+      finalHierarchy = filteredHierarchyResult as unknown as AgentHierarchyResponse | null;
     } else {
       // All-orgs mode: normalize hierarchy but don't filter
       const { normalizeHierarchyResponse } = await import('@/stores/agentsStore');
       if (hierarchy) {
         const normalized = normalizeHierarchyResponse(hierarchy);
-        finalHierarchy = { data: normalized.data, metadata: normalized.metadata } as unknown as HierarchyNode;
+        finalHierarchy = { data: normalized.data, metadata: normalized.metadata } as unknown as AgentHierarchyResponse;
       }
     }
 
     // Update store via mutations
     agentsStore.setAvailableAgents(finalAgents);
-    agentsStore.setAgentHierarchy(finalHierarchy);
+    agentsStore.setAgentHierarchy(finalHierarchy as unknown as HierarchyNode | null);
     agentsStore.setLastLoadedOrganization(organization);
     agentsStore.setLoading(false);
 

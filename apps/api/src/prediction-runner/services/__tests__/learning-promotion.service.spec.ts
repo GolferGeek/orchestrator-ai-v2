@@ -151,7 +151,7 @@ describe('LearningPromotionService', () => {
     learningRepository = module.get(LearningRepository);
     lineageRepository = module.get(LearningLineageRepository);
     auditRepository = module.get(TestAuditLogRepository);
-    supabaseService = module.get(SupabaseService);
+    _supabaseService = module.get(SupabaseService);
   });
 
   afterEach(() => {

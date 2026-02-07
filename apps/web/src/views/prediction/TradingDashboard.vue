@@ -550,7 +550,7 @@ async function confirmClosePosition() {
       await loadPortfolio();
       await loadClosedPositions();
     } else {
-      closeError.value = response.error?.message || 'Failed to close position';
+      closeError.value = 'Failed to close position';
     }
   } catch (err) {
     closeError.value = err instanceof Error ? err.message : 'Failed to close position';

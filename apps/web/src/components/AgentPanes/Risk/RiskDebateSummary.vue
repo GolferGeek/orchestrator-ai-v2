@@ -18,6 +18,7 @@
           Confidence: {{ formatPercent(blueStrengthScore) }}
         </div>
         <!-- eslint-disable-next-line vue/no-v-html -- Sanitized markdown content -->
+        <!-- eslint-disable-next-line vue/no-v-html -- Sanitized markdown content -->
         <div v-if="blueSummary" class="summary" v-html="renderMarkdown(blueSummary)"></div>
         <ul v-if="blueKeyPoints.length > 0" class="arguments-list">
           <!-- eslint-disable-next-line vue/no-v-html -- Sanitized markdown content -->
@@ -37,8 +38,8 @@
         <div v-if="redChallengesList.length > 0" class="red-section">
           <strong>Challenges:</strong>
           <ul class="arguments-list">
-            <!-- eslint-disable-next-line vue/no-v-html -- Sanitized markdown content -->
             <li v-for="(challenge, i) in redChallengesList" :key="i">
+              <!-- eslint-disable-next-line vue/no-v-html -- Sanitized markdown content -->
               <strong v-if="challenge.area">{{ challenge.area }}:</strong> <span v-html="renderMarkdown(challenge.text)"></span>
               <span v-if="challenge.severity" :class="['severity-badge', challenge.severity]">
                 {{ challenge.severity }}
@@ -79,6 +80,7 @@
           <span class="team-name">Arbiter (Synthesis)</span>
         </div>
         <!-- eslint-disable-next-line vue/no-v-html -- Sanitized markdown content -->
+        <!-- eslint-disable-next-line vue/no-v-html -- Sanitized markdown content -->
         <div v-if="arbiterSummary" class="summary" v-html="renderMarkdown(arbiterSummary)"></div>
         <div v-if="arbiterTakeaways.length > 0" class="takeaways">
           <strong>Key Takeaways:</strong>
@@ -88,8 +90,8 @@
           </ul>
         </div>
         <div v-if="arbiterRecommendation" class="recommendation">
-          <strong>Recommendation:</strong> <!-- eslint-disable-next-line vue/no-v-html -- Sanitized markdown content -->
-          <span v-html="renderMarkdown(arbiterRecommendation)"></span>
+          <!-- eslint-disable-next-line vue/no-v-html -- Sanitized markdown content -->
+          <strong>Recommendation:</strong> <span v-html="renderMarkdown(arbiterRecommendation)"></span>
         </div>
       </div>
     </div>

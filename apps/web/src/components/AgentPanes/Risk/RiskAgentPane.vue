@@ -1000,9 +1000,13 @@ async function handleTriggerDebateForSubject(subjectId: string) {
     const debate = result.content;
     console.log('[RiskAgentPane] Debate content:', debate);
     if (debate && analysisProgressRef.value) {
-      // Use adjustedScore (final score) instead of scoreAdjustment (just the adjustment)
-      // adjustedScore is the original score + adjustment, which is what we want to display
-      const finalScore = (debate.adjustedScore ?? debate.final_score ?? debate.originalScore ?? 0) as number;
+      // RiskDebate interface only has scoreAdjustment, not adjustedScore or originalScore
+      // scoreAdjustment is the adjustment amount, we need to get the base score from composite score
+      const debateObj = debate as unknown as Record<string, unknown>;
+      const scoreAdjustment = (debateObj.scoreAdjustment ?? 0) as number;
+      // Get the original composite score to calculate final score
+      const baseScore = selectedSubject.value?.compositeScore?.score ?? 0;
+      const finalScore = baseScore + scoreAdjustment;
       // Convert from 0-100 scale if needed (API may return 0-1 or 0-100)
       const displayScore = finalScore > 1 ? finalScore : finalScore * 100;
       

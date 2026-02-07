@@ -227,10 +227,12 @@ describe('ApiAgentRunnerService', () => {
           headers: expect.objectContaining({
             'X-API-Key': 'secret-key',
             'Content-Type': 'application/json',
+            'User-Agent': 'Orchestrator-AI/1.0',
           }) as Record<string, string>,
           data: undefined,
           params: {},
-          timeout: 60000, // Default timeout in implementation
+          timeout: 600000, // Default timeout in implementation (10 minutes for slow local models)
+          validateStatus: expect.any(Function) as (status: number) => boolean,
         }),
       );
 

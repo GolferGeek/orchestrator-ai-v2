@@ -93,7 +93,7 @@ describe('AlertService', () => {
     module.useLogger(false);
     service = module.get<AlertService>(AlertService);
     supabaseService = module.get(SupabaseService);
-    observabilityEventsService = module.get(ObservabilityEventsService);
+    _observabilityEventsService = module.get(ObservabilityEventsService);
   });
 
   afterEach(() => {
@@ -112,7 +112,7 @@ describe('AlertService', () => {
     it('should not create alert when below threshold', async () => {
       const belowThreshold = { ...failureContext, consecutiveErrors: 2 };
 
-      const _result = await service.checkAndCreateCrawlFailureAlert(
+      const result = await service.checkAndCreateCrawlFailureAlert(
         mockExecutionContext,
         belowThreshold,
       );
@@ -146,7 +146,7 @@ describe('AlertService', () => {
         mockClient,
       );
 
-      const _result = await service.checkAndCreateCrawlFailureAlert(
+      const result = await service.checkAndCreateCrawlFailureAlert(
         mockExecutionContext,
         failureContext,
       );
@@ -161,7 +161,7 @@ describe('AlertService', () => {
         crawl_degraded_window_hours: 12,
       };
 
-      const _result = await service.checkAndCreateCrawlFailureAlert(
+      const result = await service.checkAndCreateCrawlFailureAlert(
         mockExecutionContext,
         failureContext,
         customConfig,
@@ -221,7 +221,7 @@ describe('AlertService', () => {
     it('should not resolve if no previous errors', async () => {
       const noErrors = { ...successContext, previousConsecutiveErrors: 0 };
 
-      const _result = await service.resolveCrawlFailureAlert(
+      const result = await service.resolveCrawlFailureAlert(
         mockExecutionContext,
         noErrors,
       );
@@ -241,7 +241,7 @@ describe('AlertService', () => {
         details: { test: true },
       };
 
-      const _result = await service.createAlert(alertData);
+      const result = await service.createAlert(alertData);
 
       expect(result).toBeDefined();
       expect(supabaseService.getServiceClient).toHaveBeenCalled();
@@ -263,7 +263,7 @@ describe('AlertService', () => {
           details: {},
         };
 
-        const _result = await service.createAlert(alertData);
+        const result = await service.createAlert(alertData);
         expect(result).toBeDefined();
       }
     });
@@ -286,7 +286,7 @@ describe('AlertService', () => {
           details: {},
         };
 
-        const _result = await service.createAlert(alertData);
+        const result = await service.createAlert(alertData);
         expect(result).toBeDefined();
       }
     });
@@ -304,7 +304,7 @@ describe('AlertService', () => {
         mockClient,
       );
 
-      const _result = await service.listAlerts(mockExecutionContext);
+      const result = await service.listAlerts(mockExecutionContext);
 
       expect(Array.isArray(result)).toBe(true);
     });
@@ -356,7 +356,7 @@ describe('AlertService', () => {
 
   describe('getAlertById', () => {
     it('should get alert by ID', async () => {
-      const _result = await service.getAlertById('alert-123');
+      const result = await service.getAlertById('alert-123');
       expect(result).toBeDefined();
     });
 
@@ -377,7 +377,7 @@ describe('AlertService', () => {
 
   describe('acknowledgeAlert', () => {
     it('should acknowledge an alert', async () => {
-      const _result = await service.acknowledgeAlert(
+      const result = await service.acknowledgeAlert(
         mockExecutionContext,
         'alert-123',
       );
@@ -389,7 +389,7 @@ describe('AlertService', () => {
 
   describe('resolveAlert', () => {
     it('should resolve an alert', async () => {
-      const _result = await service.resolveAlert(
+      const result = await service.resolveAlert(
         mockExecutionContext,
         'alert-123',
       );
@@ -399,7 +399,7 @@ describe('AlertService', () => {
     });
 
     it('should resolve an alert with resolution note', async () => {
-      const _result = await service.resolveAlert(
+      const result = await service.resolveAlert(
         mockExecutionContext,
         'alert-123',
         'Issue was resolved manually',
@@ -427,7 +427,7 @@ describe('AlertService', () => {
         mockClient,
       );
 
-      const _result = await service.getAlertCounts();
+      const result = await service.getAlertCounts();
 
       expect(result).toHaveProperty('active');
       expect(result).toHaveProperty('acknowledged');
@@ -450,7 +450,7 @@ describe('AlertService', () => {
         mockClient,
       );
 
-      const _result = await service.getActiveAlertsForUniverse('universe-123');
+      const result = await service.getActiveAlertsForUniverse('universe-123');
 
       expect(Array.isArray(result)).toBe(true);
     });

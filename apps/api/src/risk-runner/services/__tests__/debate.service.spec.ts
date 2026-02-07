@@ -189,11 +189,11 @@ describe('DebateService', () => {
     rejected_challenges: ['VIX overstatement claim'],
     adjustment_reasoning: 'Earnings event risk warrants +5 adjustment.',
     confidence_level: 0.75,
+    recommended_adjustment: 5,
     key_takeaways: [
       'Monitor earnings date closely',
       'VIX remains valid signal',
     ],
-    recommended_adjustment: 5,
   };
 
   const mockDebate: RiskDebate = {
@@ -298,10 +298,72 @@ describe('DebateService', () => {
         },
       );
 
+      // Mock LLM responses in Markdown format (not JSON)
+      const blueMarkdown = `## Summary
+The risk assessment is well-founded based on current market conditions.
+
+## Key Findings
+- Market volatility is elevated
+- Fundamentals remain solid
+
+## Evidence Cited
+- VIX at 25
+- PE ratio reasonable
+
+## Confidence Explanation
+High confidence due to multiple confirming signals.`;
+
+      const redMarkdown = `## Challenges
+
+### Challenge 1
+- **Dimension:** market
+- **Challenge:** VIX may be overstated as a risk signal
+- **Evidence:** VIX historically mean-reverts
+- **Suggested Adjustment:** -5
+
+## Blind Spots
+- Earnings announcement in 2 weeks
+
+## Alternative Scenarios
+
+### Scenario 1
+- **Name:** Earnings surprise
+- **Description:** Positive earnings could reduce risk significantly
+- **Probability:** 0.3
+- **Impact on Score:** -15
+
+## Overstated Risks
+- Market volatility
+
+## Understated Risks
+- Event risk from earnings`;
+
+      const arbiterMarkdown = `## Final Assessment
+The risk score should be adjusted moderately higher.
+
+## Accepted Challenges
+- Event risk from earnings is understated
+
+## Rejected Challenges
+- VIX overstatement claim
+
+## Adjustment Reasoning
+Earnings event risk warrants +5 adjustment.
+
+## Recommended Adjustment
+5
+
+## Confidence Level
+0.75
+
+## Key Takeaways
+- Monitor earnings date closely
+- VIX remains valid signal`;
+
       llmService.generateResponse
-        .mockResolvedValueOnce(JSON.stringify(mockBlueAssessment))
-        .mockResolvedValueOnce(JSON.stringify(mockRedChallenges))
-        .mockResolvedValueOnce(JSON.stringify(mockArbiterSynthesis));
+        .mockResolvedValueOnce(blueMarkdown)
+        .mockResolvedValueOnce(redMarkdown)
+        .mockResolvedValueOnce(arbiterMarkdown);
 
       scoreAggregation.applyDebateAdjustment.mockReturnValue(70);
       compositeScoreRepo.update.mockResolvedValue(mockCompositeScore);
@@ -392,16 +454,72 @@ describe('DebateService', () => {
         },
       );
 
-      // Arbiter suggests extreme adjustment
-      const extremeArbiter = {
-        ...mockArbiterSynthesis,
-        recommended_adjustment: 100, // Way above allowed range
-      };
+      // Mock LLM responses in Markdown format with extreme adjustment
+      const blueMarkdown = `## Summary
+The risk assessment is well-founded based on current market conditions.
+
+## Key Findings
+- Market volatility is elevated
+- Fundamentals remain solid
+
+## Evidence Cited
+- VIX at 25
+- PE ratio reasonable
+
+## Confidence Explanation
+High confidence due to multiple confirming signals.`;
+
+      const redMarkdown = `## Challenges
+
+### Challenge 1
+- **Dimension:** market
+- **Challenge:** VIX may be overstated as a risk signal
+- **Evidence:** VIX historically mean-reverts
+- **Suggested Adjustment:** -5
+
+## Blind Spots
+- Earnings announcement in 2 weeks
+
+## Alternative Scenarios
+
+### Scenario 1
+- **Name:** Earnings surprise
+- **Description:** Positive earnings could reduce risk significantly
+- **Probability:** 0.3
+- **Impact on Score:** -15
+
+## Overstated Risks
+- Market volatility
+
+## Understated Risks
+- Event risk from earnings`;
+
+      const extremeArbiterMarkdown = `## Final Assessment
+The risk score should be adjusted significantly higher.
+
+## Accepted Challenges
+- Event risk from earnings is understated
+
+## Rejected Challenges
+- VIX overstatement claim
+
+## Adjustment Reasoning
+Major adjustment needed due to severe underestimation.
+
+## Recommended Adjustment
+100
+
+## Confidence Level
+0.75
+
+## Key Takeaways
+- Monitor earnings date closely
+- VIX remains valid signal`;
 
       llmService.generateResponse
-        .mockResolvedValueOnce(JSON.stringify(mockBlueAssessment))
-        .mockResolvedValueOnce(JSON.stringify(mockRedChallenges))
-        .mockResolvedValueOnce(JSON.stringify(extremeArbiter));
+        .mockResolvedValueOnce(blueMarkdown)
+        .mockResolvedValueOnce(redMarkdown)
+        .mockResolvedValueOnce(extremeArbiterMarkdown);
 
       scoreAggregation.applyDebateAdjustment.mockImplementation(
         (original, adj) => Math.min(100, Math.max(0, original + adj)),

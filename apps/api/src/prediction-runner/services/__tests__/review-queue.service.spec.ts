@@ -126,7 +126,7 @@ describe('ReviewQueueService', () => {
     service = module.get<ReviewQueueService>(ReviewQueueService);
     supabaseService = module.get(SupabaseService);
     signalRepository = module.get(SignalRepository);
-    predictorRepository = module.get(PredictorRepository);
+    _predictorRepository = module.get(PredictorRepository);
     learningQueueService = module.get(LearningQueueService);
   });
 

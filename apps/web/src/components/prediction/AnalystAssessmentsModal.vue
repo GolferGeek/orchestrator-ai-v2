@@ -57,6 +57,7 @@
                   <span class="direction-text">{{ formatDirection(analyst.arbitratorFork.direction) }}</span>
                   <span class="confidence-badge">{{ Math.round(analyst.arbitratorFork.confidence * 100) }}%</span>
                 </div>
+                <!-- eslint-disable-next-line vue/no-v-html -- Sanitized markdown content -->
                 <div v-if="analyst.arbitratorFork.reasoning" class="fork-reasoning" v-html="renderMarkdownWithDiff(analyst.arbitratorFork.reasoning, [analyst.userFork?.reasoning, analyst.aiFork?.reasoning], 'highlight-arbitrator')"></div>
               </div>
             </div>
@@ -75,6 +76,7 @@
                   <span class="direction-text">{{ formatDirection(analyst.userFork.direction) }}</span>
                   <span class="confidence-badge">{{ Math.round(analyst.userFork.confidence * 100) }}%</span>
                 </div>
+                <!-- eslint-disable-next-line vue/no-v-html -- Sanitized markdown content -->
                 <div v-if="analyst.userFork.reasoning" class="fork-reasoning" v-html="renderMarkdownWithDiff(analyst.userFork.reasoning, [analyst.aiFork?.reasoning, analyst.arbitratorFork?.reasoning], 'highlight-user')"></div>
               </div>
             </div>
@@ -93,6 +95,7 @@
                   <span class="direction-text">{{ formatDirection(analyst.aiFork.direction) }}</span>
                   <span class="confidence-badge">{{ Math.round(analyst.aiFork.confidence * 100) }}%</span>
                 </div>
+                <!-- eslint-disable-next-line vue/no-v-html -- Sanitized markdown content -->
                 <div v-if="analyst.aiFork.reasoning" class="fork-reasoning" v-html="renderMarkdownWithDiff(analyst.aiFork.reasoning, [analyst.userFork?.reasoning, analyst.arbitratorFork?.reasoning], 'highlight-ai')"></div>
               </div>
             </div>
@@ -109,6 +112,7 @@
                   <span class="direction-text">{{ formatDirection(analyst.direction) }}</span>
                   <span class="confidence-badge">{{ Math.round(analyst.confidence * 100) }}%</span>
                 </div>
+                <!-- eslint-disable-next-line vue/no-v-html -- Sanitized markdown content -->
                 <div v-if="analyst.reasoning" class="fork-reasoning" v-html="renderMarkdown(analyst.reasoning)"></div>
               </div>
             </div>
@@ -144,7 +148,6 @@ import {
 } from 'ionicons/icons';
 import { ref, watch } from 'vue';
 import { marked } from 'marked';
-import * as Diff from 'diff';
 import { predictionDashboardService } from '@/services/predictionDashboardService';
 
 // Configure marked for safe rendering

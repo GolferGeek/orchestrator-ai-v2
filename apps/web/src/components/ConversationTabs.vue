@@ -60,7 +60,7 @@ import { sendMessage as sendMessageAction, createPlan, createDeliverable } from 
 import { conversation as conversationHelpers } from '@/services/conversationHelpers';
 import AgentChatView from './AgentChatView.vue';
 import ConversationView from './ConversationView.vue';
-import type { AgentConversation } from '@/types/conversation';
+import type { AgentConversation, Agent } from '@/types/conversation';
 // const route = useRoute();
 const conversationsStore = useConversationsStore();
 const chatUiStore = useChatUiStore();
@@ -123,7 +123,7 @@ const switchToConversation = async (conversationId: string) => {
     const agent = {
       ...foundAgent,
       type: foundAgent.type || 'custom'
-    };
+    } as Agent;
 
     // Create the conversation object
     const createdAt = backendConversation.createdAt ? new Date(backendConversation.createdAt) : new Date();

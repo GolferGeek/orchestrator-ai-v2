@@ -169,7 +169,7 @@ describe('SignalDetectionService', () => {
       ensembleService.runEnsemble.mockResolvedValue(createMockEnsembleResult());
       predictorRepository.create.mockResolvedValue({
         id: 'predictor-123',
-        signal_id: mockSignal.id,
+        article_id: null,
         target_id: mockSignal.target_id,
         direction: 'bullish',
         strength: 8,

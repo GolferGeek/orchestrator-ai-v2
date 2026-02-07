@@ -133,7 +133,7 @@ describe('DailyMissInvestigationRunner', () => {
     missInvestigationService = module.get(MissInvestigationService);
     sourceResearchService = module.get(SourceResearchService);
     learningQueueRepository = module.get(LearningQueueRepository);
-    supabaseService = module.get(SupabaseService);
+    _supabaseService = module.get(SupabaseService);
   });
 
   afterEach(() => {

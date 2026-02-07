@@ -201,9 +201,9 @@ describe('HistoricalReplayService', () => {
     module.useLogger(false);
     service = module.get<HistoricalReplayService>(HistoricalReplayService);
     replayTestRepository = module.get(ReplayTestRepository);
-    predictionRepository = module.get(PredictionRepository);
+    _predictionRepository = module.get(PredictionRepository);
     analystRepository = module.get(AnalystRepository);
-    universeRepository = module.get(UniverseRepository);
+    _universeRepository = module.get(UniverseRepository);
     signalRepository = module.get(SignalRepository);
     predictorRepository = module.get(PredictorRepository);
     learningRepository = module.get(LearningRepository);
@@ -541,7 +541,7 @@ describe('HistoricalReplayService', () => {
       predictorRepository.findByIds.mockResolvedValue([
         {
           id: 'pred-1',
-          signal_id: 'sig-1',
+          article_id: 'article-1',
           target_id: 'target-123',
           direction: 'bullish',
           strength: 7,
@@ -565,7 +565,7 @@ describe('HistoricalReplayService', () => {
         },
         {
           id: 'pred-2',
-          signal_id: 'sig-2',
+          article_id: 'article-2',
           target_id: 'target-456',
           direction: 'bearish',
           strength: 6,
@@ -637,7 +637,7 @@ describe('HistoricalReplayService', () => {
       predictorRepository.findByIds.mockResolvedValue([
         {
           id: 'pred-1',
-          signal_id: 'sig-1',
+          article_id: 'article-1',
           target_id: 'target-123',
           direction: 'bullish',
           strength: 7,

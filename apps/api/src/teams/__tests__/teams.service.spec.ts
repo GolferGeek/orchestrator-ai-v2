@@ -12,22 +12,46 @@ describe('TeamsService', () => {
 
   beforeEach(async () => {
     // Create fresh mock for each test
-    // The supabase client has a complex chaining API:
-    // - Some queries end with .single() which returns a promise
-    // - Some queries end with .eq() which can also return a promise (for count queries)
-    // - Some queries end with .order() which returns a promise
-    // We need single() to be both a function that can be chained AND return a promise
+    // The supabase client has a complex chaining API where methods return 'this' for chaining
+    // EXCEPT terminal methods (.single(), .then()) which return promises
+    //
+    // Common patterns:
+    // 1. .from().select().eq().single() - get one row
+    // 2. .from().select().eq() - count query (eq returns promise with count)
+    // 3. .from().insert().select().single() - insert and return
+    // 4. .from().update().eq().select().single() - update and return
+    //
+    // The challenge: when tests use mockResolvedValueOnce on .eq(), it breaks the chain
+    // Solution: Always keep .eq() returning 'this', only mock .single() return values
     mockSupabaseClient = {
-      from: jest.fn().mockReturnThis(),
-      select: jest.fn().mockReturnThis(),
-      insert: jest.fn().mockReturnThis(),
-      update: jest.fn().mockReturnThis(),
-      delete: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockReturnThis(), // Returns this for chaining, but can be overridden
-      is: jest.fn().mockReturnThis(),
-      in: jest.fn().mockReturnThis(),
-      order: jest.fn().mockReturnThis(),
-      single: jest.fn().mockReturnThis(), // Returns this for chaining
+      from: jest.fn(function (this: any) {
+        return this;
+      }),
+      select: jest.fn(function (this: any) {
+        return this;
+      }),
+      insert: jest.fn(function (this: any) {
+        return this;
+      }),
+      update: jest.fn(function (this: any) {
+        return this;
+      }),
+      delete: jest.fn(function (this: any) {
+        return this;
+      }),
+      eq: jest.fn(function (this: any) {
+        return this;
+      }),
+      is: jest.fn(function (this: any) {
+        return this;
+      }),
+      in: jest.fn(function (this: any) {
+        return this;
+      }),
+      order: jest.fn(function (this: any) {
+        return this;
+      }),
+      single: jest.fn(),
       rpc: jest.fn(),
     };
 
@@ -207,13 +231,18 @@ describe('TeamsService', () => {
         },
       ];
 
+      // First query: .from('teams').select('*').eq('org_slug', orgSlug).order('name')
+      // .eq() must return this for .order() to work
+      mockSupabaseClient.eq.mockImplementationOnce(function (this: any) {
+        return this;
+      });
       mockSupabaseClient.order.mockResolvedValueOnce({
         data: mockTeams,
         error: null,
       });
 
-      // Member count query ends with .eq()
-      mockSupabaseClient.eq.mockResolvedValue({
+      // Second query: member count - .eq() returns promise with count
+      mockSupabaseClient.eq.mockResolvedValueOnce({
         data: null,
         error: null,
         count: 3,
@@ -251,13 +280,17 @@ describe('TeamsService', () => {
         updated_at: '2024-01-01T00:00:00Z',
       };
 
-      // First call: get team (ends with .single())
+      // First query: .from('teams').select('*').eq('id', teamId).single()
+      // .eq() must return this for .single() to work
+      mockSupabaseClient.eq.mockImplementationOnce(function (this: any) {
+        return this;
+      });
       mockSupabaseClient.single.mockResolvedValueOnce({
         data: mockTeam,
         error: null,
       });
 
-      // Second call: get member count (ends with .eq())
+      // Second query: .from('team_members').select(...).eq('team_id', teamId)
       mockSupabaseClient.eq.mockResolvedValueOnce({
         data: null,
         error: null,
@@ -459,19 +492,25 @@ describe('TeamsService', () => {
         description: updates.description,
       };
 
-      // First call: getTeamById - get team (ends with .single())
+      // First query: getTeamById - .eq() must return this for .single() to work
+      mockSupabaseClient.eq.mockImplementationOnce(function (this: any) {
+        return this;
+      });
       mockSupabaseClient.single.mockResolvedValueOnce({
         data: mockTeam,
         error: null,
       });
-      // Second call: getTeamById - get member count (ends with .eq())
+      // Second query: getTeamById - member count
       mockSupabaseClient.eq.mockResolvedValueOnce({
         data: null,
         error: null,
         count: 5,
       });
       rbacService.isAdmin.mockResolvedValue(true);
-      // Third call: update (ends with .single())
+      // Third query: update - .eq() must return this for .select() and .single() to work
+      mockSupabaseClient.eq.mockImplementationOnce(function (this: any) {
+        return this;
+      });
       mockSupabaseClient.single.mockResolvedValueOnce({
         data: mockUpdatedTeam,
         error: null,
@@ -501,16 +540,25 @@ describe('TeamsService', () => {
         name: updates.name,
       };
 
+      // First query: getTeamById - .eq() must return this for .single() to work
+      mockSupabaseClient.eq.mockImplementationOnce(function (this: any) {
+        return this;
+      });
       mockSupabaseClient.single.mockResolvedValueOnce({
         data: mockTeam,
         error: null,
       });
+      // Second query: getTeamById - member count
       mockSupabaseClient.eq.mockResolvedValueOnce({
         data: null,
         error: null,
         count: 2,
       });
       rbacService.isAdmin.mockResolvedValue(true);
+      // Third query: update - .eq() must return this for .select() and .single() to work
+      mockSupabaseClient.eq.mockImplementationOnce(function (this: any) {
+        return this;
+      });
       mockSupabaseClient.single.mockResolvedValueOnce({
         data: mockUpdatedTeam,
         error: null,
@@ -532,10 +580,15 @@ describe('TeamsService', () => {
         updated_at: '2024-01-01T00:00:00Z',
       };
 
+      // First query: getTeamById - .eq() must return this for .single() to work
+      mockSupabaseClient.eq.mockImplementationOnce(function (this: any) {
+        return this;
+      });
       mockSupabaseClient.single.mockResolvedValueOnce({
         data: mockTeam,
         error: null,
       });
+      // Second query: getTeamById - member count
       mockSupabaseClient.eq.mockResolvedValueOnce({
         data: null,
         error: null,
@@ -558,16 +611,25 @@ describe('TeamsService', () => {
         updated_at: '2024-01-01T00:00:00Z',
       };
 
+      // First query: getTeamById - .eq() must return this for .single() to work
+      mockSupabaseClient.eq.mockImplementationOnce(function (this: any) {
+        return this;
+      });
       mockSupabaseClient.single.mockResolvedValueOnce({
         data: mockTeam,
         error: null,
       });
+      // Second query: getTeamById - member count
       mockSupabaseClient.eq.mockResolvedValueOnce({
         data: null,
         error: null,
         count: 0,
       });
       rbacService.isAdmin.mockResolvedValue(true);
+      // Third query: update - .eq() must return this for .select() and .single() to work
+      mockSupabaseClient.eq.mockImplementationOnce(function (this: any) {
+        return this;
+      });
       mockSupabaseClient.single.mockResolvedValueOnce({
         data: null,
         error: { code: '23505', message: 'Duplicate' },
@@ -594,16 +656,22 @@ describe('TeamsService', () => {
         updated_at: '2024-01-01T00:00:00Z',
       };
 
+      // First query: getTeamById - .eq() must return this for .single() to work
+      mockSupabaseClient.eq.mockImplementationOnce(function (this: any) {
+        return this;
+      });
       mockSupabaseClient.single.mockResolvedValueOnce({
         data: mockTeam,
         error: null,
       });
+      // Second query: getTeamById - member count
       mockSupabaseClient.eq.mockResolvedValueOnce({
         data: null,
         error: null,
         count: 0,
       });
       rbacService.isAdmin.mockResolvedValue(true);
+      // Third query: delete - .eq() returns promise
       mockSupabaseClient.eq.mockResolvedValueOnce({ data: null, error: null });
 
       await service.deleteTeam(teamId, userId);
@@ -621,10 +689,15 @@ describe('TeamsService', () => {
         updated_at: '2024-01-01T00:00:00Z',
       };
 
+      // First query: getTeamById - .eq() must return this for .single() to work
+      mockSupabaseClient.eq.mockImplementationOnce(function (this: any) {
+        return this;
+      });
       mockSupabaseClient.single.mockResolvedValueOnce({
         data: mockTeam,
         error: null,
       });
+      // Second query: getTeamById - member count
       mockSupabaseClient.eq.mockResolvedValueOnce({
         data: null,
         error: null,
@@ -647,16 +720,22 @@ describe('TeamsService', () => {
         updated_at: '2024-01-01T00:00:00Z',
       };
 
+      // First query: getTeamById - .eq() must return this for .single() to work
+      mockSupabaseClient.eq.mockImplementationOnce(function (this: any) {
+        return this;
+      });
       mockSupabaseClient.single.mockResolvedValueOnce({
         data: mockTeam,
         error: null,
       });
+      // Second query: getTeamById - member count
       mockSupabaseClient.eq.mockResolvedValueOnce({
         data: null,
         error: null,
         count: 0,
       });
       rbacService.isAdmin.mockResolvedValue(true);
+      // Third query: delete - .eq() returns promise with error
       mockSupabaseClient.eq.mockResolvedValueOnce({
         data: null,
         error: { message: 'Delete failed' },
@@ -786,11 +865,15 @@ describe('TeamsService', () => {
         display_name: 'User Name',
       };
 
-      // getTeamById calls
+      // First query: getTeamById - .eq() must return this for .single() to work
+      mockSupabaseClient.eq.mockImplementationOnce(function (this: any) {
+        return this;
+      });
       mockSupabaseClient.single.mockResolvedValueOnce({
         data: mockTeam,
         error: null,
       });
+      // Second query: getTeamById - member count
       mockSupabaseClient.eq.mockResolvedValueOnce({
         data: null,
         error: null,
@@ -805,12 +888,15 @@ describe('TeamsService', () => {
           isGlobal: false,
         },
       ]);
-      // insert member
+      // Third query: insert member
       mockSupabaseClient.single.mockResolvedValueOnce({
         data: mockMember,
         error: null,
       });
-      // get user details
+      // Fourth query: get user details - .eq() must return this for .single() to work
+      mockSupabaseClient.eq.mockImplementationOnce(function (this: any) {
+        return this;
+      });
       mockSupabaseClient.single.mockResolvedValueOnce({
         data: mockUser,
         error: null,
@@ -850,19 +936,29 @@ describe('TeamsService', () => {
         display_name: 'User Name',
       };
 
+      // First query: getTeamById - .eq() must return this for .single() to work
+      mockSupabaseClient.eq.mockImplementationOnce(function (this: any) {
+        return this;
+      });
       mockSupabaseClient.single.mockResolvedValueOnce({
         data: mockTeam,
         error: null,
       });
+      // Second query: getTeamById - member count
       mockSupabaseClient.eq.mockResolvedValueOnce({
         data: null,
         error: null,
         count: 1,
       });
       rbacService.isAdmin.mockResolvedValue(true);
+      // Third query: insert member
       mockSupabaseClient.single.mockResolvedValueOnce({
         data: mockMember,
         error: null,
+      });
+      // Fourth query: get user details - .eq() must return this for .single() to work
+      mockSupabaseClient.eq.mockImplementationOnce(function (this: any) {
+        return this;
       });
       mockSupabaseClient.single.mockResolvedValueOnce({
         data: mockUser,
@@ -901,10 +997,15 @@ describe('TeamsService', () => {
         display_name: 'User Name',
       };
 
+      // First query: getTeamById - .eq() must return this for .single() to work
+      mockSupabaseClient.eq.mockImplementationOnce(function (this: any) {
+        return this;
+      });
       mockSupabaseClient.single.mockResolvedValueOnce({
         data: mockTeam,
         error: null,
       });
+      // Second query: getTeamById - member count
       mockSupabaseClient.eq.mockResolvedValueOnce({
         data: null,
         error: null,
@@ -919,9 +1020,14 @@ describe('TeamsService', () => {
           isGlobal: true, // Global role
         },
       ]);
+      // Third query: insert member
       mockSupabaseClient.single.mockResolvedValueOnce({
         data: mockMember,
         error: null,
+      });
+      // Fourth query: get user details - .eq() must return this for .single() to work
+      mockSupabaseClient.eq.mockImplementationOnce(function (this: any) {
+        return this;
       });
       mockSupabaseClient.single.mockResolvedValueOnce({
         data: mockUser,
@@ -943,10 +1049,15 @@ describe('TeamsService', () => {
         updated_at: '2024-01-01T00:00:00Z',
       };
 
+      // First query: getTeamById - .eq() must return this for .single() to work
+      mockSupabaseClient.eq.mockImplementationOnce(function (this: any) {
+        return this;
+      });
       mockSupabaseClient.single.mockResolvedValueOnce({
         data: mockTeam,
         error: null,
       });
+      // Second query: getTeamById - member count
       mockSupabaseClient.eq.mockResolvedValueOnce({
         data: null,
         error: null,
@@ -974,10 +1085,15 @@ describe('TeamsService', () => {
         updated_at: '2024-01-01T00:00:00Z',
       };
 
+      // First query: getTeamById - .eq() must return this for .single() to work
+      mockSupabaseClient.eq.mockImplementationOnce(function (this: any) {
+        return this;
+      });
       mockSupabaseClient.single.mockResolvedValueOnce({
         data: mockTeam,
         error: null,
       });
+      // Second query: getTeamById - member count
       mockSupabaseClient.eq.mockResolvedValueOnce({
         data: null,
         error: null,
@@ -1013,10 +1129,15 @@ describe('TeamsService', () => {
         updated_at: '2024-01-01T00:00:00Z',
       };
 
+      // First query: getTeamById - .eq() must return this for .single() to work
+      mockSupabaseClient.eq.mockImplementationOnce(function (this: any) {
+        return this;
+      });
       mockSupabaseClient.single.mockResolvedValueOnce({
         data: mockTeam,
         error: null,
       });
+      // Second query: getTeamById - member count
       mockSupabaseClient.eq.mockResolvedValueOnce({
         data: null,
         error: null,
@@ -1031,6 +1152,7 @@ describe('TeamsService', () => {
           isGlobal: false,
         },
       ]);
+      // Third query: insert member - fails with duplicate error
       mockSupabaseClient.single.mockResolvedValueOnce({
         data: null,
         error: { code: '23505', message: 'Duplicate' },
@@ -1074,19 +1196,36 @@ describe('TeamsService', () => {
         display_name: 'User Name',
       };
 
+      // First query: getTeamById - .eq() must return this for .single() to work
+      mockSupabaseClient.eq.mockImplementationOnce(function (this: any) {
+        return this;
+      });
       mockSupabaseClient.single.mockResolvedValueOnce({
         data: mockTeam,
         error: null,
       });
+      // Second query: getTeamById - member count
       mockSupabaseClient.eq.mockResolvedValueOnce({
         data: null,
         error: null,
         count: 0,
       });
       rbacService.isAdmin.mockResolvedValue(true);
+      // Third query: update - first .eq('team_id') must return this for second .eq('user_id') to chain
+      mockSupabaseClient.eq.mockImplementationOnce(function (this: any) {
+        return this;
+      });
+      // Fourth query: update - second .eq('user_id') must return this for .select() and .single() to chain
+      mockSupabaseClient.eq.mockImplementationOnce(function (this: any) {
+        return this;
+      });
       mockSupabaseClient.single.mockResolvedValueOnce({
         data: mockMember,
         error: null,
+      });
+      // Fifth query: get user details - .eq() must return this for .single() to work
+      mockSupabaseClient.eq.mockImplementationOnce(function (this: any) {
+        return this;
       });
       mockSupabaseClient.single.mockResolvedValueOnce({
         data: mockUser,
@@ -1114,10 +1253,15 @@ describe('TeamsService', () => {
         updated_at: '2024-01-01T00:00:00Z',
       };
 
+      // First query: getTeamById - .eq() must return this for .single() to work
+      mockSupabaseClient.eq.mockImplementationOnce(function (this: any) {
+        return this;
+      });
       mockSupabaseClient.single.mockResolvedValueOnce({
         data: mockTeam,
         error: null,
       });
+      // Second query: getTeamById - member count
       mockSupabaseClient.eq.mockResolvedValueOnce({
         data: null,
         error: null,
@@ -1145,16 +1289,29 @@ describe('TeamsService', () => {
         updated_at: '2024-01-01T00:00:00Z',
       };
 
+      // First query: getTeamById - .eq() must return this for .single() to work
+      mockSupabaseClient.eq.mockImplementationOnce(function (this: any) {
+        return this;
+      });
       mockSupabaseClient.single.mockResolvedValueOnce({
         data: mockTeam,
         error: null,
       });
+      // Second query: getTeamById - member count
       mockSupabaseClient.eq.mockResolvedValueOnce({
         data: null,
         error: null,
         count: 0,
       });
       rbacService.isAdmin.mockResolvedValue(true);
+      // Third query: update - first .eq('team_id') must return this for second .eq('user_id') to chain
+      mockSupabaseClient.eq.mockImplementationOnce(function (this: any) {
+        return this;
+      });
+      // Fourth query: update - second .eq('user_id') must return this for .select() and .single() to chain
+      mockSupabaseClient.eq.mockImplementationOnce(function (this: any) {
+        return this;
+      });
       mockSupabaseClient.single.mockResolvedValueOnce({
         data: null,
         error: { message: 'Not found' },
@@ -1185,16 +1342,26 @@ describe('TeamsService', () => {
         updated_at: '2024-01-01T00:00:00Z',
       };
 
+      // First query: getTeamById - .eq() must return this for .single() to work
+      mockSupabaseClient.eq.mockImplementationOnce(function (this: any) {
+        return this;
+      });
       mockSupabaseClient.single.mockResolvedValueOnce({
         data: mockTeam,
         error: null,
       });
+      // Second query: getTeamById - member count
       mockSupabaseClient.eq.mockResolvedValueOnce({
         data: null,
         error: null,
         count: 0,
       });
       rbacService.isAdmin.mockResolvedValue(true);
+      // Third query: delete - first .eq('team_id') must return this for second .eq('user_id') to chain
+      mockSupabaseClient.eq.mockImplementationOnce(function (this: any) {
+        return this;
+      });
+      // Fourth query: delete - second .eq('user_id') returns promise
       mockSupabaseClient.eq.mockResolvedValueOnce({ data: null, error: null });
 
       await service.removeTeamMember(teamId, userId, removedBy);
@@ -1214,16 +1381,26 @@ describe('TeamsService', () => {
         updated_at: '2024-01-01T00:00:00Z',
       };
 
+      // First query: getTeamById - .eq() must return this for .single() to work
+      mockSupabaseClient.eq.mockImplementationOnce(function (this: any) {
+        return this;
+      });
       mockSupabaseClient.single.mockResolvedValueOnce({
         data: mockTeam,
         error: null,
       });
+      // Second query: getTeamById - member count
       mockSupabaseClient.eq.mockResolvedValueOnce({
         data: null,
         error: null,
         count: 0,
       });
       rbacService.isAdmin.mockResolvedValue(false);
+      // Third query: delete - first .eq('team_id') must return this for second .eq('user_id') to chain
+      mockSupabaseClient.eq.mockImplementationOnce(function (this: any) {
+        return this;
+      });
+      // Fourth query: delete - second .eq('user_id') returns promise
       mockSupabaseClient.eq.mockResolvedValueOnce({ data: null, error: null });
 
       await service.removeTeamMember(teamId, userId, userId);
@@ -1241,10 +1418,15 @@ describe('TeamsService', () => {
         updated_at: '2024-01-01T00:00:00Z',
       };
 
+      // First query: getTeamById - .eq() must return this for .single() to work
+      mockSupabaseClient.eq.mockImplementationOnce(function (this: any) {
+        return this;
+      });
       mockSupabaseClient.single.mockResolvedValueOnce({
         data: mockTeam,
         error: null,
       });
+      // Second query: getTeamById - member count
       mockSupabaseClient.eq.mockResolvedValueOnce({
         data: null,
         error: null,
@@ -1267,16 +1449,26 @@ describe('TeamsService', () => {
         updated_at: '2024-01-01T00:00:00Z',
       };
 
+      // First query: getTeamById - .eq() must return this for .single() to work
+      mockSupabaseClient.eq.mockImplementationOnce(function (this: any) {
+        return this;
+      });
       mockSupabaseClient.single.mockResolvedValueOnce({
         data: mockTeam,
         error: null,
       });
+      // Second query: getTeamById - member count
       mockSupabaseClient.eq.mockResolvedValueOnce({
         data: null,
         error: null,
         count: 0,
       });
       rbacService.isAdmin.mockResolvedValue(true);
+      // Third query: delete - first .eq('team_id') must return this for second .eq('user_id') to chain
+      mockSupabaseClient.eq.mockImplementationOnce(function (this: any) {
+        return this;
+      });
+      // Fourth query: delete - second .eq('user_id') returns promise with error
       mockSupabaseClient.eq.mockResolvedValueOnce({
         data: null,
         error: { message: 'Delete failed' },

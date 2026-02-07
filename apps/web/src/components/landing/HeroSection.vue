@@ -56,7 +56,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
-import { IonIcon, IonCard, IonCardHeader, IonCardTitle, IonCardContent, IonButton } from '@ionic/vue';
+import { IonCard, IonCardHeader, IonCardTitle, IonCardContent, IonButton } from '@ionic/vue';
 import { useLandingStore } from '@/stores/landingStore';
 import { useRouter } from 'vue-router';
 import VideoPlayer from './VideoPlayer.vue';

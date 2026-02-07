@@ -123,7 +123,7 @@ describe('AgentSelfImprovementService', () => {
       AgentSelfImprovementService,
     );
     portfolioRepository = module.get(PortfolioRepository);
-    analystRepository = module.get(AnalystRepository);
+    _analystRepository = module.get(AnalystRepository);
     motivationService = module.get(AnalystMotivationService);
   });
 

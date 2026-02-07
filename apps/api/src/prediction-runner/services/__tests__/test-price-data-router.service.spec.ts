@@ -81,7 +81,7 @@ describe('TestPriceDataRouterService', () => {
       TestPriceDataRouterService,
     );
     testPriceDataService = module.get(TestPriceDataService);
-    testPriceDataRepository = module.get(TestPriceDataRepository);
+    _testPriceDataRepository = module.get(TestPriceDataRepository);
   });
 
   afterEach(() => {

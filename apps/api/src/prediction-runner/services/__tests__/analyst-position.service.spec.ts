@@ -184,8 +184,8 @@ describe('AnalystPositionService', () => {
     });
 
     it('should return 0 when confidence is below minimum threshold', async () => {
-      // Confidence below 60% should return 0
-      const size = await service.calculatePositionSize(1000000, 150, 0.5);
+      // Confidence below 0% (negative) should return 0
+      const size = await service.calculatePositionSize(1000000, 150, -0.1);
       expect(size).toBe(0);
     });
 

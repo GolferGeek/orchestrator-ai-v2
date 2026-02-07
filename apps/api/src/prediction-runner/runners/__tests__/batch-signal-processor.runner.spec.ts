@@ -131,8 +131,8 @@ describe('BatchSignalProcessorRunner', () => {
 
     runner = module.get<BatchSignalProcessorRunner>(BatchSignalProcessorRunner);
     signalRepository = module.get(SignalRepository);
-    targetRepository = module.get(TargetRepository);
-    universeRepository = module.get(UniverseRepository);
+    _targetRepository = module.get(TargetRepository);
+    _universeRepository = module.get(UniverseRepository);
     signalDetectionService = module.get(SignalDetectionService);
     fastPathService = module.get(FastPathService);
   });

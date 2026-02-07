@@ -592,7 +592,7 @@ const viewDeliverable = async (deliverable: Record<string, unknown>) => {
         const result = await conversationLoadingService.loadConversationFromQuery(
           existingConversationId,
           router,
-          { name: route.name, params: route.params, query: route.query }
+          { name: route.name as string, params: route.params, query: route.query }
         );
         
         if (!result.success) {
@@ -703,7 +703,7 @@ const editDeliverable = async (deliverable: Record<string, unknown>) => {
         const result = await conversationLoadingService.loadConversationFromQuery(
           existingConversationId,
           router,
-          { name: route.name, params: route.params, query: route.query }
+          { name: route.name as string, params: route.params, query: route.query }
         );
         
         if (!result.success) {
@@ -972,7 +972,7 @@ const getContentPreview = (content: string, format?: string): string => {
       const parsed = JSON.parse(content);
       if (typeof parsed === 'object' && parsed !== null) {
         // Format JSON nicely
-        const formatted = JSON.stringify(parsed, null, 2);
+        const _formatted = JSON.stringify(parsed, null, 2);
         // For preview, show a summary instead of raw JSON
         if (parsed.success !== undefined || parsed.statusCode !== undefined) {
           // API response - show key info

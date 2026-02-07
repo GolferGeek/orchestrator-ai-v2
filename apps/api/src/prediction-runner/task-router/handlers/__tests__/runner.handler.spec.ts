@@ -19,6 +19,7 @@ import { RunnerHandler } from '../runner.handler';
 import { OutcomeTrackingRunner } from '../../../runners/outcome-tracking.runner';
 import { BaselinePredictionRunner } from '../../../runners/baseline-prediction.runner';
 import { BatchSignalProcessorRunner } from '../../../runners/batch-signal-processor.runner';
+import { ArticleProcessorService } from '../../../services/article-processor.service';
 import { TargetSnapshotService } from '../../../services/target-snapshot.service';
 import { TargetRepository } from '../../../repositories/target.repository';
 import { UniverseRepository } from '../../../repositories/universe.repository';
@@ -31,7 +32,7 @@ describe('RunnerHandler', () => {
   let handler: RunnerHandler;
   let outcomeTrackingRunner: jest.Mocked<OutcomeTrackingRunner>;
   let baselinePredictionRunner: jest.Mocked<BaselinePredictionRunner>;
-  let batchSignalProcessorRunner: jest.Mocked<BatchSignalProcessorRunner>;
+  let articleProcessorService: jest.Mocked<ArticleProcessorService>;
   let targetSnapshotService: jest.Mocked<TargetSnapshotService>;
   let targetRepository: jest.Mocked<TargetRepository>;
   let universeRepository: jest.Mocked<UniverseRepository>;
@@ -142,6 +143,12 @@ describe('RunnerHandler', () => {
           useValue: mockBatchSignalProcessorRunner,
         },
         {
+          provide: ArticleProcessorService,
+          useValue: {
+            processAllTargets: jest.fn(),
+          },
+        },
+        {
           provide: TargetSnapshotService,
           useValue: mockTargetSnapshotService,
         },
@@ -159,7 +166,7 @@ describe('RunnerHandler', () => {
     handler = moduleRef.get<RunnerHandler>(RunnerHandler);
     outcomeTrackingRunner = moduleRef.get(OutcomeTrackingRunner);
     baselinePredictionRunner = moduleRef.get(BaselinePredictionRunner);
-    batchSignalProcessorRunner = moduleRef.get(BatchSignalProcessorRunner);
+    articleProcessorService = moduleRef.get(ArticleProcessorService);
     targetSnapshotService = moduleRef.get(TargetSnapshotService);
     targetRepository = moduleRef.get(TargetRepository);
     universeRepository = moduleRef.get(UniverseRepository);
@@ -497,16 +504,14 @@ describe('RunnerHandler', () => {
 
   describe('execute - processSignals action', () => {
     it('should process signals for all targets', async () => {
+      // processSignals now redirects to processArticles
       const mockResult = {
-        processed: 10,
-        predictorsCreated: 5,
-        rejected: 3,
-        fastPathTriggered: 2,
-        errors: 0,
+        articles_processed: 10,
+        predictors_created: 5,
+        targets_affected: 3,
+        errors: [],
       };
-      batchSignalProcessorRunner.runBatchProcessing.mockResolvedValue(
-        mockResult,
-      );
+      articleProcessorService.processAllTargets.mockResolvedValue(mockResult);
 
       const payload: DashboardRequestPayload = {
         action: 'processSignals',
@@ -519,28 +524,27 @@ describe('RunnerHandler', () => {
       );
 
       expect(result.success).toBe(true);
-      expect(batchSignalProcessorRunner.runBatchProcessing).toHaveBeenCalled();
+      expect(articleProcessorService.processAllTargets).toHaveBeenCalled();
       const data = result.data as {
         action: string;
-        processed: number;
+        articlesProcessed: number;
         predictorsCreated: number;
       };
-      expect(data.action).toBe('processSignals');
-      expect(data.processed).toBe(10);
+      expect(data.action).toBe('processArticles');
+      expect(data.articlesProcessed).toBe(10);
       expect(data.predictorsCreated).toBe(5);
     });
 
     it('should process signals for specific target', async () => {
+      // processSignals no longer supports targetId, it processes all targets
+      // This test verifies that it still works (ignores the targetId param)
       const mockResult = {
-        processed: 1,
-        predictorsCreated: 1,
-        rejected: 0,
-        fastPathTriggered: 0,
-        errors: 0,
+        articles_processed: 10,
+        predictors_created: 5,
+        targets_affected: 3,
+        errors: [],
       };
-      batchSignalProcessorRunner.processTargetManually.mockResolvedValue(
-        mockResult,
-      );
+      articleProcessorService.processAllTargets.mockResolvedValue(mockResult);
 
       const payload: DashboardRequestPayload = {
         action: 'processSignals',
@@ -553,15 +557,19 @@ describe('RunnerHandler', () => {
       );
 
       expect(result.success).toBe(true);
-      expect(
-        batchSignalProcessorRunner.processTargetManually,
-      ).toHaveBeenCalledWith('target-1');
-      const data = result.data as { targetId: string };
-      expect(data.targetId).toBe('target-1');
+      expect(articleProcessorService.processAllTargets).toHaveBeenCalled();
+      const data = result.data as {
+        action: string;
+        articlesProcessed: number;
+        predictorsCreated: number;
+      };
+      expect(data.action).toBe('processArticles');
+      expect(data.articlesProcessed).toBe(10);
+      expect(data.predictorsCreated).toBe(5);
     });
 
     it('should handle process signals service error', async () => {
-      batchSignalProcessorRunner.runBatchProcessing.mockRejectedValue(
+      articleProcessorService.processAllTargets.mockRejectedValue(
         new Error('Processing error'),
       );
 
@@ -576,7 +584,7 @@ describe('RunnerHandler', () => {
       );
 
       expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('PROCESS_SIGNALS_FAILED');
+      expect(result.error?.code).toBe('PROCESS_ARTICLES_FAILED');
       expect(result.error?.message).toContain('Processing error');
     });
   });

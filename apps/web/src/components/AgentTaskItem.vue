@@ -511,7 +511,9 @@ const llmUsed = computed<LLMDisplayInfo | null>(() => {
   // Check multiple possible locations for LLM metadata
   const llmMetadata = isJsonObject(metadata.llmMetadata) ? metadata.llmMetadata : undefined;
   const llmUsedMetadata = isJsonObject(metadata.llmUsed) ? metadata.llmUsed : undefined;
-  const llmFromDeliverable = isJsonObject(metadata.llm) ? metadata.llm : undefined; // From deliverable version metadata
+  const metadataAsRecord = metadata as unknown as Record<string, unknown>;
+  const llmCandidate = metadataAsRecord.llm as JsonValue | undefined;
+  const llmFromDeliverable = isJsonObject(llmCandidate) ? llmCandidate : undefined; // From deliverable version metadata
   
   const selection = getJsonObject(llmMetadata, 'originalLLMSelection')
     ?? getJsonObject(llmUsedMetadata, 'originalLLMSelection')

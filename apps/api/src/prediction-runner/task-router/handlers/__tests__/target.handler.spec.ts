@@ -12,6 +12,8 @@
 import { Test } from '@nestjs/testing';
 import { TargetHandler } from '../target.handler';
 import { TargetService } from '../../../services/target.service';
+import { TargetSnapshotService } from '../../../services/target-snapshot.service';
+import { TargetRepository } from '../../../repositories/target.repository';
 import {
   ExecutionContext,
   DashboardRequestPayload,
@@ -74,6 +76,14 @@ describe('TargetHandler', () => {
         {
           provide: TargetService,
           useValue: mockTargetService,
+        },
+        {
+          provide: TargetSnapshotService,
+          useValue: {},
+        },
+        {
+          provide: TargetRepository,
+          useValue: {},
         },
       ],
     }).compile();

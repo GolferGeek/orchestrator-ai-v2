@@ -42,8 +42,8 @@ describe('LLMPreferencesStore - Agent Local Model Requirement', () => {
       providerName: 'ollama',
       pricingInputPer1k: 0,
       pricingOutputPer1k: 0,
-      isEnabled: true,
-      modelType: 'text-generation',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     },
     {
       name: 'GPT-4o',
@@ -51,8 +51,8 @@ describe('LLMPreferencesStore - Agent Local Model Requirement', () => {
       providerName: 'openai',
       pricingInputPer1k: 0.005,
       pricingOutputPer1k: 0.015,
-      isEnabled: true,
-      modelType: 'text-generation',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     },
     {
       name: 'Claude Sonnet',
@@ -60,8 +60,8 @@ describe('LLMPreferencesStore - Agent Local Model Requirement', () => {
       providerName: 'anthropic',
       pricingInputPer1k: 0.003,
       pricingOutputPer1k: 0.015,
-      isEnabled: true,
-      modelType: 'text-generation',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     },
   ];
 
