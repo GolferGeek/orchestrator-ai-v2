@@ -96,7 +96,7 @@ export class PredictorReaderRepository {
       // Fetch article data for predictors with article_id
       const articleIds = data
         .filter((p) => p.article_id)
-        .map((p) => p.article_id);
+        .map((p) => p.article_id as string);
 
       let articlesMap: Map<
         string,
@@ -112,7 +112,14 @@ export class PredictorReaderRepository {
 
         if (!articlesError && articles) {
           articlesMap = new Map(
-            articles.map((a) => [
+            (
+              articles as Array<{
+                id: string;
+                title: string;
+                url: string;
+                content: string;
+              }>
+            ).map((a) => [
               a.id,
               { title: a.title, url: a.url, content: a.content },
             ]),
@@ -121,7 +128,7 @@ export class PredictorReaderRepository {
       }
 
       // Fetch target symbols for context
-      const targetIds = [...new Set(data.map((p) => p.target_id))];
+      const targetIds = [...new Set(data.map((p) => p.target_id as string))];
       let targetsMap: Map<string, string> = new Map();
 
       if (targetIds.length > 0) {
@@ -132,27 +139,32 @@ export class PredictorReaderRepository {
           .in('id', targetIds);
 
         if (!targetsError && targets) {
-          targetsMap = new Map(targets.map((t) => [t.id, t.symbol]));
+          targetsMap = new Map(
+            (targets as Array<{ id: string; symbol: string }>).map((t) => [
+              t.id,
+              t.symbol,
+            ]),
+          );
         }
       }
 
       // Combine data
       return data.map((p) => {
         const article = p.article_id
-          ? articlesMap.get(p.article_id)
+          ? articlesMap.get(p.article_id as string)
           : undefined;
         return {
-          id: p.id,
-          article_id: p.article_id,
-          target_id: p.target_id,
-          target_symbol: targetsMap.get(p.target_id),
-          direction: p.direction,
-          strength: p.strength,
-          confidence: p.confidence,
-          reasoning: p.reasoning,
-          analyst_slug: p.analyst_slug,
-          analyst_assessment: p.analyst_assessment,
-          created_at: p.created_at,
+          id: p.id as string,
+          article_id: p.article_id as string | null,
+          target_id: p.target_id as string,
+          target_symbol: targetsMap.get(p.target_id as string),
+          direction: p.direction as string,
+          strength: p.strength as number,
+          confidence: p.confidence as number,
+          reasoning: p.reasoning as string | null,
+          analyst_slug: p.analyst_slug as string,
+          analyst_assessment: p.analyst_assessment as string | null,
+          created_at: p.created_at as string,
           article_title: article?.title,
           article_url: article?.url,
           article_content: article?.content,
@@ -240,7 +252,7 @@ export class PredictorReaderRepository {
       // Fetch article data
       const articleIds = data
         .filter((p) => p.article_id)
-        .map((p) => p.article_id);
+        .map((p) => p.article_id as string);
       let articlesMap: Map<
         string,
         { title: string; url: string; content: string }
@@ -255,7 +267,14 @@ export class PredictorReaderRepository {
 
         if (!articlesError && articles) {
           articlesMap = new Map(
-            articles.map((a) => [
+            (
+              articles as Array<{
+                id: string;
+                title: string;
+                url: string;
+                content: string;
+              }>
+            ).map((a) => [
               a.id,
               { title: a.title, url: a.url, content: a.content },
             ]),
@@ -265,20 +284,21 @@ export class PredictorReaderRepository {
 
       return data.map((p) => {
         const article = p.article_id
-          ? articlesMap.get(p.article_id)
+          ? articlesMap.get(p.article_id as string)
           : undefined;
         return {
-          id: p.id,
-          article_id: p.article_id,
-          target_id: p.target_id,
+          id: p.id as string,
+          article_id: p.article_id as string | null,
+          target_id: p.target_id as string,
           target_symbol: targetSymbol,
-          direction: p.direction,
-          strength: p.strength,
-          confidence: p.confidence,
-          reasoning: p.reasoning,
-          analyst_slug: p.analyst_slug,
-          analyst_assessment: p.analyst_assessment,
-          created_at: p.created_at,
+          direction: p.direction as string,
+          strength: p.strength as number,
+          confidence: p.confidence as number,
+          reasoning: p.reasoning as string | null,
+          analyst_slug: p.analyst_slug as string,
+          analyst_assessment:
+            p.analyst_assessment as PredictorForRisk['analyst_assessment'],
+          created_at: p.created_at as string,
           article_title: article?.title,
           article_url: article?.url,
           article_content: article?.content,

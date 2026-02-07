@@ -70,6 +70,31 @@ class MarketingSwarmService {
   private sseClient: SSEClient | null = null;
   private sseCleanup: (() => void)[] = [];
   /**
+   * Fetch LLM configurations for a specific agent
+   */
+  async getAgentLLMConfigs(agentSlug: string): Promise<Array<{
+    llmProvider: string;
+    llmModel: string;
+    displayName: string | null;
+    isDefault: boolean;
+    isLocal: boolean;
+  }>> {
+    try {
+      const response = await apiService.get<Array<{
+        llmProvider: string;
+        llmModel: string;
+        displayName: string | null;
+        isDefault: boolean;
+        isLocal: boolean;
+      }>>(`/marketing/agents/${agentSlug}/llm-configs`);
+      return response;
+    } catch (error) {
+      console.error(`Failed to fetch LLM configs for agent ${agentSlug}:`, error);
+      throw error;
+    }
+  }
+
+  /**
    * Fetch all configuration data in a single request
    * Uses the /api/marketing/config endpoint which returns all data efficiently
    *

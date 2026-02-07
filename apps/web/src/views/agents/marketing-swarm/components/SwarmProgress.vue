@@ -146,7 +146,7 @@
           <div v-for="finalist in finalists" :key="finalist.id" class="finalist-card">
             <ion-badge :color="getRankColor(finalist.rank)">#{{ finalist.rank }}</ion-badge>
             <span class="finalist-agent">{{ finalist.writerAgentSlug }}</span>
-            <span class="finalist-score">{{ finalist.avgScore.toFixed(1) }}/10</span>
+            <span class="finalist-score">{{ finalist.avgScore?.toFixed(1) || 'N/A' }}/10</span>
           </div>
         </div>
       </ion-card-content>
@@ -637,29 +637,38 @@ function getRankColor(rank: number): string {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
+.output-card.pending {
+  background-color: #fffef0; /* Very light yellow */
+  border-color: #fff9c4;
+}
+
 .output-card.processing {
-  border-color: var(--ion-color-primary);
+  background-color: #fffef0; /* Very light yellow */
+  border-color: #fff9c4;
   animation: pulse 1.5s infinite;
 }
 
 .output-card.completed {
-  border-color: var(--ion-color-success);
+  background-color: #e8f5e9; /* Very light green */
+  border-color: #c8e6c9;
 }
 
 .output-card.max-cycles {
-  border-color: var(--ion-color-warning);
+  background-color: #fffef0; /* Very light yellow (treat as warning, not failure) */
+  border-color: #fff9c4;
 }
 
 .output-card.failed {
-  border-color: var(--ion-color-danger);
+  background-color: #ffebee; /* Very light red/pink */
+  border-color: #ffcdd2;
 }
 
 @keyframes pulse {
   0%, 100% {
-    box-shadow: 0 0 0 0 rgba(var(--ion-color-primary-rgb), 0.4);
+    box-shadow: 0 0 0 0 rgba(255, 254, 240, 0.5); /* Very light yellow shadow */
   }
   50% {
-    box-shadow: 0 0 0 8px rgba(var(--ion-color-primary-rgb), 0);
+    box-shadow: 0 0 0 8px rgba(255, 254, 240, 0);
   }
 }
 

@@ -202,11 +202,9 @@ function handleRestart() {
 onMounted(async () => {
   console.log('[CadAgentTab] Mounted with conversation:', props.conversation?.id);
 
-  // TODO: Load any existing task state from conversation
-  // If conversation has a task, restore it
+  // Load existing task state from conversation (restore deliverables, progress, etc.)
   if (props.conversation?.id) {
-    // Check for existing CAD tasks
-    console.log('[CadAgentTab] Would load tasks for conversation:', props.conversation.id);
+    await cadAgentService.loadConversationState(props.conversation.id);
   }
 });
 
@@ -217,12 +215,12 @@ onUnmounted(() => {
   cadAgentService.disconnectSSEStream();
 });
 
-// Watch for conversation changes
+// Watch for conversation changes - restore state for the new conversation
 watch(() => props.conversation?.id, async (newId) => {
   if (newId) {
     console.log('[CadAgentTab] Conversation changed:', newId);
-    store.resetTaskState();
-    // TODO: Load state for new conversation
+    // loadConversationState calls resetTaskState internally before loading
+    await cadAgentService.loadConversationState(newId);
   }
 });
 </script>

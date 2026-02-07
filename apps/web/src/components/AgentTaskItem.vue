@@ -508,22 +508,32 @@ const llmUsed = computed<LLMDisplayInfo | null>(() => {
     return null;
   }
 
+  // Check multiple possible locations for LLM metadata
   const llmMetadata = isJsonObject(metadata.llmMetadata) ? metadata.llmMetadata : undefined;
   const llmUsedMetadata = isJsonObject(metadata.llmUsed) ? metadata.llmUsed : undefined;
+  const llmFromDeliverable = isJsonObject(metadata.llm) ? metadata.llm : undefined; // From deliverable version metadata
+  
   const selection = getJsonObject(llmMetadata, 'originalLLMSelection')
     ?? getJsonObject(llmUsedMetadata, 'originalLLMSelection')
     ?? llmMetadata
-    ?? llmUsedMetadata;
+    ?? llmUsedMetadata
+    ?? llmFromDeliverable; // Also check deliverable's llm field
 
+  // Try to extract provider from various locations
   const providerName = metadata.provider
+    ?? getJsonString(llmFromDeliverable, 'provider') // Check deliverable's llm.provider first
     ?? getJsonString(selection, 'providerName')
     ?? getJsonString(selection, 'provider')
+    ?? getJsonString(llmMetadata, 'provider')
     ?? getJsonString(llmMetadata, 'provider_name')
     ?? 'Unknown Provider';
 
+  // Try to extract model from various locations
   const modelName = metadata.model
+    ?? getJsonString(llmFromDeliverable, 'model') // Check deliverable's llm.model first
     ?? getJsonString(selection, 'modelName')
     ?? getJsonString(selection, 'model')
+    ?? getJsonString(llmMetadata, 'model')
     ?? getJsonString(llmMetadata, 'model_name')
     ?? 'Unknown Model';
 

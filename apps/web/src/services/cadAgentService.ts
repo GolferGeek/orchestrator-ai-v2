@@ -28,6 +28,7 @@ import type {
 import { a2aOrchestrator } from './agent2agent/orchestrator/a2a-orchestrator';
 import { useExecutionContextStore } from '@/stores/executionContextStore';
 import { SSEClient } from './agent2agent/sse/sseClient';
+import { tasksService } from './tasksService';
 
 /**
  * Get auth token from storage
@@ -55,6 +56,7 @@ const API_BASE_URL = API_PORT ? `http://localhost:${API_PORT}` : '';
 if (!API_PORT) {
   console.error('VITE_API_PORT must be set in environment');
 }
+
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -706,6 +708,181 @@ class CadAgentService {
       throw error;
     } finally {
       store.setLoading(false);
+    }
+  }
+
+  // ==========================================================================
+  // CONVERSATION STATE RESTORATION
+  // ==========================================================================
+
+  /**
+   * Load existing task state for a conversation.
+   * Used when switching to an existing conversation to restore the UI state.
+   *
+   * The task response is deeply nested:
+   * response.payload.content.deliverable.currentVersion.content (JSON string)
+   * which contains: { data: { data: { outputs, meshStats, generatedCode, status } } }
+   *
+   * Flow:
+   * 1. Query tasks API by conversationId
+   * 2. For each task, extract CAD data from the deeply nested response
+   * 3. Restore store state (outputs, code, meshStats)
+   * 4. Set appropriate view (deliverables/progress/config)
+   */
+  async loadConversationState(conversationId: string): Promise<void> {
+    const store = useCadAgentStore();
+    store.resetTaskState();
+
+    try {
+      // Step 1: Query tasks for this conversation
+      const tasksResponse = await tasksService.listTasks({
+        conversationId,
+        limit: 10,
+      });
+
+      console.log('[CAD Agent] Tasks for conversation:', tasksResponse.tasks.length);
+
+      if (tasksResponse.tasks.length === 0) {
+        store.setUIView('config');
+        return;
+      }
+
+      // Step 2: Try each task to find one with actual CAD data
+      for (const task of tasksResponse.tasks) {
+        console.log('[CAD Agent] Checking task:', task.id, 'status:', task.status);
+
+        if (!task.response) continue;
+
+        // Extract CAD data from the deeply nested A2A response structure
+        const cadData = this.extractCadDataFromResponse(task.response);
+
+        if (cadData) {
+          console.log('[CAD Agent] Found CAD data:', {
+            hasOutputs: !!cadData.outputs,
+            hasMeshStats: !!cadData.meshStats,
+            hasCode: !!cadData.generatedCode,
+            status: cadData.status,
+          });
+
+          // Restore store state
+          store.setCurrentTaskId(task.id);
+
+          if (cadData.outputs) {
+            store.setOutputs(cadData.outputs);
+          }
+          if (cadData.meshStats) {
+            store.setMeshStats(cadData.meshStats);
+          }
+          if (cadData.generatedCode) {
+            store.setGeneratedCode(cadData.generatedCode);
+          }
+
+          // Set view based on task status and available data
+          if (task.status === 'completed' && cadData.outputs) {
+            store.setUIView('deliverables');
+          } else if (task.status === 'running') {
+            store.setUIView('progress');
+            this.connectToSSEStream(conversationId);
+          } else if (task.status === 'failed') {
+            store.setError(task.errorMessage || 'Previous generation failed');
+            store.setUIView('config');
+          } else if (cadData.outputs) {
+            store.setUIView('deliverables');
+          } else {
+            store.setUIView('config');
+          }
+
+          return; // Successfully restored
+        }
+
+        // No CAD data in response - check task status as fallback
+        if (task.status === 'running') {
+          store.setCurrentTaskId(task.id);
+          store.setUIView('progress');
+          this.connectToSSEStream(conversationId);
+          return;
+        } else if (task.status === 'failed') {
+          store.setCurrentTaskId(task.id);
+          store.setError(task.errorMessage || 'Previous generation failed');
+          store.setUIView('config');
+          return;
+        }
+      }
+
+      // No usable tasks found
+      store.setUIView('config');
+    } catch (err) {
+      console.error('[CAD Agent] Failed to load conversation state:', err);
+      store.setUIView('config');
+    }
+  }
+
+  /**
+   * Extract CAD-specific data from the deeply nested A2A task response.
+   *
+   * Response structure:
+   * {
+   *   success: true,
+   *   payload: {
+   *     content: {
+   *       deliverable: {
+   *         currentVersion: {
+   *           content: "<JSON string>" // Contains { data: { data: { outputs, meshStats, ... } } }
+   *         }
+   *       }
+   *     }
+   *   }
+   * }
+   */
+  private extractCadDataFromResponse(responseStr: string): {
+    outputs?: CadOutputs;
+    meshStats?: MeshStats;
+    generatedCode?: string;
+    status?: string;
+  } | null {
+    try {
+      const response = JSON.parse(responseStr);
+
+      // Check if the task succeeded
+      if (response.success === false) return null;
+
+      // Navigate the nested deliverable structure
+      const deliverableContent = response?.payload?.content?.deliverable?.currentVersion?.content;
+
+      if (deliverableContent) {
+        // Content is a JSON string that needs a second parse
+        const parsed = typeof deliverableContent === 'string'
+          ? JSON.parse(deliverableContent)
+          : deliverableContent;
+
+        // Navigate to the CAD data: { data: { data: { outputs, meshStats, ... } } }
+        const cadData = parsed?.data?.data || parsed?.data || parsed;
+
+        if (cadData.outputs || cadData.generatedCode || cadData.meshStats) {
+          return {
+            outputs: cadData.outputs || undefined,
+            meshStats: cadData.meshStats || undefined,
+            generatedCode: cadData.generatedCode || undefined,
+            status: cadData.status || undefined,
+          };
+        }
+      }
+
+      // Fallback: try simpler response structures
+      const simpleData = response?.data?.data || response?.data || response;
+      if (simpleData.outputs || simpleData.generatedCode) {
+        return {
+          outputs: simpleData.outputs || undefined,
+          meshStats: simpleData.meshStats || undefined,
+          generatedCode: simpleData.generatedCode || undefined,
+          status: simpleData.status || undefined,
+        };
+      }
+
+      return null;
+    } catch (err) {
+      console.log('[CAD Agent] Could not parse task response:', err);
+      return null;
     }
   }
 

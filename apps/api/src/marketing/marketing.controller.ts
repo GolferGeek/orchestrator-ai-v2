@@ -84,4 +84,21 @@ export class MarketingController {
   ): Promise<MarketingAgentDto> {
     return this.marketingService.getAgentBySlug(slug);
   }
+
+  /**
+   * Get LLM configurations for a specific agent
+   * GET /marketing/agents/:slug/llm-configs
+   */
+  @Get('agents/:slug/llm-configs')
+  async getAgentLLMConfigs(@Param('slug') slug: string): Promise<
+    Array<{
+      llmProvider: string;
+      llmModel: string;
+      displayName: string | null;
+      isDefault: boolean;
+      isLocal: boolean;
+    }>
+  > {
+    return this.marketingService.getAgentLLMConfigs(slug);
+  }
 }

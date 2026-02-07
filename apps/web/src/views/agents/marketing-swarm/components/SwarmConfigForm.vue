@@ -568,6 +568,7 @@ import {
 import { addCircleOutline, removeCircleOutline } from 'ionicons/icons';
 import { useMarketingSwarmStore } from '@/stores/marketingSwarmStore';
 import { llmService, type LLMProvider, type LLMModel } from '@/services/llmService';
+import { marketingSwarmService } from '@/services/marketingSwarmService';
 import type {
   PromptData,
   SwarmConfig,
@@ -676,31 +677,102 @@ async function loadModels() {
   }
 }
 
-// Watch provider changes for "Add New" rows - reset model when provider changes
-watch(newWriterProvider, (newProvider) => {
-  const validModels = getModelsForProvider(newProvider);
-  if (validModels.length > 0) {
-    newWriterModel.value = validModels[0].model;
-  } else {
+// Watch agent selection - auto-fill provider/model from agent's LLM config
+// These watches run BEFORE provider watches to set the correct values
+watch(newWriterAgent, async (agentSlug) => {
+  if (!agentSlug) {
+    newWriterProvider.value = '';
     newWriterModel.value = '';
+    return;
   }
-});
+  try {
+    const configs = await marketingSwarmService.getAgentLLMConfigs(agentSlug);
+    if (configs.length > 0) {
+      // Use the default config if available, otherwise use the first one
+      const defaultConfig = configs.find(c => c.isDefault) || configs[0];
+      if (defaultConfig) {
+        newWriterProvider.value = defaultConfig.llmProvider;
+        newWriterModel.value = defaultConfig.llmModel;
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load LLM config for writer agent:', error);
+  }
+}, { immediate: false });
 
-watch(newEditorProvider, (newProvider) => {
-  const validModels = getModelsForProvider(newProvider);
-  if (validModels.length > 0) {
-    newEditorModel.value = validModels[0].model;
-  } else {
+watch(newEditorAgent, async (agentSlug) => {
+  if (!agentSlug) {
+    newEditorProvider.value = '';
     newEditorModel.value = '';
+    return;
+  }
+  try {
+    const configs = await marketingSwarmService.getAgentLLMConfigs(agentSlug);
+    if (configs.length > 0) {
+      const defaultConfig = configs.find(c => c.isDefault) || configs[0];
+      if (defaultConfig) {
+        newEditorProvider.value = defaultConfig.llmProvider;
+        newEditorModel.value = defaultConfig.llmModel;
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load LLM config for editor agent:', error);
+  }
+}, { immediate: false });
+
+watch(newEvaluatorAgent, async (agentSlug) => {
+  if (!agentSlug) {
+    newEvaluatorProvider.value = '';
+    newEvaluatorModel.value = '';
+    return;
+  }
+  try {
+    const configs = await marketingSwarmService.getAgentLLMConfigs(agentSlug);
+    if (configs.length > 0) {
+      const defaultConfig = configs.find(c => c.isDefault) || configs[0];
+      if (defaultConfig) {
+        newEvaluatorProvider.value = defaultConfig.llmProvider;
+        newEvaluatorModel.value = defaultConfig.llmModel;
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load LLM config for evaluator agent:', error);
+  }
+}, { immediate: false });
+
+// Watch provider changes for "Add New" rows - reset model when provider changes
+// Only reset if agent wasn't just selected (to avoid overriding agent's config)
+watch(newWriterProvider, (newProvider, oldProvider) => {
+  // Only auto-select first model if provider changed manually (not from agent selection)
+  if (newProvider && newProvider !== oldProvider && !newWriterAgent.value) {
+    const validModels = getModelsForProvider(newProvider);
+    if (validModels.length > 0) {
+      newWriterModel.value = validModels[0].model;
+    } else {
+      newWriterModel.value = '';
+    }
   }
 });
 
-watch(newEvaluatorProvider, (newProvider) => {
-  const validModels = getModelsForProvider(newProvider);
-  if (validModels.length > 0) {
-    newEvaluatorModel.value = validModels[0].model;
-  } else {
-    newEvaluatorModel.value = '';
+watch(newEditorProvider, (newProvider, oldProvider) => {
+  if (newProvider && newProvider !== oldProvider && !newEditorAgent.value) {
+    const validModels = getModelsForProvider(newProvider);
+    if (validModels.length > 0) {
+      newEditorModel.value = validModels[0].model;
+    } else {
+      newEditorModel.value = '';
+    }
+  }
+});
+
+watch(newEvaluatorProvider, (newProvider, oldProvider) => {
+  if (newProvider && newProvider !== oldProvider && !newEvaluatorAgent.value) {
+    const validModels = getModelsForProvider(newProvider);
+    if (validModels.length > 0) {
+      newEvaluatorModel.value = validModels[0].model;
+    } else {
+      newEvaluatorModel.value = '';
+    }
   }
 });
 
@@ -869,38 +941,114 @@ const validationMessage = computed(() => {
   return '';
 });
 
-// Default LLM settings for auto-selection
-const defaultProvider = 'anthropic';
-const defaultModel = 'claude-sonnet-4-20250514';
-
-// Load LLM data and auto-select first writer on mount
+// Load LLM data and auto-select all multi-provider agents on mount
 onMounted(async () => {
   // Load LLM providers and models
   await Promise.all([loadProviders(), loadModels()]);
 
-  // Wait for store to load agents, then auto-add first writer with default LLM
+  // Wait for store to load agents, then auto-add all multi-provider agents
   let unwatchFn: (() => void) | null = null;
 
-  const selectFirstWriter = (agents: MarketingAgent[]) => {
-    if (agents.length > 0 && selectedWriters.value.length === 0) {
-      // Select first writer with default LLM
-      const firstWriter = agents[0];
-      const modelInfo = getModelInfo(defaultProvider, defaultModel);
-      selectedWriters.value.push({
-        agentSlug: firstWriter.slug,
-        llmConfigId: `${defaultProvider}:${defaultModel}`,
-        llmProvider: defaultProvider,
-        llmModel: defaultModel,
-        displayName: modelInfo?.displayName || defaultModel,
-      });
-      // Stop watching after selection
-      if (unwatchFn) {
-        unwatchFn();
+  const autoSelectAgents = async () => {
+    // Auto-select one of each writer type (conversational, creative, technical, persuasive)
+    const writerTypes = ['writer-conversational', 'writer-creative', 'writer-technical', 'writer-persuasive'];
+    
+    // Auto-select one of each editor type (clarity, brand, engagement, seo)
+    const editorTypes = ['editor-clarity', 'editor-brand', 'editor-engagement', 'editor-seo'];
+    
+    // Auto-select one of each evaluator type (quality, conversion, creativity)
+    const evaluatorTypes = ['evaluator-quality', 'evaluator-conversion', 'evaluator-creativity'];
+
+    // Add one writer of each type with their default LLM configs
+    for (const writerType of writerTypes) {
+      const writer = writerAgents.value.find(a => a.slug === writerType);
+      if (writer) {
+        try {
+          const configs = await marketingSwarmService.getAgentLLMConfigs(writer.slug);
+          if (configs.length > 0) {
+            const defaultConfig = configs.find(c => c.isDefault) || configs[0];
+            if (defaultConfig) {
+              const modelInfo = getModelInfo(defaultConfig.llmProvider, defaultConfig.llmModel);
+              selectedWriters.value.push({
+                agentSlug: writer.slug,
+                llmConfigId: `${defaultConfig.llmProvider}:${defaultConfig.llmModel}`,
+                llmProvider: defaultConfig.llmProvider,
+                llmModel: defaultConfig.llmModel,
+                displayName: modelInfo?.displayName || defaultConfig.displayName || defaultConfig.llmModel,
+              });
+            }
+          }
+        } catch (error) {
+          console.error(`Failed to load LLM config for writer ${writer.slug}:`, error);
+        }
       }
+    }
+
+    // Add one editor of each type with their default LLM configs
+    for (const editorType of editorTypes) {
+      const editor = editorAgents.value.find(a => a.slug === editorType);
+      if (editor) {
+        try {
+          const configs = await marketingSwarmService.getAgentLLMConfigs(editor.slug);
+          if (configs.length > 0) {
+            const defaultConfig = configs.find(c => c.isDefault) || configs[0];
+            if (defaultConfig) {
+              const modelInfo = getModelInfo(defaultConfig.llmProvider, defaultConfig.llmModel);
+              selectedEditors.value.push({
+                agentSlug: editor.slug,
+                llmConfigId: `${defaultConfig.llmProvider}:${defaultConfig.llmModel}`,
+                llmProvider: defaultConfig.llmProvider,
+                llmModel: defaultConfig.llmModel,
+                displayName: modelInfo?.displayName || defaultConfig.displayName || defaultConfig.llmModel,
+              });
+            }
+          }
+        } catch (error) {
+          console.error(`Failed to load LLM config for editor ${editor.slug}:`, error);
+        }
+      }
+    }
+
+    // Add one evaluator of each type with their default LLM configs
+    for (const evaluatorType of evaluatorTypes) {
+      const evaluator = evaluatorAgents.value.find(a => a.slug === evaluatorType);
+      if (evaluator) {
+        try {
+          const configs = await marketingSwarmService.getAgentLLMConfigs(evaluator.slug);
+          if (configs.length > 0) {
+            const defaultConfig = configs.find(c => c.isDefault) || configs[0];
+            if (defaultConfig) {
+              const modelInfo = getModelInfo(defaultConfig.llmProvider, defaultConfig.llmModel);
+              selectedEvaluators.value.push({
+                agentSlug: evaluator.slug,
+                llmConfigId: `${defaultConfig.llmProvider}:${defaultConfig.llmModel}`,
+                llmProvider: defaultConfig.llmProvider,
+                llmModel: defaultConfig.llmModel,
+                displayName: modelInfo?.displayName || defaultConfig.displayName || defaultConfig.llmModel,
+              });
+            }
+          }
+        } catch (error) {
+          console.error(`Failed to load LLM config for evaluator ${evaluator.slug}:`, error);
+        }
+      }
+    }
+
+    // Stop watching after selection
+    if (unwatchFn) {
+      unwatchFn();
     }
   };
 
-  unwatchFn = watch(() => writerAgents.value, selectFirstWriter, { immediate: true });
+  unwatchFn = watch(
+    () => [writerAgents.value.length, editorAgents.value.length, evaluatorAgents.value.length],
+    () => {
+      if (writerAgents.value.length > 0 && editorAgents.value.length > 0 && evaluatorAgents.value.length > 0) {
+        autoSelectAgents();
+      }
+    },
+    { immediate: true }
+  );
 });
 
 // Execute

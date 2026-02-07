@@ -286,6 +286,46 @@ export class ConversationMessageService {
               assistantMessage.metadata = {};
             }
             assistantMessage.metadata.deliverableId = deliverableId;
+            
+            // Enrich message metadata with deliverable version LLM info
+            try {
+              const { deliverablesService } = await import('@/services/deliverablesService');
+              const deliverable = await deliverablesService.getDeliverable(deliverableId);
+              if (deliverable?.currentVersion?.metadata) {
+                const versionMetadata = deliverable.currentVersion.metadata as Record<string, unknown>;
+                
+                // Extract LLM info from deliverable version metadata
+                // Check metadata.llm (from context-agent-runner) or metadata.llmMetadata (from reruns)
+                const llmInfo = versionMetadata.llm || versionMetadata.llmMetadata;
+                if (llmInfo && typeof llmInfo === 'object') {
+                  const llm = llmInfo as Record<string, unknown>;
+                  
+                  // Merge provider/model from deliverable version if not already in message metadata
+                  if (!assistantMessage.metadata.provider && typeof llm.provider === 'string') {
+                    assistantMessage.metadata.provider = llm.provider;
+                  }
+                  if (!assistantMessage.metadata.model && typeof llm.model === 'string') {
+                    assistantMessage.metadata.model = llm.model;
+                  }
+                  
+                  // Also add full llmMetadata for compatibility
+                  if (!assistantMessage.metadata.llmMetadata) {
+                    assistantMessage.metadata.llmMetadata = llm;
+                  }
+                }
+                
+                // Also check top-level provider/model in version metadata (for media agents)
+                if (!assistantMessage.metadata.provider && typeof versionMetadata.provider === 'string') {
+                  assistantMessage.metadata.provider = versionMetadata.provider;
+                }
+                if (!assistantMessage.metadata.model && typeof versionMetadata.model === 'string') {
+                  assistantMessage.metadata.model = versionMetadata.model;
+                }
+              }
+            } catch (error) {
+              // Failed to load deliverable - continue without enriching metadata
+              console.warn('Failed to enrich message metadata with deliverable LLM info:', error);
+            }
           }
 
           // Check if this message has an associated plan

@@ -163,6 +163,48 @@ export class MarketingService {
   }
 
   /**
+   * Get LLM configurations for a specific agent
+   */
+  async getAgentLLMConfigs(agentSlug: string): Promise<
+    Array<{
+      llmProvider: string;
+      llmModel: string;
+      displayName: string | null;
+      isDefault: boolean;
+      isLocal: boolean;
+    }>
+  > {
+    try {
+      const rows = await this.marketingDb.queryAll<{
+        llm_provider: string;
+        llm_model: string;
+        display_name: string | null;
+        is_default: boolean;
+        is_local: boolean;
+      }>(
+        'SELECT llm_provider, llm_model, display_name, is_default, is_local FROM agent_llm_configs WHERE agent_slug = $1 ORDER BY is_default DESC, display_name',
+        [agentSlug],
+      );
+
+      return rows.map((row) => ({
+        llmProvider: row.llm_provider,
+        llmModel: row.llm_model,
+        displayName: row.display_name,
+        isDefault: row.is_default,
+        isLocal: row.is_local,
+      }));
+    } catch (error) {
+      this.logger.error(
+        `Failed to fetch LLM configs for agent ${agentSlug}`,
+        error,
+      );
+      throw new Error(
+        `Failed to fetch LLM configs: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+    }
+  }
+
+  /**
    * Get full configuration for the swarm UI
    * Returns content types and agents grouped by role
    * Note: LLM models are now fetched separately from public.llm_models via /llm/models endpoint

@@ -123,6 +123,9 @@ async function handleExecute(data: {
   config: SwarmConfig;
 }) {
   try {
+    // Reset state before starting a new execution to clear any previous outputs
+    store.resetTaskState();
+    
     // Initialize agent card states
     for (const writer of data.config.writers) {
       store.setAgentCardState(writer.agentSlug, writer.llmConfigId, {
