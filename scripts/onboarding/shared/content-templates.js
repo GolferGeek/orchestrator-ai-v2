@@ -863,8 +863,7 @@ function getFlowTemplate(teamType, companySize) {
           ],
         },
       },
-    },
-  };
+    };
 
   const sizeKey = companySize === 'solo' ? 'solo' : 
                   companySize === 'small-no-devs' ? 'smallNoDevs' : 

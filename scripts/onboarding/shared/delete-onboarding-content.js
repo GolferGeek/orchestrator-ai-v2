@@ -16,6 +16,7 @@ const {
   getGlobalTeams,
   getEffortsForOrg,
   deleteEffortsForOrg,
+  getAllOrganizations,
 } = require('./db-helpers');
 const {
   createNotebookClient,
@@ -200,14 +201,25 @@ async function deleteFiles(dbClient, dryRun = false) {
 async function deleteOnboardingContent(orgSlug, options = {}) {
   const { dryRun = false, force = false } = options;
   const dbClient = createDbClient();
-  const notebookClient = createNotebookClient();
+  const notebookClient = await createNotebookClient();
 
   try {
     await connectDb(dbClient);
 
-    console.log(`\n🗑️  Onboarding Content Deletion`);
-    console.log(`   Organization: ${orgSlug}`);
-    console.log(`   Mode: ${dryRun ? 'DRY RUN' : 'DELETE'}\n`);
+    // Determine which organizations to process
+    let orgsToProcess = [];
+    if (orgSlug === 'all' || orgSlug === '*') {
+      const allOrgs = await getAllOrganizations(dbClient);
+      orgsToProcess = allOrgs.map(org => org.slug);
+      console.log(`\n🗑️  Onboarding Content Deletion`);
+      console.log(`   Organizations: ALL (${orgsToProcess.length} organizations)`);
+      console.log(`   Mode: ${dryRun ? 'DRY RUN' : 'DELETE'}\n`);
+    } else {
+      orgsToProcess = [orgSlug];
+      console.log(`\n🗑️  Onboarding Content Deletion`);
+      console.log(`   Organization: ${orgSlug}`);
+      console.log(`   Mode: ${dryRun ? 'DRY RUN' : 'DELETE'}\n`);
+    }
 
     if (!force && !dryRun) {
       const answer = await question('⚠️  This will delete ALL onboarding content. Continue? (yes/no): ');
@@ -217,19 +229,23 @@ async function deleteOnboardingContent(orgSlug, options = {}) {
       }
     }
 
-    // Delete Flow content
-    const flowResult = await deleteFlowContent(dbClient, orgSlug, dryRun);
+    // Delete Flow content for each organization
+    let totalFlowEfforts = 0;
+    for (const org of orgsToProcess) {
+      const flowResult = await deleteFlowContent(dbClient, org, dryRun);
+      totalFlowEfforts += flowResult.deleted;
+    }
 
-    // Delete Notebook content
+    // Delete Notebook content (once, as it's team-scoped, not org-scoped)
     const notebookResult = await deleteNotebookContent(notebookClient, dbClient, dryRun);
 
-    // Delete files
+    // Delete files (once, as files are team-scoped)
     const fileResult = await deleteFiles(dbClient, dryRun);
 
     // Summary
     console.log(`\n📊 Deletion Summary:`);
     console.log(`   Flow:`);
-    console.log(`     - Efforts: ${flowResult.deleted}`);
+    console.log(`     - Efforts: ${totalFlowEfforts} (across ${orgsToProcess.length} organization(s))`);
     console.log(`   Notebook:`);
     console.log(`     - Notebooks: ${notebookResult.notebooks}`);
     console.log(`     - Sources: ${notebookResult.sources}`);
@@ -264,8 +280,9 @@ const dryRun = args.includes('--dry-run');
 const force = args.includes('--force');
 
 if (!orgSlug) {
-  console.error('❌ Usage: node delete-onboarding-content.js <organization-slug> [--dry-run] [--force]');
+  console.error('❌ Usage: node delete-onboarding-content.js <organization-slug|all> [--dry-run] [--force]');
   console.error('   Example: node delete-onboarding-content.js demo-org');
+  console.error('   Example: node delete-onboarding-content.js all --force');
   console.error('   Example: node delete-onboarding-content.js demo-org --dry-run');
   console.error('   Example: node delete-onboarding-content.js demo-org --force');
   process.exit(1);

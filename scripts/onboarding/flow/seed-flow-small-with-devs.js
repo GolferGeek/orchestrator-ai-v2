@@ -19,11 +19,7 @@ async function seedFlowSmallWithDevs(orgSlug = null) {
   try {
     await connectDb(client);
 
-    if (orgSlug) {
-      console.log(`\n📋 Seeding Flow content for organization: ${orgSlug}`);
-    } else {
-      console.log(`\n📋 Seeding Flow content for ALL organizations`);
-    }
+    console.log(`\n📋 Seeding Flow content for teams`);
     console.log(`👥 Company Size: Small Team (With Developers)\n`);
 
     const summary = await seedFlowContent(client, orgSlug, 'small-with-devs');
@@ -42,13 +38,7 @@ async function seedFlowSmallWithDevs(orgSlug = null) {
   }
 }
 
-const orgSlug = process.argv[2] || null; // Optional - if not provided, seed all orgs
-
-if (orgSlug) {
-  console.log(`📋 Seeding for organization: ${orgSlug}`);
-} else {
-  console.log(`📋 Seeding for ALL organizations`);
-}
+const orgSlug = process.argv[2] || null; // Optional - ignored, content is team-scoped
 
 seedFlowSmallWithDevs(orgSlug).catch((error) => {
   console.error('❌ Fatal error:', error);

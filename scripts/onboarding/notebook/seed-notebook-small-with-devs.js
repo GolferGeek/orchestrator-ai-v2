@@ -14,7 +14,7 @@ const {
 const {
   createSourceFile,
 } = require('../shared/file-helpers');
-const { getNotebookTemplate } = require('../shared/content-templates');
+const { getNotebookTemplate } = require('../shared/content-loader');
 const {
   createDbClient,
   connectDb,
@@ -47,7 +47,7 @@ async function seedNotebookSmallWithDevs(orgSlug) {
       const teamType = detectTeamType(team);
       console.log(`\n📦 Processing team: ${team.name} (${teamType})`);
 
-      const template = getNotebookTemplate(teamType, 'small-with-devs');
+      const template = await getNotebookTemplate(teamType, 'small-with-devs');
 
       if (!template.notebooks || template.notebooks.length === 0) {
         console.log(`  ⏭️  No template content for ${teamType}, skipping`);

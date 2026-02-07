@@ -109,6 +109,7 @@ async function createEffort(client, effortData) {
   const query = `
     INSERT INTO orch_flow.efforts (
       organization_slug,
+      team_id,
       name,
       description,
       status,
@@ -116,12 +117,13 @@ async function createEffort(client, effortData) {
       icon,
       color,
       estimated_days
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
     RETURNING id, name;
   `;
 
   const values = [
-    effortData.organizationSlug,
+    effortData.organizationSlug || null, // Can be null for team-scoped content
+    effortData.teamId || null, // Associate with team
     effortData.name,
     effortData.description || null,
     effortData.status || 'not_started',
