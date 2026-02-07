@@ -72,4 +72,20 @@ export class DeliverableFiltersDto {
     return Boolean(value);
   })
   standalone?: boolean = false;
+
+  @ApiPropertyOptional({
+    description:
+      'Filter by agent name (e.g., legal-department, marketing-swarm)',
+  })
+  @IsOptional()
+  @IsString()
+  agentName?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Filter by creation date (ISO date string, returns deliverables created after this date)',
+  })
+  @IsOptional()
+  @IsString()
+  createdAfter?: string;
 }

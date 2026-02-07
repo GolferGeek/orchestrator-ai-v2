@@ -6,7 +6,7 @@
  * conversation-based agents.
  */
 
-import type { Agent as BaseAgent } from '@/types/conversation';
+import type { Agent as BaseAgent } from "@/types/conversation";
 
 /**
  * Extended Agent type with metadata properties for interaction mode detection.
@@ -34,12 +34,17 @@ export interface Agent extends BaseAgent {
 /**
  * Agent interaction modes
  */
-export type AgentInteractionMode = 'conversation' | 'dashboard';
+export type AgentInteractionMode = "conversation" | "dashboard";
 
 /**
  * Dashboard types for different agent UIs
  */
-export type DashboardType = 'prediction' | 'monitoring' | 'analytics' | 'risk' | 'custom';
+export type DashboardType =
+  | "prediction"
+  | "monitoring"
+  | "analytics"
+  | "risk"
+  | "custom";
 
 /**
  * Interaction mode configuration
@@ -56,23 +61,30 @@ export interface InteractionModeConfig {
  * Agent types that use dashboard mode by default
  */
 const DASHBOARD_AGENT_TYPES = [
-  'prediction',
-  'prediction_agent',
-  'ambient_agent',
-  'monitoring_agent',
-  'dashboard',
-  'risk',
+  "prediction",
+  "prediction_agent",
+  "ambient_agent",
+  "monitoring_agent",
+  "dashboard",
+  "risk",
 ];
+
+/**
+ * Agent slugs that have dedicated views with their own deliverable browsing.
+ * These agents get dashboard icon treatment (no conversation sub-list in sidebar)
+ * but still manage their own conversations internally via dedicated routes.
+ */
+const DEDICATED_VIEW_AGENTS = ["legal-department", "marketing-swarm"];
 
 /**
  * Runner types that use dashboard mode
  */
 const DASHBOARD_RUNNERS = [
-  'stock-predictor',
-  'crypto-predictor',
-  'market-predictor',
-  'election-predictor',
-  'risk-analyzer',
+  "stock-predictor",
+  "crypto-predictor",
+  "market-predictor",
+  "election-predictor",
+  "risk-analyzer",
 ];
 
 /**
@@ -87,25 +99,28 @@ export function getInteractionMode(agent: Agent): InteractionModeConfig {
     const mode = agent.metadata.interaction_mode as AgentInteractionMode;
     return {
       mode,
-      dashboardType: mode === 'dashboard' ? getDashboardType(agent) : undefined,
+      dashboardType: mode === "dashboard" ? getDashboardType(agent) : undefined,
       component: agent.metadata?.customUIComponent as string | undefined,
-      canStartConversation: mode === 'conversation' || agent.metadata?.canChat === true,
-      canOpenDashboard: mode === 'dashboard',
+      canStartConversation:
+        mode === "conversation" || agent.metadata?.canChat === true,
+      canOpenDashboard: mode === "dashboard",
     };
   }
 
   // Check for hasCustomUI flag
   if (agent.metadata?.hasCustomUI || agent.hasCustomUI) {
-    const customComponent = (agent.metadata?.customUIComponent || agent.customUIComponent) as string | undefined;
+    const customComponent = (agent.metadata?.customUIComponent ||
+      agent.customUIComponent) as string | undefined;
 
     // Conversation pane components with custom UI (still use conversation flow)
-    const conversationPaneComponents = ['cad-agent'];
-    const isConversationPaneCustomUI = customComponent && conversationPaneComponents.includes(customComponent);
+    const conversationPaneComponents = ["cad-agent"];
+    const isConversationPaneCustomUI =
+      customComponent && conversationPaneComponents.includes(customComponent);
 
     if (isConversationPaneCustomUI) {
       // These are conversation agents with custom UI, not dashboard agents
       return {
-        mode: 'conversation',
+        mode: "conversation",
         component: customComponent,
         canStartConversation: true,
         canOpenDashboard: false,
@@ -114,7 +129,7 @@ export function getInteractionMode(agent: Agent): InteractionModeConfig {
 
     // Other custom UI agents are dashboard agents
     return {
-      mode: 'dashboard',
+      mode: "dashboard",
       dashboardType: getDashboardType(agent),
       component: customComponent,
       canStartConversation: agent.metadata?.canChat === true,
@@ -123,12 +138,9 @@ export function getInteractionMode(agent: Agent): InteractionModeConfig {
   }
 
   // Check agent type
-  if (
-    agent.type &&
-    DASHBOARD_AGENT_TYPES.includes(agent.type.toLowerCase())
-  ) {
+  if (agent.type && DASHBOARD_AGENT_TYPES.includes(agent.type.toLowerCase())) {
     return {
-      mode: 'dashboard',
+      mode: "dashboard",
       dashboardType: getDashboardType(agent),
       canStartConversation: false,
       canOpenDashboard: true,
@@ -136,19 +148,32 @@ export function getInteractionMode(agent: Agent): InteractionModeConfig {
   }
 
   // Check runner configuration
-  const runnerConfig = agent.metadata?.runnerConfig as { runner?: string } | undefined;
+  const runnerConfig = agent.metadata?.runnerConfig as
+    | { runner?: string }
+    | undefined;
   if (runnerConfig?.runner && DASHBOARD_RUNNERS.includes(runnerConfig.runner)) {
     return {
-      mode: 'dashboard',
-      dashboardType: 'prediction',
+      mode: "dashboard",
+      dashboardType: "prediction",
       canStartConversation: true, // Prediction agents support learning conversations
+      canOpenDashboard: true,
+    };
+  }
+
+  // Check for dedicated view agents (have their own deliverable-centric UI)
+  const agentSlug = agent.slug || agent.name || "";
+  if (DEDICATED_VIEW_AGENTS.includes(agentSlug)) {
+    return {
+      mode: "dashboard",
+      dashboardType: "custom",
+      canStartConversation: false,
       canOpenDashboard: true,
     };
   }
 
   // Default to conversation mode
   return {
-    mode: 'conversation',
+    mode: "conversation",
     canStartConversation: true,
     canOpenDashboard: false,
   };
@@ -164,45 +189,48 @@ function getDashboardType(agent: Agent): DashboardType {
   }
 
   // Check runner config
-  const runnerConfig = agent.metadata?.runnerConfig as { runner?: string } | undefined;
+  const runnerConfig = agent.metadata?.runnerConfig as
+    | { runner?: string }
+    | undefined;
   if (runnerConfig?.runner) {
-    if (runnerConfig.runner === 'risk-analyzer') {
-      return 'risk';
+    if (runnerConfig.runner === "risk-analyzer") {
+      return "risk";
     }
     if (DASHBOARD_RUNNERS.includes(runnerConfig.runner)) {
-      return 'prediction';
+      return "prediction";
     }
   }
 
   // Check agent type
   if (agent.type) {
     const agentType = agent.type.toLowerCase();
-    if (agentType === 'risk') {
-      return 'risk';
+    if (agentType === "risk") {
+      return "risk";
     }
-    if (agentType.includes('prediction') || agentType.includes('ambient')) {
-      return 'prediction';
+    if (agentType.includes("prediction") || agentType.includes("ambient")) {
+      return "prediction";
     }
-    if (agentType.includes('monitoring')) {
-      return 'monitoring';
+    if (agentType.includes("monitoring")) {
+      return "monitoring";
     }
-    if (agentType.includes('analytics')) {
-      return 'analytics';
+    if (agentType.includes("analytics")) {
+      return "analytics";
     }
   }
 
   // Check custom UI component name
-  const component = (agent.metadata?.customUIComponent || agent.customUIComponent) as string | undefined;
+  const component = (agent.metadata?.customUIComponent ||
+    agent.customUIComponent) as string | undefined;
   if (component) {
-    if (component.toLowerCase().includes('prediction')) {
-      return 'prediction';
+    if (component.toLowerCase().includes("prediction")) {
+      return "prediction";
     }
-    if (component.toLowerCase().includes('monitoring')) {
-      return 'monitoring';
+    if (component.toLowerCase().includes("monitoring")) {
+      return "monitoring";
     }
   }
 
-  return 'custom';
+  return "custom";
 }
 
 /**
@@ -226,7 +254,7 @@ export function shouldShowConversationIcon(agent: Agent): boolean {
  */
 export function isPredictionAgent(agent: Agent): boolean {
   const config = getInteractionMode(agent);
-  return config.dashboardType === 'prediction';
+  return config.dashboardType === "prediction";
 }
 
 /**
@@ -239,12 +267,18 @@ export function getDashboardComponent(agent: Agent): string | null {
     return config.component;
   }
 
-  if (config.dashboardType === 'prediction') {
-    return 'PredictionAgentPane';
+  if (config.dashboardType === "prediction") {
+    return "PredictionAgentPane";
   }
 
-  if (config.dashboardType === 'risk') {
-    return 'RiskAgentPane';
+  if (config.dashboardType === "risk") {
+    return "RiskAgentPane";
+  }
+
+  // For dashboard agents without a specific component (e.g., dedicated view agents),
+  // return the dashboard type so the opener can route accordingly
+  if (config.mode === "dashboard") {
+    return config.dashboardType || "custom";
   }
 
   return null;
@@ -259,5 +293,5 @@ export function isDashboardOnlyAgent(agent: Agent): boolean {
   const config = getInteractionMode(agent);
   // Dashboard agents that can't start real conversations are dashboard-only
   // Prediction/Risk agents fall into this category
-  return config.mode === 'dashboard' && !config.canStartConversation;
+  return config.mode === "dashboard" && !config.canStartConversation;
 }

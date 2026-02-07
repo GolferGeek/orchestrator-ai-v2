@@ -1,7 +1,13 @@
 <template>
   <ion-page>
     <ion-split-pane content-id="agents-main-content" when="(min-width: 2000px)">
-      <ion-menu content-id="agents-main-content" type="overlay" :disabled="!auth.isAuthenticated" @ionWillOpen="handleMenuOpen" @ionWillClose="handleMenuClose">
+      <ion-menu
+        content-id="agents-main-content"
+        type="overlay"
+        :disabled="!auth.isAuthenticated"
+        @ionWillOpen="handleMenuOpen"
+        @ionWillClose="handleMenuClose"
+      >
         <ion-header>
           <ion-toolbar>
             <div class="menu-logo" @click="navigateToApp">
@@ -13,25 +19,45 @@
         <ion-content>
           <div v-if="auth.isAuthenticated">
             <div class="user-header">
-              <ion-note v-if="auth.user" class="user-email">{{ auth.user.displayName || auth.user.email }}</ion-note>
+              <ion-note v-if="auth.user" class="user-email">{{
+                auth.user.displayName || auth.user.email
+              }}</ion-note>
               <a
                 v-if="auth.hasAdminAccess || auth.hasEvaluationAccess"
                 class="admin-link"
-                :class="{ 'active': $route.path.startsWith('/app/admin') }"
+                :class="{ active: $route.path.startsWith('/app/admin') }"
                 @click="$router.push('/app/admin/settings')"
-              >Admin</a>
+                >Admin</a
+              >
             </div>
-            <ion-item lines="none" :detail="false" :button="true" @click="handleLogout">
-              <ion-icon aria-hidden="true" :icon="logOutOutline" slot="start"></ion-icon>
+            <ion-item
+              lines="none"
+              :detail="false"
+              :button="true"
+              @click="handleLogout"
+            >
+              <ion-icon
+                aria-hidden="true"
+                :icon="logOutOutline"
+                slot="start"
+              ></ion-icon>
               <ion-label>Logout</ion-label>
             </ion-item>
-            <hr/>
+            <hr />
 
             <!-- Deliverables & Evaluations Accordion -->
             <ion-accordion-group>
               <ion-accordion value="main-nav">
-                <ion-item slot="header" color="none" class="accordion-header-custom">
-                  <ion-icon aria-hidden="true" :icon="documentTextOutline" slot="start"></ion-icon>
+                <ion-item
+                  slot="header"
+                  color="none"
+                  class="accordion-header-custom"
+                >
+                  <ion-icon
+                    aria-hidden="true"
+                    :icon="documentTextOutline"
+                    slot="start"
+                  ></ion-icon>
                   <ion-label>Deliverables & Evaluations</ion-label>
                 </ion-item>
                 <div slot="content" class="main-nav-content">
@@ -41,9 +67,15 @@
                       lines="none"
                       :detail="false"
                       @click="$router.push('/app/deliverables')"
-                      :class="{ 'selected': $route.path.startsWith('/app/deliverables') }"
+                      :class="{
+                        selected: $route.path.startsWith('/app/deliverables'),
+                      }"
                     >
-                      <ion-icon aria-hidden="true" :icon="documentTextOutline" slot="start"></ion-icon>
+                      <ion-icon
+                        aria-hidden="true"
+                        :icon="documentTextOutline"
+                        slot="start"
+                      ></ion-icon>
                       <ion-label>Deliverables</ion-label>
                     </ion-item>
                     <ion-item
@@ -51,34 +83,48 @@
                       lines="none"
                       :detail="false"
                       @click="$router.push('/app/evaluations')"
-                      :class="{ 'selected': $route.path.startsWith('/app/evaluations') }"
+                      :class="{
+                        selected: $route.path.startsWith('/app/evaluations'),
+                      }"
                     >
-                      <ion-icon aria-hidden="true" :icon="starOutline" slot="start"></ion-icon>
+                      <ion-icon
+                        aria-hidden="true"
+                        :icon="starOutline"
+                        slot="start"
+                      ></ion-icon>
                       <ion-label>Evaluations</ion-label>
                     </ion-item>
                   </ion-list>
                 </div>
               </ion-accordion>
             </ion-accordion-group>
-              
-              <!-- Agents & Conversations Accordion - Takes remaining space -->
-              <ion-accordion-group :value="agentsExpanded ? 'agents' : undefined">
-                <ion-accordion value="agents">
-                  <ion-item slot="header" color="none" class="accordion-header-custom">
-                    <ion-icon aria-hidden="true" :icon="chatbubblesOutline" slot="start"></ion-icon>
-                    <ion-label>Agents & Conversations</ion-label>
-                  </ion-item>
-                  <div slot="content" class="agents-content">
-                    <!-- Agent Tree -->
-                    <AgentTreeView
-                      @conversation-selected="handleConversationSelected"
-                      @agent-selected="handleAgentSelected"
-                      @open-dashboard="handleOpenDashboard"
-                      :compact-mode="true"
-                    />
-                  </div>
-                </ion-accordion>
-              </ion-accordion-group>
+
+            <!-- Agents & Conversations Accordion - Takes remaining space -->
+            <ion-accordion-group :value="agentsExpanded ? 'agents' : undefined">
+              <ion-accordion value="agents">
+                <ion-item
+                  slot="header"
+                  color="none"
+                  class="accordion-header-custom"
+                >
+                  <ion-icon
+                    aria-hidden="true"
+                    :icon="chatbubblesOutline"
+                    slot="start"
+                  ></ion-icon>
+                  <ion-label>Agents & Conversations</ion-label>
+                </ion-item>
+                <div slot="content" class="agents-content">
+                  <!-- Agent Tree -->
+                  <AgentTreeView
+                    @conversation-selected="handleConversationSelected"
+                    @agent-selected="handleAgentSelected"
+                    @open-dashboard="handleOpenDashboard"
+                    :compact-mode="true"
+                  />
+                </div>
+              </ion-accordion>
+            </ion-accordion-group>
           </div>
         </ion-content>
       </ion-menu>
@@ -87,7 +133,11 @@
       <!-- Fixed floating toolbar - org switcher and theme toggle -->
       <div class="fixed-toolbar" v-if="auth.isAuthenticated">
         <OrganizationSwitcherApp />
-        <button class="theme-toggle" @click="toggleTheme" :title="isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'">
+        <button
+          class="theme-toggle"
+          @click="toggleTheme"
+          :title="isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'"
+        >
           <ion-icon :icon="isDarkMode ? sunnyOutline : moonOutline"></ion-icon>
         </button>
         <SuperAdminCommandButton @open="showCommandPanel = true" />
@@ -102,24 +152,48 @@
   </ion-page>
 </template>
 <script lang="ts" setup>
-import { computed, ref, onMounted, nextTick } from 'vue';
+import { computed, ref, onMounted, nextTick } from "vue";
 import {
-  IonPage, IonContent, IonIcon, IonItem, IonLabel, IonList, IonMenu, IonNote, IonRouterOutlet, IonSplitPane, IonHeader, IonToolbar, IonAccordion, IonAccordionGroup,
-  menuController
-} from '@ionic/vue';
-import { logOutOutline, starOutline, chatbubblesOutline, documentTextOutline, sunnyOutline, moonOutline } from 'ionicons/icons';
-import { useAuthStore } from '@/stores/rbacStore';
-import { conversation } from '@/services/conversationHelpers';
-import { conversationsService } from '@/services/conversationsService';
-import { useChatUiStore } from '@/stores/ui/chatUiStore';
-import { useUserPreferencesStore } from '@/stores/userPreferencesStore';
-import { useRouter } from 'vue-router';
-import { getInteractionMode, isPredictionAgent, type Agent as InteractionAgent } from '@/utils/agent-interaction-mode';
-import type { Agent, AgentConversation } from '@/types/conversation';
-import AgentTreeView from '@/components/AgentTreeView.vue';
-import OrganizationSwitcherApp from '@/components/common/OrganizationSwitcherApp.vue';
-import SuperAdminCommandButton from '@/components/super-admin/SuperAdminCommandButton.vue';
-import SuperAdminCommandPanel from '@/components/super-admin/SuperAdminCommandPanel.vue';
+  IonPage,
+  IonContent,
+  IonIcon,
+  IonItem,
+  IonLabel,
+  IonList,
+  IonMenu,
+  IonNote,
+  IonRouterOutlet,
+  IonSplitPane,
+  IonHeader,
+  IonToolbar,
+  IonAccordion,
+  IonAccordionGroup,
+  menuController,
+} from "@ionic/vue";
+import {
+  logOutOutline,
+  starOutline,
+  chatbubblesOutline,
+  documentTextOutline,
+  sunnyOutline,
+  moonOutline,
+} from "ionicons/icons";
+import { useAuthStore } from "@/stores/rbacStore";
+import { conversation } from "@/services/conversationHelpers";
+import { conversationsService } from "@/services/conversationsService";
+import { useChatUiStore } from "@/stores/ui/chatUiStore";
+import { useUserPreferencesStore } from "@/stores/userPreferencesStore";
+import { useRouter } from "vue-router";
+import {
+  getInteractionMode,
+  isPredictionAgent,
+  type Agent as InteractionAgent,
+} from "@/utils/agent-interaction-mode";
+import type { Agent, AgentConversation } from "@/types/conversation";
+import AgentTreeView from "@/components/AgentTreeView.vue";
+import OrganizationSwitcherApp from "@/components/common/OrganizationSwitcherApp.vue";
+import SuperAdminCommandButton from "@/components/super-admin/SuperAdminCommandButton.vue";
+import SuperAdminCommandPanel from "@/components/super-admin/SuperAdminCommandPanel.vue";
 
 const auth = useAuthStore();
 const chatUiStore = useChatUiStore();
@@ -133,10 +207,12 @@ const agentsExpanded = ref(true);
 const showCommandPanel = ref(false);
 
 // Theme - use the preferences store
-const isDarkMode = computed(() => userPreferencesStore.effectiveTheme === 'dark');
+const isDarkMode = computed(
+  () => userPreferencesStore.effectiveTheme === "dark",
+);
 
 function toggleTheme() {
-  const newTheme = isDarkMode.value ? 'light' : 'dark';
+  const newTheme = isDarkMode.value ? "light" : "dark";
   userPreferencesStore.setTheme(newTheme);
 }
 
@@ -164,10 +240,10 @@ const handleMenuClose = () => {
 
 const handleLogout = async () => {
   await auth.logout();
-  router.push('/login');
+  router.push("/login");
 };
 const navigateToApp = () => {
-  router.push('/');
+  router.push("/");
 };
 const handleConversationSelected = async (conversation: AgentConversation) => {
   try {
@@ -178,24 +254,27 @@ const handleConversationSelected = async (conversation: AgentConversation) => {
     chatUiStore.setActiveConversation(conversation.id);
 
     // Set flag in sessionStorage to indicate active conversation
-    sessionStorage.setItem('activeConversation', 'true');
+    sessionStorage.setItem("activeConversation", "true");
 
     // Check if this conversation belongs to an agent with a dedicated route
     const agentName = conversation.agentName || conversation.agent?.name;
-    const agentsWithDedicatedRoutes = ['legal-department'];
+    const agentsWithDedicatedRoutes = ["legal-department", "marketing-swarm"];
 
     if (agentName && agentsWithDedicatedRoutes.includes(agentName)) {
       // Route to the dedicated agent view with the existing conversation
       await router.push({
         path: `/app/agents/${agentName}`,
-        query: { conversationId: conversation.id }
+        query: { conversationId: conversation.id },
       });
     } else {
       // Navigate to home page to show the conversation in generic view
-      await router.push({ path: '/app/home', query: { forceHome: 'true', conversationId: conversation.id } });
+      await router.push({
+        path: "/app/home",
+        query: { forceHome: "true", conversationId: conversation.id },
+      });
     }
   } catch (error) {
-    console.error('Error selecting conversation:', error);
+    console.error("Error selecting conversation:", error);
   }
 };
 const handleAgentSelected = async (agent: Agent) => {
@@ -205,9 +284,9 @@ const handleAgentSelected = async (agent: Agent) => {
 
     const agentSlug = agent.slug || agent.name;
 
-    // Check if this agent has a dedicated route (e.g., legal-department)
+    // Check if this agent has a dedicated route (e.g., legal-department, marketing-swarm)
     // These agents have custom views that are better than the generic ConversationView
-    const agentsWithDedicatedRoutes = ['legal-department'];
+    const agentsWithDedicatedRoutes = ["legal-department", "marketing-swarm"];
     if (agentsWithDedicatedRoutes.includes(agentSlug)) {
       // Create a new conversation for dedicated route agents too
       const newConversationId = await conversation.createConversation(agent);
@@ -215,8 +294,11 @@ const handleAgentSelected = async (agent: Agent) => {
       // Refresh conversations list to show the new conversation in sidebar
       await conversationsService.fetchConversations(true);
 
-      sessionStorage.setItem('activeConversation', 'true');
-      router.push({ path: `/app/agents/${agentSlug}`, query: { conversationId: newConversationId } });
+      sessionStorage.setItem("activeConversation", "true");
+      router.push({
+        path: `/app/agents/${agentSlug}`,
+        query: { conversationId: newConversationId },
+      });
       return;
     }
 
@@ -227,13 +309,16 @@ const handleAgentSelected = async (agent: Agent) => {
     await conversationsService.fetchConversations(true);
 
     // Set flag in sessionStorage to indicate active conversation for admin users
-    sessionStorage.setItem('activeConversation', 'true');
+    sessionStorage.setItem("activeConversation", "true");
 
     // All conversations (including custom UI agents) go through the tab system
     // The ConversationView will detect hasCustomUI and render the appropriate custom component
-    router.push({ path: '/app/home', query: { forceHome: 'true', conversationId } });
+    router.push({
+      path: "/app/home",
+      query: { forceHome: "true", conversationId },
+    });
   } catch (error) {
-    console.error('Failed to handle agent selection:', error);
+    console.error("Failed to handle agent selection:", error);
   }
 };
 
@@ -246,7 +331,7 @@ const handleOpenDashboard = async (agent: Agent, _componentName: string) => {
     const agentSlug = agent.slug || agent.name;
 
     // Set flag in sessionStorage to indicate active session
-    sessionStorage.setItem('activeConversation', 'true');
+    sessionStorage.setItem("activeConversation", "true");
 
     // Use nextTick to ensure Vue's reactivity system has completed any pending updates
     // before triggering navigation - this prevents Ionic Vue page transition race conditions
@@ -254,23 +339,39 @@ const handleOpenDashboard = async (agent: Agent, _componentName: string) => {
 
     // Prediction agents route to the new prediction dashboard routes
     if (isPredictionAgent(agent as unknown as InteractionAgent)) {
-      await router.push({ path: '/app/prediction/dashboard', query: { agentSlug } });
+      await router.push({
+        path: "/app/prediction/dashboard",
+        query: { agentSlug },
+      });
+      return;
+    }
+
+    // Dedicated view agents (legal-department, marketing-swarm) route to their own pages
+    const dedicatedViewAgents = ["legal-department", "marketing-swarm"];
+    if (dedicatedViewAgents.includes(agentSlug)) {
+      await router.push({ path: `/app/agents/${agentSlug}` });
       return;
     }
 
     // Dashboard agents navigate with agentSlug - the dashboard pane handles its own
     // ExecutionContext creation (conversationId, taskId) when making API calls
     if (!interactionMode.canStartConversation) {
-      await router.push({ path: '/app/home', query: { forceHome: 'true', agentSlug } });
+      await router.push({
+        path: "/app/home",
+        query: { forceHome: "true", agentSlug },
+      });
       return;
     }
 
     // For agents that support both dashboard and conversation UI, create conversation
     const conversationId = await conversation.createConversation(agent);
     await conversationsService.fetchConversations(true);
-    await router.push({ path: '/app/home', query: { forceHome: 'true', conversationId } });
+    await router.push({
+      path: "/app/home",
+      query: { forceHome: "true", conversationId },
+    });
   } catch (error) {
-    console.error('Failed to open dashboard:', error);
+    console.error("Failed to open dashboard:", error);
   }
 };
 </script>
@@ -335,7 +436,7 @@ const handleOpenDashboard = async (agent: Agent, _componentName: string) => {
 .menu-logo h1 {
   font-size: 1.25rem;
   font-weight: 700;
-  color: var(--landing-primary, #8B5A3C);
+  color: var(--landing-primary, #8b5a3c);
   margin: 0;
   line-height: 1;
   letter-spacing: -0.025em;
@@ -343,7 +444,7 @@ const handleOpenDashboard = async (agent: Agent, _componentName: string) => {
 
 .menu-logo .tagline {
   font-size: 0.65rem;
-  color: var(--landing-secondary, #A67C5B);
+  color: var(--landing-secondary, #a67c5b);
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.075em;
@@ -474,7 +575,6 @@ ion-split-pane {
   color: white;
 }
 
-
 /* Agents & Conversations accordion content */
 .agents-content {
   padding: 0 8px;
@@ -527,8 +627,14 @@ ion-split-pane {
 }
 
 /* Dark theme accordion headers */
-:global(html.ion-palette-dark) ion-accordion-group ion-accordion ion-item[slot="header"],
-:global(html[data-theme="dark"]) ion-accordion-group ion-accordion ion-item[slot="header"] {
+:global(html.ion-palette-dark)
+  ion-accordion-group
+  ion-accordion
+  ion-item[slot="header"],
+:global(html[data-theme="dark"])
+  ion-accordion-group
+  ion-accordion
+  ion-item[slot="header"] {
   --background: transparent !important;
   --color: var(--ion-color-primary-tint) !important;
 }
@@ -651,8 +757,18 @@ html[data-theme="dark"] ion-menu ion-accordion-group ion-accordion ion-item {
   --background: transparent !important;
 }
 
-html.ion-palette-dark ion-menu ion-accordion-group ion-accordion ion-item ion-label,
-html[data-theme="dark"] ion-menu ion-accordion-group ion-accordion ion-item ion-label {
+html.ion-palette-dark
+  ion-menu
+  ion-accordion-group
+  ion-accordion
+  ion-item
+  ion-label,
+html[data-theme="dark"]
+  ion-menu
+  ion-accordion-group
+  ion-accordion
+  ion-item
+  ion-label {
   --color: var(--ion-color-primary-tint) !important;
   color: var(--ion-color-primary-tint) !important;
 }
@@ -690,11 +806,11 @@ html[data-theme="dark"] .main-nav-content {
 /* Dark mode for menu logo */
 html.ion-palette-dark .menu-logo h1,
 html[data-theme="dark"] .menu-logo h1 {
-  color: var(--landing-primary-light, #C49A7B) !important;
+  color: var(--landing-primary-light, #c49a7b) !important;
 }
 
 html.ion-palette-dark .menu-logo .tagline,
 html[data-theme="dark"] .menu-logo .tagline {
-  color: var(--landing-secondary-light, #D4B896) !important;
+  color: var(--landing-secondary-light, #d4b896) !important;
 }
 </style>

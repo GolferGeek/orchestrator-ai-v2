@@ -1422,6 +1422,23 @@ const hierarchyGroups = computed(() => {
 
     // Only create a group if we have agents to show
     if (agents.length > 0) {
+      // Sort agents: dashboard agents first, then regular agents
+      // Dashboard agents: legal-department, marketing-swarm
+      const DASHBOARD_AGENTS = ['legal-department', 'marketing-swarm'];
+      agents.sort((a, b) => {
+        const aName = (a.name || '').toLowerCase().replace(/[-_\s]/g, '-');
+        const bName = (b.name || '').toLowerCase().replace(/[-_\s]/g, '-');
+        const aIsDashboard = DASHBOARD_AGENTS.includes(aName);
+        const bIsDashboard = DASHBOARD_AGENTS.includes(bName);
+        
+        // Put dashboard agents first
+        if (aIsDashboard && !bIsDashboard) return -1;
+        if (!aIsDashboard && bIsDashboard) return 1;
+        
+        // Within same group, sort alphabetically
+        return aName.localeCompare(bName);
+      });
+
       // Update the main agent's (orchestrator's) conversation count to include all child conversations
       if (agents.length > 1) { // Only if there are child agents
         const totalChildConversations = agents.slice(1).reduce((sum, a) => sum + (a.totalConversations || 0), 0);
@@ -1518,6 +1535,32 @@ const hierarchyGroups = computed(() => {
             });
           }
         });
+
+        // Sort orchestrator agents: dashboard agents first, then regular agents
+        // Keep the orchestrator itself (first element) in place, only sort children (indices 1+)
+        if (orchestratorAgents.length > 1) {
+          const DASHBOARD_AGENTS = ['legal-department', 'marketing-swarm'];
+          const orchestrator = orchestratorAgents[0];
+          const children = orchestratorAgents.slice(1);
+          
+          children.sort((a, b) => {
+            const aName = (a.name || '').toLowerCase().replace(/[-_\s]/g, '-');
+            const bName = (b.name || '').toLowerCase().replace(/[-_\s]/g, '-');
+            const aIsDashboard = DASHBOARD_AGENTS.includes(aName);
+            const bIsDashboard = DASHBOARD_AGENTS.includes(bName);
+            
+            // Put dashboard agents first
+            if (aIsDashboard && !bIsDashboard) return -1;
+            if (!aIsDashboard && bIsDashboard) return 1;
+            
+            // Within same group, sort alphabetically
+            return aName.localeCompare(bName);
+          });
+          
+          // Reconstruct array with orchestrator first, then sorted children
+          orchestratorAgents.length = 0;
+          orchestratorAgents.push(orchestrator, ...children);
+        }
       }
 
       // Update the orchestrator's conversation count to include all child conversations
@@ -1610,6 +1653,22 @@ const hierarchyGroups = computed(() => {
 
   // Add "Specialists" group only if there are agents not properly under CEO
   if (specialistAgents.length > 0) {
+    // Sort specialist agents: dashboard agents first, then regular agents
+    const DASHBOARD_AGENTS = ['legal-department', 'marketing-swarm'];
+    specialistAgents.sort((a, b) => {
+      const aName = (a.name || '').toLowerCase().replace(/[-_\s]/g, '-');
+      const bName = (b.name || '').toLowerCase().replace(/[-_\s]/g, '-');
+      const aIsDashboard = DASHBOARD_AGENTS.includes(aName);
+      const bIsDashboard = DASHBOARD_AGENTS.includes(bName);
+      
+      // Put dashboard agents first
+      if (aIsDashboard && !bIsDashboard) return -1;
+      if (!aIsDashboard && bIsDashboard) return 1;
+      
+      // Within same group, sort alphabetically
+      return aName.localeCompare(bName);
+    });
+
     groups.push({
       type: 'specialists',
       agents: specialistAgents,

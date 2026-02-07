@@ -713,6 +713,20 @@ export class DeliverablesService implements IActionHandler {
     userId: string,
   ): Promise<Deliverable> {
     try {
+      // Resolve agent_name: use provided value, or look up from conversation
+      let agentName = createDto.agentName || null;
+      if (!agentName && createDto.conversationId) {
+        const { data: conv } = await this.supabaseService
+          .getServiceClient()
+          .from('conversations')
+          .select('agent_name')
+          .eq('id', createDto.conversationId)
+          .single();
+        if (conv?.agent_name) {
+          agentName = conv.agent_name as string;
+        }
+      }
+
       // First, create the deliverable record
       const response: { data: unknown; error: unknown } =
         await this.supabaseService
@@ -722,7 +736,7 @@ export class DeliverablesService implements IActionHandler {
             {
               user_id: userId,
               conversation_id: createDto.conversationId,
-              agent_name: createDto.agentName || null,
+              agent_name: agentName,
               title: createDto.title,
               type: createDto.type || null,
               task_id: createDto.taskId || null,
@@ -807,6 +821,16 @@ export class DeliverablesService implements IActionHandler {
         query = query.is('conversation_id', null);
       } else if (filters.standalone === false) {
         query = query.not('conversation_id', 'is', null);
+      }
+
+      // Add agent name filter if provided
+      if (filters.agentName) {
+        query = query.eq('agent_name', filters.agentName);
+      }
+
+      // Add created after filter if provided
+      if (filters.createdAfter) {
+        query = query.gte('created_at', filters.createdAfter);
       }
 
       // Add ordering, limit, and offset
@@ -1841,7 +1865,8 @@ export class DeliverablesService implements IActionHandler {
       metadata: Record<string, unknown> | null;
     }
 
-    const allConversations = (conversations || []) as ConversationRecord[];
+    const allConversations = (conversations ||
+      []) as unknown as ConversationRecord[];
     const conversationIds = allConversations.map((c) => c.id);
 
     // Get all tasks for these conversations
@@ -1926,7 +1951,19 @@ export class DeliverablesService implements IActionHandler {
     }
 
     // Build relationship structure
-    const relationships = allConversations.map((conv) => {
+    interface RelationshipEntry {
+      conversation: ConversationRecord | null;
+      tasks: TaskRecord[];
+      deliverables: Array<
+        DeliverableRecord & {
+          versions: VersionRecord[];
+          linkedTask: TaskRecord | undefined;
+        }
+      >;
+      versions: VersionRecord[];
+    }
+
+    const relationships: RelationshipEntry[] = allConversations.map((conv) => {
       const convTasks = allTasks.filter(
         (t) => t.agent_conversation_id === conv.id,
       );

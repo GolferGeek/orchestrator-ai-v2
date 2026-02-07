@@ -1,34 +1,35 @@
-import axios, { AxiosInstance } from 'axios';
-import type { JsonObject } from '@orchestrator-ai/transport-types';
-import { apiService } from './apiService';
+import axios, { AxiosInstance } from "axios";
+import type { JsonObject } from "@orchestrator-ai/transport-types";
+import { apiService } from "./apiService";
 // API endpoint configuration
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_NESTJS_BASE_URL;
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_NESTJS_BASE_URL;
 // Deliverable types and interfaces
 export enum DeliverableType {
-  DOCUMENT = 'document',
-  ANALYSIS = 'analysis',
-  REPORT = 'report',
-  PLAN = 'plan',
-  REQUIREMENTS = 'requirements',
-  IMAGE = 'image',
-  VIDEO = 'video',
+  DOCUMENT = "document",
+  ANALYSIS = "analysis",
+  REPORT = "report",
+  PLAN = "plan",
+  REQUIREMENTS = "requirements",
+  IMAGE = "image",
+  VIDEO = "video",
 }
 export enum DeliverableFormat {
-  MARKDOWN = 'markdown',
-  TEXT = 'text',
-  JSON = 'json',
-  HTML = 'html',
-  IMAGE_PNG = 'image/png',
-  IMAGE_JPEG = 'image/jpeg',
-  IMAGE_WEBP = 'image/webp',
-  IMAGE_GIF = 'image/gif',
-  IMAGE_SVG = 'image/svg+xml'
+  MARKDOWN = "markdown",
+  TEXT = "text",
+  JSON = "json",
+  HTML = "html",
+  IMAGE_PNG = "image/png",
+  IMAGE_JPEG = "image/jpeg",
+  IMAGE_WEBP = "image/webp",
+  IMAGE_GIF = "image/gif",
+  IMAGE_SVG = "image/svg+xml",
 }
 export enum DeliverableVersionCreationType {
-  AI_RESPONSE = 'ai_response',
-  MANUAL_EDIT = 'manual_edit',
-  AI_ENHANCEMENT = 'ai_enhancement',
-  USER_REQUEST = 'user_request',
+  AI_RESPONSE = "ai_response",
+  MANUAL_EDIT = "manual_edit",
+  AI_ENHANCEMENT = "ai_enhancement",
+  USER_REQUEST = "user_request",
 }
 export interface Deliverable {
   id: string;
@@ -64,6 +65,7 @@ export interface CreateDeliverableDto {
   type?: DeliverableType;
   conversationId?: string;
   projectStepId?: string;
+  agentName?: string;
   // Initial version data (optional)
   initialContent?: string;
   initialFormat?: DeliverableFormat;
@@ -88,6 +90,8 @@ export interface DeliverableFilters {
   offset?: number;
   latestOnly?: boolean;
   standalone?: boolean;
+  agentName?: string;
+  createdAfter?: string;
 }
 export interface DeliverableSearchResult {
   id: string;
@@ -123,14 +127,16 @@ class DeliverablesService {
     this.axiosInstance = axios.create({
       baseURL: API_BASE_URL,
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
-      timeout: parseInt(import.meta.env.VITE_API_TIMEOUT_MS || '120000', 10),
+      timeout: parseInt(import.meta.env.VITE_API_TIMEOUT_MS || "120000", 10),
     });
     // Add auth token to requests
     // TokenStorageService migrates tokens to sessionStorage, so check there first
     this.axiosInstance.interceptors.request.use((config) => {
-      const token = sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
+      const token =
+        sessionStorage.getItem("authToken") ||
+        localStorage.getItem("authToken");
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
@@ -140,18 +146,27 @@ class DeliverablesService {
   /**
    * Get all deliverables for the current user with optional filtering
    */
-  async getDeliverables(filters?: DeliverableFilters): Promise<DeliverableSearchResponse> {
+  async getDeliverables(
+    filters?: DeliverableFilters,
+  ): Promise<DeliverableSearchResponse> {
     const params = new URLSearchParams();
     if (filters) {
-      if (filters.type) params.append('type', filters.type);
-      if (filters.format) params.append('format', filters.format);
-      if (filters.search) params.append('search', filters.search);
-      if (filters.limit) params.append('limit', filters.limit.toString());
-      if (filters.offset) params.append('offset', filters.offset.toString());
-      if (filters.latestOnly !== undefined) params.append('latestOnly', filters.latestOnly.toString());
-      if (filters.standalone !== undefined) params.append('standalone', filters.standalone.toString());
+      if (filters.type) params.append("type", filters.type);
+      if (filters.format) params.append("format", filters.format);
+      if (filters.search) params.append("search", filters.search);
+      if (filters.limit) params.append("limit", filters.limit.toString());
+      if (filters.offset) params.append("offset", filters.offset.toString());
+      if (filters.latestOnly !== undefined)
+        params.append("latestOnly", filters.latestOnly.toString());
+      if (filters.standalone !== undefined)
+        params.append("standalone", filters.standalone.toString());
+      if (filters.agentName) params.append("agentName", filters.agentName);
+      if (filters.createdAfter)
+        params.append("createdAfter", filters.createdAfter);
     }
-    const response = await this.axiosInstance.get(`/deliverables?${params.toString()}`);
+    const response = await this.axiosInstance.get(
+      `/deliverables?${params.toString()}`,
+    );
     return response.data;
   }
   /**
@@ -165,21 +180,38 @@ class DeliverablesService {
    * Create a new deliverable
    */
   async createDeliverable(data: CreateDeliverableDto): Promise<Deliverable> {
-    const response = await this.axiosInstance.post('/deliverables', data);
+    const response = await this.axiosInstance.post("/deliverables", data);
     return response.data;
   }
   /**
    * Create a new version of an existing deliverable
    */
-  async createVersion(deliverableId: string, data: CreateVersionDto): Promise<DeliverableVersion> {
-    const response = await this.axiosInstance.post(`/deliverable-versions/${deliverableId}`, data);
+  async createVersion(
+    deliverableId: string,
+    data: CreateVersionDto,
+  ): Promise<DeliverableVersion> {
+    const response = await this.axiosInstance.post(
+      `/deliverable-versions/${deliverableId}`,
+      data,
+    );
     return response.data;
   }
   /**
    * Update an existing deliverable (metadata only)
    */
-  async updateDeliverable(id: string, updates: Partial<Pick<CreateDeliverableDto, 'title' | 'description' | 'type' | 'projectStepId'>>): Promise<Deliverable> {
-    const response = await this.axiosInstance.patch(`/deliverables/${id}`, updates);
+  async updateDeliverable(
+    id: string,
+    updates: Partial<
+      Pick<
+        CreateDeliverableDto,
+        "title" | "description" | "type" | "projectStepId"
+      >
+    >,
+  ): Promise<Deliverable> {
+    const response = await this.axiosInstance.patch(
+      `/deliverables/${id}`,
+      updates,
+    );
     return response.data;
   }
   /**
@@ -191,48 +223,68 @@ class DeliverablesService {
   /**
    * Get all versions of a deliverable
    */
-  async getVersionHistory(deliverableId: string): Promise<DeliverableVersion[]> {
-    const response = await this.axiosInstance.get(`/deliverable-versions/${deliverableId}/history`);
+  async getVersionHistory(
+    deliverableId: string,
+  ): Promise<DeliverableVersion[]> {
+    const response = await this.axiosInstance.get(
+      `/deliverable-versions/${deliverableId}/history`,
+    );
     return response.data;
   }
   /**
    * Get the current version of a deliverable
    */
-  async getCurrentVersion(deliverableId: string): Promise<DeliverableVersion | null> {
-    const response = await this.axiosInstance.get(`/deliverable-versions/${deliverableId}/current`);
+  async getCurrentVersion(
+    deliverableId: string,
+  ): Promise<DeliverableVersion | null> {
+    const response = await this.axiosInstance.get(
+      `/deliverable-versions/${deliverableId}/current`,
+    );
     return response.data;
   }
   /**
    * Get a specific version by its ID
    */
   async getVersion(versionId: string): Promise<DeliverableVersion> {
-    const response = await this.axiosInstance.get(`/deliverable-versions/version/${versionId}`);
+    const response = await this.axiosInstance.get(
+      `/deliverable-versions/version/${versionId}`,
+    );
     return response.data;
   }
   /**
    * Set a specific version as the current version
    */
   async setCurrentVersion(versionId: string): Promise<DeliverableVersion> {
-    const response = await this.axiosInstance.patch(`/deliverable-versions/version/${versionId}/set-current`);
+    const response = await this.axiosInstance.patch(
+      `/deliverable-versions/version/${versionId}/set-current`,
+    );
     return response.data;
   }
   /**
    * Delete a specific version
    */
   async deleteVersion(versionId: string): Promise<void> {
-    await this.axiosInstance.delete(`/deliverable-versions/version/${versionId}`);
+    await this.axiosInstance.delete(
+      `/deliverable-versions/version/${versionId}`,
+    );
   }
 
   /**
    * Rerun a version with a different LLM to create a new version
    */
-  async rerunWithDifferentLLM(versionId: string, llmConfig: {
-    provider: string;
-    model: string;
-    temperature?: number;
-    maxTokens?: number;
-  }): Promise<DeliverableVersion> {
-    const response = await this.axiosInstance.post(`/deliverable-versions/version/${versionId}/rerun`, llmConfig);
+  async rerunWithDifferentLLM(
+    versionId: string,
+    llmConfig: {
+      provider: string;
+      model: string;
+      temperature?: number;
+      maxTokens?: number;
+    },
+  ): Promise<DeliverableVersion> {
+    const response = await this.axiosInstance.post(
+      `/deliverable-versions/version/${versionId}/rerun`,
+      llmConfig,
+    );
     return response.data;
   }
 
@@ -240,7 +292,9 @@ class DeliverablesService {
    * Copy an existing version (same content/metadata)
    */
   async copyVersion(versionId: string): Promise<DeliverableVersion> {
-    const response = await this.axiosInstance.post(`/deliverable-versions/version/${versionId}/copy`);
+    const response = await this.axiosInstance.post(
+      `/deliverable-versions/version/${versionId}/copy`,
+    );
     return response.data;
   }
 
@@ -249,9 +303,18 @@ class DeliverablesService {
    */
   async enhanceVersion(
     versionId: string,
-    params: { instruction: string; providerName?: string; modelName?: string; temperature?: number; maxTokens?: number },
+    params: {
+      instruction: string;
+      providerName?: string;
+      modelName?: string;
+      temperature?: number;
+      maxTokens?: number;
+    },
   ): Promise<DeliverableVersion> {
-    const response = await this.axiosInstance.post(`/deliverable-versions/version/${versionId}/enhance`, params);
+    const response = await this.axiosInstance.post(
+      `/deliverable-versions/version/${versionId}/enhance`,
+      params,
+    );
     return response.data;
   }
 
@@ -265,34 +328,48 @@ class DeliverablesService {
     providerName?: string,
     modelName?: string,
   ): Promise<{ newVersion: DeliverableVersion; conflictSummary?: string }> {
-    const response = await this.axiosInstance.post(`/deliverable-versions/${deliverableId}/merge`, {
-      versionIds,
-      mergePrompt,
-      providerName,
-      modelName,
-    });
+    const response = await this.axiosInstance.post(
+      `/deliverable-versions/${deliverableId}/merge`,
+      {
+        versionIds,
+        mergePrompt,
+        providerName,
+        modelName,
+      },
+    );
     return response.data;
   }
 
   /**
    * Search deliverables with advanced query options
    */
-  async searchDeliverables(query: string, filters?: Omit<DeliverableFilters, 'search'>): Promise<DeliverableSearchResponse> {
+  async searchDeliverables(
+    query: string,
+    filters?: Omit<DeliverableFilters, "search">,
+  ): Promise<DeliverableSearchResponse> {
     return this.getDeliverables({ ...filters, search: query });
   }
   /**
    * Get deliverables for a specific conversation
    */
-  async getConversationDeliverables(conversationId: string): Promise<Deliverable[]> {
+  async getConversationDeliverables(
+    conversationId: string,
+  ): Promise<Deliverable[]> {
     // Use shared apiService to ensure correct base URL and auth headers
-    const response = await apiService.get<Deliverable[] | DeliverableSearchResponse>(`/deliverables/conversation/${conversationId}`);
+    const response = await apiService.get<
+      Deliverable[] | DeliverableSearchResponse
+    >(`/deliverables/conversation/${conversationId}`);
     // apiService.get already returns parsed JSON
-    return Array.isArray(response) ? response : ((response as DeliverableSearchResponse)?.items || []);
+    return Array.isArray(response)
+      ? response
+      : (response as DeliverableSearchResponse)?.items || [];
   }
   /**
    * Get deliverables created by a specific agent (by searching version metadata)
    */
-  async getAgentDeliverables(_agentName: string): Promise<DeliverableSearchResult[]> {
+  async getAgentDeliverables(
+    _agentName: string,
+  ): Promise<DeliverableSearchResult[]> {
     // Note: This would need backend support to filter by version creation metadata
     const result = await this.getDeliverables({});
     // For now, return all deliverables - this could be enhanced with server-side filtering
@@ -302,9 +379,13 @@ class DeliverablesService {
    * Check if a deliverable exists for the current conversation/task context
    * This helps with enhancement workflows
    */
-  async findExistingDeliverable(conversationId: string, taskId?: string): Promise<Deliverable | null> {
+  async findExistingDeliverable(
+    conversationId: string,
+    taskId?: string,
+  ): Promise<Deliverable | null> {
     try {
-      const deliverables = await this.getConversationDeliverables(conversationId);
+      const deliverables =
+        await this.getConversationDeliverables(conversationId);
       if (taskId) {
         // Look for deliverable with matching task ID in any of its versions
         for (const deliverable of deliverables) {
@@ -327,28 +408,33 @@ class DeliverablesService {
    * Create an editing conversation for a standalone deliverable
    */
   async createEditingConversation(
-    deliverableId: string, 
+    deliverableId: string,
     options: {
       agentName?: string;
       initialMessage?: string;
-      action?: 'edit' | 'enhance' | 'revise' | 'discuss' | 'new-version';
-    } = {}
+      action?: "edit" | "enhance" | "revise" | "discuss" | "new-version";
+    } = {},
   ): Promise<{ conversationId: string; message: string }> {
     try {
-      const response = await this.axiosInstance.post(`/deliverables/${deliverableId}/conversations`, options);
+      const response = await this.axiosInstance.post(
+        `/deliverables/${deliverableId}/conversations`,
+        options,
+      );
       return response.data;
     } catch (error: unknown) {
       // Log the full error for debugging
-      if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as { response?: { data?: unknown; status?: number } };
-        console.error('[DeliverablesService] Conversation creation error:', {
+      if (error && typeof error === "object" && "response" in error) {
+        const axiosError = error as {
+          response?: { data?: unknown; status?: number };
+        };
+        console.error("[DeliverablesService] Conversation creation error:", {
           status: axiosError.response?.status,
           data: axiosError.response?.data,
           requestPayload: options,
-          deliverableId
+          deliverableId,
         });
         throw new Error(
-          `Failed to create conversation: ${JSON.stringify(axiosError.response?.data || 'Unknown error')}`
+          `Failed to create conversation: ${JSON.stringify(axiosError.response?.data || "Unknown error")}`,
         );
       }
       throw error;

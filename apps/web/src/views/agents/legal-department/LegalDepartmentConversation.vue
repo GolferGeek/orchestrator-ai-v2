@@ -3,7 +3,13 @@
     <!-- Loading State -->
     <div v-if="isLoading || isLoadingExisting" class="loading-container">
       <ion-spinner name="crescent" />
-      <p>{{ isLoadingExisting ? 'Loading previous analysis...' : 'Initializing Legal Department AI...' }}</p>
+      <p>
+        {{
+          isLoadingExisting
+            ? "Loading previous analysis..."
+            : "Initializing Legal Department AI..."
+        }}
+      </p>
     </div>
 
     <!-- Main Conversation Pane -->
@@ -11,7 +17,15 @@
       <!-- Scrollable Response Area -->
       <div class="response-area" ref="responseAreaRef">
         <!-- Welcome State (no request yet, and not loading existing, and no load error) -->
-        <div v-if="!hasActiveRequest && !analysisResults && !isLoadingExisting && !error" class="welcome-state">
+        <div
+          v-if="
+            !hasActiveRequest &&
+            !analysisResults &&
+            !isLoadingExisting &&
+            !error
+          "
+          class="welcome-state"
+        >
           <div class="welcome-content">
             <ion-icon :icon="scaleOutline" class="welcome-icon" />
             <h2>Legal Department AI</h2>
@@ -37,6 +51,16 @@
             <div class="model-selector">
               <CompactLLMControl />
             </div>
+            <ion-button
+              fill="outline"
+              color="medium"
+              size="default"
+              class="history-button"
+              @click="emit('browse-history')"
+            >
+              <ion-icon :icon="timeOutline" slot="start" />
+              Previous Analyses
+            </ion-button>
           </div>
         </div>
 
@@ -49,14 +73,20 @@
               <span>Your Request</span>
             </div>
             <p class="request-message">{{ currentRequest.message }}</p>
-            <div v-if="currentRequest.attachedDocument" class="request-attachment">
+            <div
+              v-if="currentRequest.attachedDocument"
+              class="request-attachment"
+            >
               <ion-icon :icon="documentAttachOutline" />
               <span>{{ currentRequest.attachedDocument.name }}</span>
             </div>
           </div>
 
           <!-- Processing Indicator (when no results yet) -->
-          <div v-if="isProcessing && !analysisResults" class="processing-indicator">
+          <div
+            v-if="isProcessing && !analysisResults"
+            class="processing-indicator"
+          >
             <div class="thinking-content">
               <div class="thinking-avatar">
                 <ion-spinner name="dots" color="primary" />
@@ -74,20 +104,25 @@
               </div>
             </div>
             <div class="progress-section">
-              <p class="progress-step">{{ currentStep || 'Processing...' }}</p>
+              <p class="progress-step">{{ currentStep || "Processing..." }}</p>
               <ion-progress-bar :value="analysisProgress.percentage / 100" />
             </div>
           </div>
 
           <!-- Text-Only Response (for queries without document analysis) -->
-          <div v-if="isTextOnlyResponse && analysisResults && !isProcessing" class="text-response-panel">
+          <div
+            v-if="isTextOnlyResponse && analysisResults && !isProcessing"
+            class="text-response-panel"
+          >
             <div class="response-header">
               <ion-icon :icon="chatbubbleOutline" />
               <span>Legal Department AI Response</span>
             </div>
             <!-- eslint-disable-next-line vue/no-v-html -- Intentional: Rendering sanitized markdown/HTML content from trusted source -->
-            <div class="response-content markdown-content" v-html="marked(analysisResults.summary || '')">
-            </div>
+            <div
+              class="response-content markdown-content"
+              v-html="marked(analysisResults.summary || '')"
+            ></div>
             <div class="response-hint">
               <ion-icon :icon="informationCircleOutline" />
               <span>Upload a document for detailed specialist analysis</span>
@@ -128,6 +163,21 @@
             @action="handleHITLAction"
             @export="handleExport"
           />
+
+          <!-- New Analysis button (when viewing completed analysis) -->
+          <div
+            v-if="analysisResults && !isProcessing"
+            class="new-analysis-action"
+          >
+            <ion-button
+              fill="outline"
+              size="small"
+              @click="navigateToNewAnalysis"
+            >
+              <ion-icon :icon="addCircleOutline" slot="start" />
+              New Analysis
+            </ion-button>
+          </div>
         </template>
 
         <!-- Error Display -->
@@ -136,7 +186,9 @@
           <p>{{ error }}</p>
           <div class="error-actions">
             <ion-button size="small" @click="handleRetry">Retry</ion-button>
-            <ion-button size="small" fill="outline" @click="startNewAnalysis">Start New Analysis</ion-button>
+            <ion-button size="small" fill="outline" @click="startNewAnalysis"
+              >Start New Analysis</ion-button
+            >
           </div>
         </div>
       </div>
@@ -153,9 +205,15 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
-import { useRoute } from 'vue-router';
-import { IonSpinner, IonIcon, IonButton, IonProgressBar, toastController } from '@ionic/vue';
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import {
+  IonSpinner,
+  IonIcon,
+  IonButton,
+  IonProgressBar,
+  toastController,
+} from "@ionic/vue";
 import {
   alertCircleOutline,
   scaleOutline,
@@ -167,27 +225,36 @@ import {
   documentAttachOutline,
   chatbubbleOutline,
   informationCircleOutline,
-} from 'ionicons/icons';
-import { marked } from 'marked';
+  addCircleOutline,
+  timeOutline,
+} from "ionicons/icons";
+import { marked } from "marked";
 
 // Configure marked for GFM
 marked.setOptions({ breaks: true, gfm: true });
-import { useExecutionContextStore } from '@/stores/executionContextStore';
-import { useRbacStore } from '@/stores/rbacStore';
-import { useChatUiStore } from '@/stores/ui/chatUiStore';
-import { useUserPreferencesStore } from '@/stores/userPreferencesStore';
-import { useLLMPreferencesStore } from '@/stores/llmPreferencesStore';
-import { useAgentsStore } from '@/stores/agentsStore';
-import { legalDepartmentService, type ProgressEvent } from './legalDepartmentService';
-import agent2AgentConversationsService from '@/services/agent2AgentConversationsService';
-import { apiService } from '@/services/apiService';
-import { deliverablesService, DeliverableType, DeliverableFormat } from '@/services/deliverablesService';
-import RequestInput from './components/RequestInput.vue';
-import RoutingVisualization from './components/RoutingVisualization.vue';
-import SpecialistTabs from './components/SpecialistTabs.vue';
-import SynthesisPanel from './components/SynthesisPanel.vue';
-import HITLControls from './components/HITLControls.vue';
-import CompactLLMControl from '@/components/CompactLLMControl.vue';
+import { useExecutionContextStore } from "@/stores/executionContextStore";
+import { useRbacStore } from "@/stores/rbacStore";
+import { useChatUiStore } from "@/stores/ui/chatUiStore";
+import { useUserPreferencesStore } from "@/stores/userPreferencesStore";
+import { useLLMPreferencesStore } from "@/stores/llmPreferencesStore";
+import { useAgentsStore } from "@/stores/agentsStore";
+import {
+  legalDepartmentService,
+  type ProgressEvent,
+} from "./legalDepartmentService";
+import agent2AgentConversationsService from "@/services/agent2AgentConversationsService";
+import { apiService } from "@/services/apiService";
+import {
+  deliverablesService,
+  DeliverableType,
+  DeliverableFormat,
+} from "@/services/deliverablesService";
+import RequestInput from "./components/RequestInput.vue";
+import RoutingVisualization from "./components/RoutingVisualization.vue";
+import SpecialistTabs from "./components/SpecialistTabs.vue";
+import SynthesisPanel from "./components/SynthesisPanel.vue";
+import HITLControls from "./components/HITLControls.vue";
+import CompactLLMControl from "@/components/CompactLLMControl.vue";
 import type {
   AnalysisPhase,
   AnalysisResults,
@@ -198,15 +265,20 @@ import type {
   SpecialistState,
   HITLAction,
   ConversationRequest,
-} from './legalDepartmentTypes';
+} from "./legalDepartmentTypes";
 
 // Props
 const props = defineProps<{
   conversationId?: string;
 }>();
 
+const emit = defineEmits<{
+  (e: "browse-history"): void;
+}>();
+
 // Router
 const route = useRoute();
+const router = useRouter();
 
 // Stores
 const executionContextStore = useExecutionContextStore();
@@ -226,8 +298,10 @@ const isProcessing = ref(false);
 const error = ref<string | null>(null);
 const currentRequest = ref<ConversationRequest | null>(null);
 const routingDecision = ref<RoutingDecision | undefined>(undefined);
-const specialistStates = ref<Record<SpecialistType, SpecialistState>>({} as Record<SpecialistType, SpecialistState>);
-const analysisPhase = ref<AnalysisPhase>('initializing');
+const specialistStates = ref<Record<SpecialistType, SpecialistState>>(
+  {} as Record<SpecialistType, SpecialistState>,
+);
+const analysisPhase = ref<AnalysisPhase>("initializing");
 const analysisProgress = ref({ current: 0, total: 100, percentage: 0 });
 const currentStep = ref<string | undefined>();
 const analysisResults = ref<AnalysisResults | null>(null);
@@ -246,41 +320,48 @@ const isTextOnlyResponse = computed(() => {
   if (!result) return false;
 
   // Check if explicitly marked as text-only
-  const resultWithFlag = result as AnalysisResults & { isTextOnlyResponse?: boolean };
+  const resultWithFlag = result as AnalysisResults & {
+    isTextOnlyResponse?: boolean;
+  };
   if (resultWithFlag.isTextOnlyResponse === true) return true;
 
   // Infer text-only if no specialist outputs, no routing, and no findings
-  return !hasSpecialistOutputs.value && !routingDecision.value && result.findings.length === 0;
+  return (
+    !hasSpecialistOutputs.value &&
+    !routingDecision.value &&
+    result.findings.length === 0
+  );
 });
 
 const inputPlaceholder = computed(() => {
-  if (isProcessing.value) return 'Analysis in progress...';
-  if (analysisResults.value) return 'Ask a follow-up question...';
-  return 'Ask a legal question or describe the document to analyze...';
+  if (isProcessing.value) return "Analysis in progress...";
+  if (analysisResults.value) return "Ask a follow-up question...";
+  return "Ask a legal question or describe the document to analyze...";
 });
 
 // Contextual thinking message based on mode and analysis phase
 const thinkingMessage = computed(() => {
-  const mode = (chatUiStore.chatMode || 'converse').toLowerCase();
+  const mode = (chatUiStore.chatMode || "converse").toLowerCase();
   const phase = analysisPhase.value;
 
   // Phase-specific messages
-  if (phase === 'uploading') return 'Reviewing your document...';
-  if (phase === 'extracting') return 'Extracting key information...';
-  if (phase === 'analyzing') return 'Analyzing legal content...';
-  if (phase === 'identifying_risks') return 'Identifying potential risks...';
-  if (phase === 'generating_recommendations') return 'Preparing recommendations...';
+  if (phase === "uploading") return "Reviewing your document...";
+  if (phase === "extracting") return "Extracting key information...";
+  if (phase === "analyzing") return "Analyzing legal content...";
+  if (phase === "identifying_risks") return "Identifying potential risks...";
+  if (phase === "generating_recommendations")
+    return "Preparing recommendations...";
 
   // Mode-specific fallbacks
-  if (mode === 'converse') return 'Reviewing your question...';
-  if (mode === 'plan') return 'Drafting a legal strategy...';
-  if (mode === 'build') return 'Preparing your deliverable...';
+  if (mode === "converse") return "Reviewing your question...";
+  if (mode === "plan") return "Drafting a legal strategy...";
+  if (mode === "build") return "Preparing your deliverable...";
 
-  return 'Processing your request...';
+  return "Processing your request...";
 });
 
 const currentConversationId = computed(() => {
-  return executionContextStore.conversationId || '';
+  return executionContextStore.conversationId || "";
 });
 
 // Lifecycle
@@ -300,22 +381,31 @@ watch(
   () => route.query.conversationId,
   async (newConversationId, oldConversationId) => {
     if (newConversationId && newConversationId !== oldConversationId) {
-      console.log('[LegalDepartment] Route conversationId changed:', { old: oldConversationId, new: newConversationId });
+      console.log("[LegalDepartment] Route conversationId changed:", {
+        old: oldConversationId,
+        new: newConversationId,
+      });
       resetState();
       await initializeConversation();
     }
-  }
+  },
 );
 
 // Watch for model preference changes to update execution context
 watch(
-  () => [userPreferencesStore.preferredProvider, userPreferencesStore.preferredModel],
+  () => [
+    userPreferencesStore.preferredProvider,
+    userPreferencesStore.preferredModel,
+  ],
   ([newProvider, newModel]) => {
     if (newProvider && newModel && executionContextStore.isInitialized) {
       executionContextStore.setLLM(newProvider, newModel);
-      console.log('[LegalDepartment] Model preference changed:', { provider: newProvider, model: newModel });
+      console.log("[LegalDepartment] Model preference changed:", {
+        provider: newProvider,
+        model: newModel,
+      });
     }
-  }
+  },
 );
 
 // Watch for agent data to set local model requirement
@@ -323,15 +413,17 @@ watch(
   () => agentsStore.availableAgents,
   () => {
     const legalAgent = agentsStore.availableAgents.find(
-      (a) => a.slug === 'legal-department' || a.name === 'legal-department'
+      (a) => a.slug === "legal-department" || a.name === "legal-department",
     );
     const requireLocalModel = legalAgent?.requireLocalModel ?? false;
     if (requireLocalModel) {
-      console.log('[LegalDepartment] Agent requires local model - enforcing sovereign mode');
+      console.log(
+        "[LegalDepartment] Agent requires local model - enforcing sovereign mode",
+      );
       llmStore.setAgentRequiresLocalModel(true);
     }
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 // Methods
@@ -342,12 +434,12 @@ function resetState() {
   currentRequest.value = null;
   routingDecision.value = undefined;
   specialistStates.value = {} as Record<SpecialistType, SpecialistState>;
-  analysisPhase.value = 'initializing';
+  analysisPhase.value = "initializing";
   analysisProgress.value = { current: 0, total: 100, percentage: 0 };
   currentStep.value = undefined;
   analysisResults.value = null;
   hitlActionTaken.value = false;
-  console.log('[LegalDepartment] State reset for new conversation');
+  console.log("[LegalDepartment] State reset for new conversation");
 }
 
 /**
@@ -355,7 +447,7 @@ function resetState() {
  */
 async function saveAnalysisDeliverable() {
   if (!analysisResults.value || !currentConversationId.value) {
-    console.log('[LegalDepartment] No results or conversation ID to save');
+    console.log("[LegalDepartment] No results or conversation ID to save");
     return;
   }
 
@@ -375,17 +467,19 @@ async function saveAnalysisDeliverable() {
 
     await deliverablesService.createDeliverable({
       title,
-      description: analysisResults.value.summary || 'Legal Department AI analysis',
+      description:
+        analysisResults.value.summary || "Legal Department AI analysis",
       type: DeliverableType.ANALYSIS,
       conversationId: currentConversationId.value,
+      agentName: "legal-department",
       initialContent: JSON.stringify(persistedState),
       initialFormat: DeliverableFormat.JSON,
     });
 
-    console.log('[LegalDepartment] Analysis saved as deliverable');
+    console.log("[LegalDepartment] Analysis saved as deliverable");
   } catch (err) {
     // Don't fail the whole flow if save fails - just log it
-    console.error('[LegalDepartment] Failed to save deliverable:', err);
+    console.error("[LegalDepartment] Failed to save deliverable:", err);
   }
 }
 
@@ -394,25 +488,42 @@ async function saveAnalysisDeliverable() {
  */
 async function loadExistingAnalysis(conversationId: string): Promise<boolean> {
   isLoadingExisting.value = true;
-  console.log('[LegalDepartment] Loading existing analysis for conversation:', conversationId);
+  console.log(
+    "[LegalDepartment] Loading existing analysis for conversation:",
+    conversationId,
+  );
 
   try {
-    const deliverables = await deliverablesService.getConversationDeliverables(conversationId);
-    console.log('[LegalDepartment] Got deliverables:', deliverables.length, deliverables.map(d => ({ id: d.id, type: d.type, hasVersion: !!d.currentVersion })));
+    const deliverables =
+      await deliverablesService.getConversationDeliverables(conversationId);
+    console.log(
+      "[LegalDepartment] Got deliverables:",
+      deliverables.length,
+      deliverables.map((d) => ({
+        id: d.id,
+        type: d.type,
+        hasVersion: !!d.currentVersion,
+      })),
+    );
 
     // Find the most recent analysis deliverable
     const analysisDeliverable = deliverables
-      .filter(d => d.type === DeliverableType.ANALYSIS)
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+      .filter((d) => d.type === DeliverableType.ANALYSIS)
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      )[0];
 
     if (!analysisDeliverable) {
       // No previous analysis - this is expected for new conversations
       // Just return false to show the welcome state (no error needed)
-      console.log('[LegalDepartment] No analysis deliverable found - showing welcome state');
+      console.log(
+        "[LegalDepartment] No analysis deliverable found - showing welcome state",
+      );
       return false;
     }
 
-    console.log('[LegalDepartment] Found analysis deliverable:', {
+    console.log("[LegalDepartment] Found analysis deliverable:", {
       id: analysisDeliverable.id,
       type: analysisDeliverable.type,
       hasCurrentVersion: !!analysisDeliverable.currentVersion,
@@ -421,42 +532,49 @@ async function loadExistingAnalysis(conversationId: string): Promise<boolean> {
     });
 
     if (!analysisDeliverable.currentVersion?.content) {
-      console.log('[LegalDepartment] Analysis deliverable has no content');
-      error.value = 'Previous analysis found but has no content.';
+      console.log("[LegalDepartment] Analysis deliverable has no content");
+      error.value = "Previous analysis found but has no content.";
       return false;
     }
 
     // Parse and restore the state
-    const persistedState = JSON.parse(analysisDeliverable.currentVersion.content);
-    console.log('[LegalDepartment] Parsed persisted state keys:', Object.keys(persistedState));
+    const persistedState = JSON.parse(
+      analysisDeliverable.currentVersion.content,
+    );
+    console.log(
+      "[LegalDepartment] Parsed persisted state keys:",
+      Object.keys(persistedState),
+    );
 
     if (persistedState.analysisResults) {
       analysisResults.value = persistedState.analysisResults;
-      console.log('[LegalDepartment] Restored analysisResults');
+      console.log("[LegalDepartment] Restored analysisResults");
     }
     if (persistedState.routingDecision) {
       routingDecision.value = persistedState.routingDecision;
       updateSpecialistStates(persistedState.routingDecision);
-      console.log('[LegalDepartment] Restored routingDecision');
+      console.log("[LegalDepartment] Restored routingDecision");
     }
     if (persistedState.currentRequest) {
       currentRequest.value = persistedState.currentRequest;
-      console.log('[LegalDepartment] Restored currentRequest');
+      console.log("[LegalDepartment] Restored currentRequest");
     }
     if (persistedState.specialistStates) {
       specialistStates.value = persistedState.specialistStates;
-      console.log('[LegalDepartment] Restored specialistStates');
+      console.log("[LegalDepartment] Restored specialistStates");
     }
 
     // Mark as completed since we're loading existing results
-    analysisPhase.value = 'completed';
+    analysisPhase.value = "completed";
     error.value = null; // Clear any previous errors
 
-    console.log('[LegalDepartment] Successfully restored analysis from deliverable');
+    console.log(
+      "[LegalDepartment] Successfully restored analysis from deliverable",
+    );
     return true;
   } catch (err) {
-    console.error('[LegalDepartment] Failed to load existing analysis:', err);
-    error.value = `Failed to load previous analysis: ${err instanceof Error ? err.message : 'Unknown error'}`;
+    console.error("[LegalDepartment] Failed to load existing analysis:", err);
+    error.value = `Failed to load previous analysis: ${err instanceof Error ? err.message : "Unknown error"}`;
     return false;
   } finally {
     isLoadingExisting.value = false;
@@ -468,35 +586,38 @@ async function initializeConversation() {
   error.value = null;
 
   try {
-    const orgSlug = rbacStore.currentOrganization || 'demo-org';
-    const userId = rbacStore.user?.id || 'demo-user';
+    const orgSlug = rbacStore.currentOrganization || "demo-org";
+    const userId = rbacStore.user?.id || "demo-user";
 
     // Check route query first, then props, then create new
-    let conversationIdToUse = (route.query.conversationId as string) || props.conversationId;
+    let conversationIdToUse =
+      (route.query.conversationId as string) || props.conversationId;
     const isExistingConversation = !!conversationIdToUse;
 
     if (!conversationIdToUse) {
       conversationIdToUse = crypto.randomUUID();
       await agent2AgentConversationsService.createConversation({
-        agentName: 'legal-department',
-        agentType: 'api',
+        agentName: "legal-department",
+        agentType: "api",
         organizationSlug: orgSlug,
         conversationId: conversationIdToUse,
         metadata: {
-          source: 'legal-department-ui',
-          contentType: 'legal-analysis',
+          source: "legal-department-ui",
+          contentType: "legal-analysis",
         },
       });
     }
 
     // Check if legal-department agent requires local model (sovereign mode)
     const legalAgent = agentsStore.availableAgents.find(
-      (a) => a.slug === 'legal-department' || a.name === 'legal-department'
+      (a) => a.slug === "legal-department" || a.name === "legal-department",
     );
     const requireLocalModel = legalAgent?.requireLocalModel ?? false;
 
     if (requireLocalModel) {
-      console.log('[LegalDepartment] Agent requires local model - enforcing sovereign mode');
+      console.log(
+        "[LegalDepartment] Agent requires local model - enforcing sovereign mode",
+      );
       llmStore.setAgentRequiresLocalModel(true);
     } else {
       llmStore.setAgentRequiresLocalModel(false);
@@ -506,21 +627,24 @@ async function initializeConversation() {
       orgSlug,
       userId,
       conversationId: conversationIdToUse,
-      agentSlug: 'legal-department',
-      agentType: 'api',
-      provider: userPreferencesStore.preferredProvider || 'anthropic',
-      model: userPreferencesStore.preferredModel || 'claude-sonnet-4-20250514',
+      agentSlug: "legal-department",
+      agentType: "api",
+      provider: userPreferencesStore.preferredProvider || "anthropic",
+      model: userPreferencesStore.preferredModel || "claude-sonnet-4-20250514",
     });
 
-    console.log('[LegalDepartment] Initialized:', executionContextStore.current);
+    console.log(
+      "[LegalDepartment] Initialized:",
+      executionContextStore.current,
+    );
 
     // If this is an existing conversation, try to load previous analysis
     if (isExistingConversation) {
       await loadExistingAnalysis(conversationIdToUse);
     }
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to initialize';
-    console.error('[LegalDepartment] Initialization failed:', err);
+    error.value = err instanceof Error ? err.message : "Failed to initialize";
+    console.error("[LegalDepartment] Initialization failed:", err);
   } finally {
     isLoading.value = false;
   }
@@ -535,7 +659,7 @@ async function handleRequestSubmit(data: {
     generateRecommendations: boolean;
   };
 }) {
-  console.log('[LegalDepartment] Submit request');
+  console.log("[LegalDepartment] Submit request");
   error.value = null;
   isProcessing.value = true;
   hitlActionTaken.value = false;
@@ -545,12 +669,14 @@ async function handleRequestSubmit(data: {
   currentRequest.value = {
     id: crypto.randomUUID(),
     message: data.message,
-    attachedDocument: data.file ? {
-      file: data.file,
-      name: data.file.name,
-      size: data.file.size,
-      type: data.file.type,
-    } : undefined,
+    attachedDocument: data.file
+      ? {
+          file: data.file,
+          name: data.file.name,
+          size: data.file.size,
+          type: data.file.type,
+        }
+      : undefined,
     timestamp: new Date().toISOString(),
   };
 
@@ -567,8 +693,8 @@ async function handleRequestSubmit(data: {
       await processTextQuery(data.message);
     }
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Analysis failed';
-    console.error('[LegalDepartment] Request failed:', err);
+    error.value = err instanceof Error ? err.message : "Analysis failed";
+    console.error("[LegalDepartment] Request failed:", err);
   } finally {
     isProcessing.value = false;
     scrollToBottom();
@@ -582,30 +708,37 @@ async function handleRequestSubmit(data: {
 
 async function processDocumentAnalysis(
   file: File,
-  options: { extractKeyTerms: boolean; identifyRisks: boolean; generateRecommendations: boolean }
+  options: {
+    extractKeyTerms: boolean;
+    identifyRisks: boolean;
+    generateRecommendations: boolean;
+  },
 ) {
   // Set initial phase
-  analysisPhase.value = 'uploading';
-  currentStep.value = 'Connecting to analysis service...';
+  analysisPhase.value = "uploading";
+  currentStep.value = "Connecting to analysis service...";
   analysisProgress.value = { current: 0, total: 100, percentage: 0 };
 
   // Connect to SSE stream for real-time progress updates BEFORE starting analysis
   const conversationId = currentConversationId.value;
   if (conversationId) {
-    legalDepartmentService.connectToSSEStream(conversationId, handleProgressEvent);
-    console.log('[LegalDepartment] SSE connected for progress tracking');
+    legalDepartmentService.connectToSSEStream(
+      conversationId,
+      handleProgressEvent,
+    );
+    console.log("[LegalDepartment] SSE connected for progress tracking");
   }
 
   try {
     // Update to show upload starting
-    analysisPhase.value = 'uploading';
-    currentStep.value = 'Uploading document...';
+    analysisPhase.value = "uploading";
+    currentStep.value = "Uploading document...";
     analysisProgress.value = { current: 5, total: 100, percentage: 5 };
 
     // Call service - progress events will update the UI via SSE
     const result = await legalDepartmentService.uploadAndAnalyze(file, options);
 
-    console.log('[LegalDepartment] Analysis result:', result);
+    console.log("[LegalDepartment] Analysis result:", result);
 
     // Extract routing decision
     if (result.analysisResults) {
@@ -613,8 +746,8 @@ async function processDocumentAnalysis(
       inferRoutingFromResults(result.analysisResults);
 
       // Final completion update
-      analysisPhase.value = 'completed';
-      currentStep.value = 'Analysis complete';
+      analysisPhase.value = "completed";
+      currentStep.value = "Analysis complete";
       analysisProgress.value = { current: 100, total: 100, percentage: 100 };
 
       analysisResults.value = result.analysisResults;
@@ -637,7 +770,7 @@ async function processDocumentAnalysis(
  * Handle progress events from SSE stream
  */
 function handleProgressEvent(event: ProgressEvent) {
-  console.log('[LegalDepartment] Progress update:', event);
+  console.log("[LegalDepartment] Progress update:", event);
 
   // Update progress bar
   if (event.progress !== undefined) {
@@ -663,7 +796,7 @@ function handleProgressEvent(event: ProgressEvent) {
   if (event.metadata) {
     const specialist = event.metadata.specialist;
     const status = event.metadata.status;
-    if (typeof specialist === 'string' && typeof status === 'string') {
+    if (typeof specialist === "string" && typeof status === "string") {
       const specialistType = specialist as SpecialistType;
       if (specialistStates.value[specialistType]) {
         const specialistStatus = status as SpecialistStatus;
@@ -681,12 +814,17 @@ function handleProgressEvent(event: ProgressEvent) {
  */
 function mapStepToPhase(step: string): AnalysisPhase | null {
   const stepLower = step.toLowerCase();
-  if (stepLower.includes('upload') || stepLower.includes('extract')) return 'extracting';
-  if (stepLower.includes('rout') || stepLower.includes('clo')) return 'analyzing';
-  if (stepLower.includes('specialist') || stepLower.includes('analy')) return 'analyzing';
-  if (stepLower.includes('risk')) return 'identifying_risks';
-  if (stepLower.includes('recommend') || stepLower.includes('synth')) return 'generating_recommendations';
-  if (stepLower.includes('complet') || stepLower.includes('final')) return 'completed';
+  if (stepLower.includes("upload") || stepLower.includes("extract"))
+    return "extracting";
+  if (stepLower.includes("rout") || stepLower.includes("clo"))
+    return "analyzing";
+  if (stepLower.includes("specialist") || stepLower.includes("analy"))
+    return "analyzing";
+  if (stepLower.includes("risk")) return "identifying_risks";
+  if (stepLower.includes("recommend") || stepLower.includes("synth"))
+    return "generating_recommendations";
+  if (stepLower.includes("complet") || stepLower.includes("final"))
+    return "completed";
   return null;
 }
 
@@ -699,20 +837,20 @@ function formatStepDescription(step: string, message?: string): string {
 
   // Format step name into readable description
   const stepMappings: Record<string, string> = {
-    'upload': 'Uploading document...',
-    'extract': 'Extracting text content...',
-    'extraction': 'Extracting text content...',
-    'clo': 'Routing to specialists...',
-    'routing': 'Routing to specialists...',
-    'specialist': 'Running specialist analysis...',
-    'contract': 'Analyzing contract terms...',
-    'compliance': 'Checking compliance requirements...',
-    'ip': 'Reviewing intellectual property...',
-    'privacy': 'Analyzing privacy implications...',
-    'employment': 'Reviewing employment terms...',
-    'synthesis': 'Synthesizing results...',
-    'final': 'Finalizing analysis...',
-    'complete': 'Analysis complete',
+    upload: "Uploading document...",
+    extract: "Extracting text content...",
+    extraction: "Extracting text content...",
+    clo: "Routing to specialists...",
+    routing: "Routing to specialists...",
+    specialist: "Running specialist analysis...",
+    contract: "Analyzing contract terms...",
+    compliance: "Checking compliance requirements...",
+    ip: "Reviewing intellectual property...",
+    privacy: "Analyzing privacy implications...",
+    employment: "Reviewing employment terms...",
+    synthesis: "Synthesizing results...",
+    final: "Finalizing analysis...",
+    complete: "Analysis complete",
   };
 
   const stepLower = step.toLowerCase();
@@ -721,28 +859,42 @@ function formatStepDescription(step: string, message?: string): string {
   }
 
   // Default: capitalize the step name
-  return step.charAt(0).toUpperCase() + step.slice(1).replace(/_/g, ' ') + '...';
+  return (
+    step.charAt(0).toUpperCase() + step.slice(1).replace(/_/g, " ") + "..."
+  );
 }
 
 /**
  * Get timeout based on model - slower models get more time
  */
-function getModelAwareTimeout(): { timeout: number; progressWarningThreshold: number } {
-  const model = executionContextStore.contextOrNull?.model?.toLowerCase() || '';
-  const provider = executionContextStore.contextOrNull?.provider?.toLowerCase() || '';
+function getModelAwareTimeout(): {
+  timeout: number;
+  progressWarningThreshold: number;
+} {
+  const model = executionContextStore.contextOrNull?.model?.toLowerCase() || "";
+  const provider =
+    executionContextStore.contextOrNull?.provider?.toLowerCase() || "";
 
   // Slow models: Opus, o1, large reasoning models - 5 minutes
-  if (model.includes('opus') || model.includes('o1-') || model.includes('o3-')) {
+  if (
+    model.includes("opus") ||
+    model.includes("o1-") ||
+    model.includes("o3-")
+  ) {
     return { timeout: 300000, progressWarningThreshold: 120000 };
   }
 
   // Local models (Ollama): variable performance - 4 minutes
-  if (provider.includes('ollama')) {
+  if (provider.includes("ollama")) {
     return { timeout: 240000, progressWarningThreshold: 90000 };
   }
 
   // Medium models: GPT-4o, Claude 3.5/4 Sonnet - 3 minutes
-  if (model.includes('gpt-4o') || model.includes('sonnet') || model.includes('gemini-1.5-pro')) {
+  if (
+    model.includes("gpt-4o") ||
+    model.includes("sonnet") ||
+    model.includes("gemini-1.5-pro")
+  ) {
     return { timeout: 180000, progressWarningThreshold: 60000 };
   }
 
@@ -759,43 +911,57 @@ async function waitForAnalysisCompletion(): Promise<void> {
   const checkInterval = 1000;
   let elapsed = 0;
 
-  console.log(`[LegalDepartment] Using model-aware timeout: ${timeout / 1000}s for model: ${executionContextStore.contextOrNull?.model}`);
+  console.log(
+    `[LegalDepartment] Using model-aware timeout: ${timeout / 1000}s for model: ${executionContextStore.contextOrNull?.model}`,
+  );
 
-  while (elapsed < timeout && analysisPhase.value !== 'completed' && !analysisResults.value) {
-    await new Promise(resolve => setTimeout(resolve, checkInterval));
+  while (
+    elapsed < timeout &&
+    analysisPhase.value !== "completed" &&
+    !analysisResults.value
+  ) {
+    await new Promise((resolve) => setTimeout(resolve, checkInterval));
     elapsed += checkInterval;
 
     // If we've been waiting too long without progress, show warning (but don't break)
-    if (elapsed > progressWarningThreshold && analysisProgress.value.percentage < 20) {
-      error.value = 'Analysis is taking longer than expected. The backend may still be processing.';
+    if (
+      elapsed > progressWarningThreshold &&
+      analysisProgress.value.percentage < 20
+    ) {
+      error.value =
+        "Analysis is taking longer than expected. The backend may still be processing.";
       // Don't break - let it continue until full timeout
     }
   }
 
   // If we reach here without results, show error
-  if (!analysisResults.value && analysisPhase.value !== 'completed') {
-    error.value = 'Analysis completed but no results were returned from the backend.';
+  if (!analysisResults.value && analysisPhase.value !== "completed") {
+    error.value =
+      "Analysis completed but no results were returned from the backend.";
   }
 }
 
 async function processTextQuery(message: string) {
   // For text-only queries without documents
-  analysisPhase.value = 'analyzing';
-  currentStep.value = 'Processing your legal question...';
+  analysisPhase.value = "analyzing";
+  currentStep.value = "Processing your legal question...";
   analysisProgress.value = { current: 0, total: 100, percentage: 0 };
 
   // Connect to SSE stream for real-time progress updates
   const conversationId = currentConversationId.value;
   if (conversationId) {
-    legalDepartmentService.connectToSSEStream(conversationId, handleProgressEvent);
-    console.log('[LegalDepartment] SSE connected for text query progress');
+    legalDepartmentService.connectToSSEStream(
+      conversationId,
+      handleProgressEvent,
+    );
+    console.log("[LegalDepartment] SSE connected for text query progress");
   }
 
   try {
     // Call the backend with text-only query - progress updates via SSE
     const result = await legalDepartmentService.sendTextQuery(message);
 
-    console.log('[LegalDepartment] Text query response:', result);
+    console.log("[LegalDepartment] Text query response:", result);
 
     // Extract routing decision if available
     const resultWithRouting = result as AnalysisTaskResponse & {
@@ -809,10 +975,10 @@ async function processTextQuery(message: string) {
     if (resultWithRouting.routingDecision) {
       const routingData = resultWithRouting.routingDecision;
       routingDecision.value = {
-        specialist: (routingData.specialist || 'unknown') as SpecialistType,
+        specialist: (routingData.specialist || "unknown") as SpecialistType,
         confidence: 0.85,
-        reasoning: routingData.reasoning || 'Routed based on query content.',
-        categories: ['text-query'],
+        reasoning: routingData.reasoning || "Routed based on query content.",
+        categories: ["text-query"],
         multiAgent: routingData.multiAgent,
       };
       updateSpecialistStates(routingDecision.value);
@@ -831,10 +997,12 @@ async function processTextQuery(message: string) {
       // create a minimal result object with the conversational response
       const responseText = extractResponseText(result);
       if (responseText) {
-        const textOnlyResult: AnalysisResults & { isTextOnlyResponse?: boolean } = {
+        const textOnlyResult: AnalysisResults & {
+          isTextOnlyResponse?: boolean;
+        } = {
           taskId: result.taskId,
           documentId: result.taskId,
-          documentName: 'Text Query',
+          documentName: "Text Query",
           summary: responseText,
           findings: [],
           risks: [],
@@ -842,7 +1010,7 @@ async function processTextQuery(message: string) {
           metadata: {
             analyzedAt: new Date().toISOString(),
             confidence: 0.9,
-            model: 'claude-sonnet-4-20250514',
+            model: "claude-sonnet-4-20250514",
           },
           // Mark as text-only response (no specialist analysis)
           isTextOnlyResponse: true,
@@ -852,19 +1020,21 @@ async function processTextQuery(message: string) {
     }
 
     // Complete
-    analysisPhase.value = 'completed';
-    currentStep.value = 'Response complete';
+    analysisPhase.value = "completed";
+    currentStep.value = "Response complete";
     analysisProgress.value = { current: 100, total: 100, percentage: 100 };
 
     // Mark specialists as completed if we have any
     if (routingDecision.value) {
       markSpecialistsCompleted();
     }
-
   } catch (err) {
-    console.error('[LegalDepartment] Text query failed:', err);
-    error.value = err instanceof Error ? err.message : 'Failed to process your question. Please try again.';
-    analysisPhase.value = 'failed' as AnalysisPhase;
+    console.error("[LegalDepartment] Text query failed:", err);
+    error.value =
+      err instanceof Error
+        ? err.message
+        : "Failed to process your question. Please try again.";
+    analysisPhase.value = "failed" as AnalysisPhase;
     currentRequest.value = null;
   } finally {
     // Disconnect SSE stream when query completes or fails
@@ -875,9 +1045,14 @@ async function processTextQuery(message: string) {
 /**
  * Extract response text from various response formats
  */
-function extractResponseText(result: AnalysisTaskResponse & { analysisResults?: AnalysisResults; response?: string }): string {
+function extractResponseText(
+  result: AnalysisTaskResponse & {
+    analysisResults?: AnalysisResults;
+    response?: string;
+  },
+): string {
   // Check for direct response field (added by service for text queries)
-  if (typeof result.response === 'string' && result.response) {
+  if (typeof result.response === "string" && result.response) {
     return result.response;
   }
   // Try analysis results summary
@@ -886,30 +1061,36 @@ function extractResponseText(result: AnalysisTaskResponse & { analysisResults?: 
   }
   // The response might be in the raw result data - use unknown conversion first
   const anyResult = result as unknown;
-  if (anyResult && typeof anyResult === 'object' && anyResult !== null) {
+  if (anyResult && typeof anyResult === "object" && anyResult !== null) {
     const resultRecord = anyResult as Record<string, unknown>;
-    if (resultRecord.result && typeof resultRecord.result === 'object' && resultRecord.result !== null) {
+    if (
+      resultRecord.result &&
+      typeof resultRecord.result === "object" &&
+      resultRecord.result !== null
+    ) {
       const resultObj = resultRecord.result as Record<string, unknown>;
-      if (typeof resultObj.response === 'string') {
+      if (typeof resultObj.response === "string") {
         return resultObj.response;
       }
     }
   }
-  return '';
+  return "";
 }
 
 function inferRoutingFromResults(results: AnalysisResults) {
   if (!results.specialistOutputs) return;
 
-  const specialists = Object.keys(results.specialistOutputs) as SpecialistType[];
+  const specialists = Object.keys(
+    results.specialistOutputs,
+  ) as SpecialistType[];
   if (specialists.length === 0) return;
 
   routingDecision.value = {
     specialist: specialists[0],
     specialists: specialists.length > 1 ? specialists : undefined,
     confidence: 0.85,
-    reasoning: `Routed to ${specialists.join(', ')} based on document content.`,
-    categories: ['inferred'],
+    reasoning: `Routed to ${specialists.join(", ")} based on document content.`,
+    categories: ["inferred"],
     multiAgent: specialists.length > 1,
   };
 
@@ -917,28 +1098,32 @@ function inferRoutingFromResults(results: AnalysisResults) {
 }
 
 function updateSpecialistStates(routing: RoutingDecision) {
-  const states: Record<SpecialistType, SpecialistState> = {} as Record<SpecialistType, SpecialistState>;
+  const states: Record<SpecialistType, SpecialistState> = {} as Record<
+    SpecialistType,
+    SpecialistState
+  >;
   const names: Record<SpecialistType, string> = {
-    contract: 'Contract',
-    compliance: 'Compliance',
-    ip: 'IP',
-    privacy: 'Privacy',
-    employment: 'Employment',
-    corporate: 'Corporate',
-    litigation: 'Litigation',
-    real_estate: 'Real Estate',
-    unknown: 'Unknown',
+    contract: "Contract",
+    compliance: "Compliance",
+    ip: "IP",
+    privacy: "Privacy",
+    employment: "Employment",
+    corporate: "Corporate",
+    litigation: "Litigation",
+    real_estate: "Real Estate",
+    unknown: "Unknown",
   };
 
-  const activeSpecialists = routing.multiAgent && routing.specialists
-    ? routing.specialists
-    : [routing.specialist];
+  const activeSpecialists =
+    routing.multiAgent && routing.specialists
+      ? routing.specialists
+      : [routing.specialist];
 
   for (const slug of activeSpecialists) {
     states[slug] = {
       slug,
       name: names[slug] || slug,
-      status: 'running',
+      status: "running",
     };
   }
 
@@ -949,7 +1134,7 @@ function markSpecialistsCompleted() {
   for (const slug of Object.keys(specialistStates.value) as SpecialistType[]) {
     specialistStates.value[slug] = {
       ...specialistStates.value[slug],
-      status: 'completed',
+      status: "completed",
     };
   }
 }
@@ -966,26 +1151,30 @@ function getSpecialistStatuses(): Record<string, SpecialistStatus> {
 // Mock data removed - all results come from backend
 
 function handleSpecialistClick(specialist: SpecialistType) {
-  console.log('[LegalDepartment] Specialist clicked:', specialist);
+  console.log("[LegalDepartment] Specialist clicked:", specialist);
   // Could scroll to specialist tab or highlight it
 }
 
 async function handleHITLAction(action: HITLAction, comment?: string) {
-  console.log('[LegalDepartment] HITL action:', action, comment);
+  console.log("[LegalDepartment] HITL action:", action, comment);
 
   // Immediately mark as taken to disable buttons
   hitlActionTaken.value = true;
 
   // Record the decision to the backend
   try {
-    const taskId = analysisResults.value?.taskId || 'unknown';
-    const result = await legalDepartmentService.recordHITLDecision(taskId, action, comment);
-    console.log('[LegalDepartment] HITL decision recorded:', result);
+    const taskId = analysisResults.value?.taskId || "unknown";
+    const result = await legalDepartmentService.recordHITLDecision(
+      taskId,
+      action,
+      comment,
+    );
+    console.log("[LegalDepartment] HITL decision recorded:", result);
 
     // Show toast notification based on action
     await showHITLToast(action);
   } catch (err) {
-    console.error('[LegalDepartment] Error recording HITL decision:', err);
+    console.error("[LegalDepartment] Error recording HITL decision:", err);
     // Still show success toast - the UI action was confirmed even if backend sync failed
     await showHITLToast(action);
   }
@@ -997,47 +1186,50 @@ async function handleHITLAction(action: HITLAction, comment?: string) {
 async function showHITLToast(action: HITLAction) {
   const toastConfig: Record<HITLAction, { message: string; color: string }> = {
     approve: {
-      message: 'Decision recorded: Approved',
-      color: 'success',
+      message: "Decision recorded: Approved",
+      color: "success",
     },
     reject: {
-      message: 'Decision recorded: Rejected',
-      color: 'danger',
+      message: "Decision recorded: Rejected",
+      color: "danger",
     },
     request_reanalysis: {
-      message: 'Re-analysis requested',
-      color: 'warning',
+      message: "Re-analysis requested",
+      color: "warning",
     },
   };
 
-  const config = toastConfig[action] || { message: 'Decision recorded', color: 'primary' };
+  const config = toastConfig[action] || {
+    message: "Decision recorded",
+    color: "primary",
+  };
 
-  console.log('[LegalDepartment] Creating toast:', config);
+  console.log("[LegalDepartment] Creating toast:", config);
 
   try {
     const toast = await toastController.create({
       message: config.message,
       duration: 3000,
-      position: 'bottom',
+      position: "bottom",
       color: config.color,
     });
 
-    console.log('[LegalDepartment] Toast created, presenting...');
+    console.log("[LegalDepartment] Toast created, presenting...");
     await toast.present();
-    console.log('[LegalDepartment] Toast presented');
+    console.log("[LegalDepartment] Toast presented");
   } catch (err) {
-    console.error('[LegalDepartment] Toast error:', err);
+    console.error("[LegalDepartment] Toast error:", err);
   }
 }
 
-function handleExport(format: 'json' | 'pdf') {
+function handleExport(format: "json" | "pdf") {
   if (!analysisResults.value) return;
 
-  if (format === 'json') {
+  if (format === "json") {
     const data = JSON.stringify(analysisResults.value, null, 2);
-    const blob = new Blob([data], { type: 'application/json' });
+    const blob = new Blob([data], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
     a.download = `legal-analysis-${analysisResults.value.taskId}.json`;
     a.click();
@@ -1054,7 +1246,9 @@ function exportToPdf() {
   const results = analysisResults.value;
   const routing = routingDecision.value;
   const timestamp = new Date().toLocaleString();
-  const specialists = results.specialistOutputs ? Object.keys(results.specialistOutputs) : [];
+  const specialists = results.specialistOutputs
+    ? Object.keys(results.specialistOutputs)
+    : [];
   const hasMultipleSpecialists = specialists.length > 1;
 
   // Calculate overall risk level
@@ -1065,7 +1259,7 @@ function exportToPdf() {
     <!DOCTYPE html>
     <html>
     <head>
-      <title>Legal Analysis Report - ${results.documentName || 'Analysis'}</title>
+      <title>Legal Analysis Report - ${results.documentName || "Analysis"}</title>
       <style>
         body { font-family: Arial, sans-serif; max-width: 900px; margin: 40px auto; padding: 20px; color: #333; }
         h1 { color: #333; border-bottom: 3px solid #8B4513; padding-bottom: 10px; margin-bottom: 20px; }
@@ -1149,7 +1343,7 @@ function exportToPdf() {
       <span class="header-badge badge-${overallRiskLevel.toLowerCase()}">${overallRiskLevel.toUpperCase()} RISK</span>
     </h1>
     <div class="meta">
-      <p><strong>Document:</strong> ${results.documentName || 'N/A'}</p>
+      <p><strong>Document:</strong> ${results.documentName || "N/A"}</p>
       <p><strong>Generated:</strong> ${timestamp}</p>
       <p><strong>Task ID:</strong> ${results.taskId}</p>
     </div>
@@ -1157,16 +1351,17 @@ function exportToPdf() {
 
   // CLO Routing Summary
   if (routing) {
-    const routingSpecialists = routing.multiAgent && routing.specialists
-      ? routing.specialists
-      : [routing.specialist];
+    const routingSpecialists =
+      routing.multiAgent && routing.specialists
+        ? routing.specialists
+        : [routing.specialist];
     html += `
       <div class="routing-box">
         <strong>CLO Routing</strong> (${Math.round(routing.confidence * 100)}% confidence)
         <div class="routing-specialists">
-          ${routingSpecialists.map(s => `<span class="specialist-badge">${formatSpecialistName(s)}</span>`).join('')}
+          ${routingSpecialists.map((s) => `<span class="specialist-badge">${formatSpecialistName(s)}</span>`).join("")}
         </div>
-        ${routing.reasoning ? `<p style="margin-top: 10px; font-size: 13px; color: #666;">${routing.reasoning}</p>` : ''}
+        ${routing.reasoning ? `<p style="margin-top: 10px; font-size: 13px; color: #666;">${routing.reasoning}</p>` : ""}
       </div>
     `;
   }
@@ -1205,10 +1400,11 @@ function exportToPdf() {
     html += `
       <h2>Risk Breakdown</h2>
       <div class="risk-breakdown">
-        ${['Critical', 'High', 'Medium', 'Low'].map(severity => {
-          const count = riskCounts[severity.toLowerCase()] || 0;
-          const percentage = totalRisks > 0 ? (count / totalRisks) * 100 : 0;
-          return `
+        ${["Critical", "High", "Medium", "Low"]
+          .map((severity) => {
+            const count = riskCounts[severity.toLowerCase()] || 0;
+            const percentage = totalRisks > 0 ? (count / totalRisks) * 100 : 0;
+            return `
             <div class="risk-bar">
               <div class="risk-bar-label">${severity}</div>
               <div class="risk-bar-track">
@@ -1217,28 +1413,33 @@ function exportToPdf() {
               <div class="risk-bar-count">${count}</div>
             </div>
           `;
-        }).join('')}
+          })
+          .join("")}
       </div>
     `;
   }
 
   // Key Issues (top 5 critical/high risks)
   const keyIssues = (results.risks || [])
-    .filter(r => r.severity === 'critical' || r.severity === 'high')
+    .filter((r) => r.severity === "critical" || r.severity === "high")
     .slice(0, 5);
   if (keyIssues.length > 0) {
     html += `
       <h2>Key Issues</h2>
       <div class="key-issues">
-        ${keyIssues.map(issue => `
+        ${keyIssues
+          .map(
+            (issue) => `
           <div class="key-issue">
             <span class="key-issue-icon">⚠️</span>
             <div>
-              <strong>${issue.title || 'Issue'}</strong>
-              <p style="margin: 5px 0 0 0; font-size: 13px; color: #666;">${issue.description || ''}</p>
+              <strong>${issue.title || "Issue"}</strong>
+              <p style="margin: 5px 0 0 0; font-size: 13px; color: #666;">${issue.description || ""}</p>
             </div>
           </div>
-        `).join('')}
+        `,
+          )
+          .join("")}
       </div>
     `;
   }
@@ -1257,11 +1458,15 @@ function exportToPdf() {
     html += `
       <div class="toc">
         <div class="toc-title">Specialist Appendices</div>
-        ${specialists.map((s, i) => `
+        ${specialists
+          .map(
+            (s, i) => `
           <div class="toc-item">
             <a href="#appendix-${s}">Appendix ${String.fromCharCode(65 + i)}: ${formatSpecialistName(s)} Analysis</a>
           </div>
-        `).join('')}
+        `,
+          )
+          .join("")}
       </div>
     `;
   }
@@ -1269,7 +1474,10 @@ function exportToPdf() {
   // ========== PART 2: SPECIALIST APPENDICES ==========
   if (results.specialistOutputs) {
     specialists.forEach((specialistKey, index) => {
-      const output = results.specialistOutputs![specialistKey as keyof typeof results.specialistOutputs];
+      const output =
+        results.specialistOutputs![
+          specialistKey as keyof typeof results.specialistOutputs
+        ];
       if (!output) return;
 
       const appendixLetter = String.fromCharCode(65 + index);
@@ -1279,14 +1487,15 @@ function exportToPdf() {
         <div class="appendix" id="appendix-${specialistKey}">
           <div class="appendix-header">
             <h2>Appendix ${appendixLetter}: ${specialistName} Analysis</h2>
-            <div class="confidence">${output.confidence ? `${Math.round(output.confidence * 100)}% Confidence` : ''}</div>
+            <div class="confidence">${output.confidence ? `${Math.round(output.confidence * 100)}% Confidence` : ""}</div>
           </div>
       `;
 
       // Overview/Summary
-      const overview = (output as Record<string, unknown>).overview ||
-                       (output as Record<string, unknown>).summary ||
-                       (output as Record<string, unknown>).description;
+      const overview =
+        (output as Record<string, unknown>).overview ||
+        (output as Record<string, unknown>).summary ||
+        (output as Record<string, unknown>).description;
       if (overview) {
         html += `
           <h3>Overview</h3>
@@ -1296,19 +1505,28 @@ function exportToPdf() {
 
       // Contract-specific: Key Clauses
       const keyClauses = (output as Record<string, unknown>).keyClauses;
-      if (specialistKey === 'contract' && keyClauses && typeof keyClauses === 'object' && !Array.isArray(keyClauses)) {
+      if (
+        specialistKey === "contract" &&
+        keyClauses &&
+        typeof keyClauses === "object" &&
+        !Array.isArray(keyClauses)
+      ) {
         const clauses = keyClauses as Record<string, unknown>;
         const clauseEntries = Object.entries(clauses);
         if (clauseEntries.length > 0) {
           html += `
             <h3>Key Clauses</h3>
             <div class="clause-grid">
-              ${clauseEntries.map(([key, value]) => `
+              ${clauseEntries
+                .map(
+                  ([key, value]) => `
                 <div class="clause-item">
                   <div class="clause-label">${formatClauseLabel(key)}</div>
-                  <div class="clause-value">${value || 'Not specified'}</div>
+                  <div class="clause-value">${value || "Not specified"}</div>
                 </div>
-              `).join('')}
+              `,
+                )
+                .join("")}
             </div>
           `;
         }
@@ -1316,57 +1534,87 @@ function exportToPdf() {
 
       // Compliance-specific: Policy Checks
       const policyChecks = (output as Record<string, unknown>).policyChecks;
-      if (specialistKey === 'compliance' && policyChecks && Array.isArray(policyChecks) && policyChecks.length > 0) {
-        const checks = policyChecks as Array<{name: string; status: string; details?: string}>;
+      if (
+        specialistKey === "compliance" &&
+        policyChecks &&
+        Array.isArray(policyChecks) &&
+        policyChecks.length > 0
+      ) {
+        const checks = policyChecks as Array<{
+          name: string;
+          status: string;
+          details?: string;
+        }>;
         html += `
           <h3>Policy Compliance Checks</h3>
-          ${checks.map(check => `
+          ${checks
+            .map(
+              (check) => `
             <div class="policy-check">
               <div>
-                <strong>${check.name || 'Policy Check'}</strong>
-                ${check.details ? `<p style="margin: 5px 0 0 0; font-size: 12px; color: #666;">${check.details}</p>` : ''}
+                <strong>${check.name || "Policy Check"}</strong>
+                ${check.details ? `<p style="margin: 5px 0 0 0; font-size: 12px; color: #666;">${check.details}</p>` : ""}
               </div>
-              <span class="policy-status ${check.status === 'compliant' ? 'policy-compliant' : 'policy-non-compliant'}">
-                ${check.status === 'compliant' ? '✓ Compliant' : '✗ Non-Compliant'}
+              <span class="policy-status ${check.status === "compliant" ? "policy-compliant" : "policy-non-compliant"}">
+                ${check.status === "compliant" ? "✓ Compliant" : "✗ Non-Compliant"}
               </span>
             </div>
-          `).join('')}
+          `,
+            )
+            .join("")}
         `;
       }
 
       // Risk Flags
       const riskFlagsRaw = (output as Record<string, unknown>).riskFlags;
-      const riskFlags = Array.isArray(riskFlagsRaw) ? riskFlagsRaw as Array<{severity: string; title?: string; description?: string; recommendation?: string}> : undefined;
+      const riskFlags = Array.isArray(riskFlagsRaw)
+        ? (riskFlagsRaw as Array<{
+            severity: string;
+            title?: string;
+            description?: string;
+            recommendation?: string;
+          }>)
+        : undefined;
       if (riskFlags && riskFlags.length > 0) {
         html += `
           <h3>Risk Flags</h3>
-          ${riskFlags.map(risk => `
-            <div class="risk risk-${(risk.severity || 'medium').toLowerCase()}">
-              <strong>${risk.title || 'Risk'}</strong>
-              <span style="font-size: 12px; text-transform: uppercase;">(${risk.severity || 'medium'})</span>
-              <p>${risk.description || ''}</p>
-              ${risk.recommendation ? `<p style="font-size: 13px; color: #666;"><em>Recommendation: ${risk.recommendation}</em></p>` : ''}
+          ${riskFlags
+            .map(
+              (risk) => `
+            <div class="risk risk-${(risk.severity || "medium").toLowerCase()}">
+              <strong>${risk.title || "Risk"}</strong>
+              <span style="font-size: 12px; text-transform: uppercase;">(${risk.severity || "medium"})</span>
+              <p>${risk.description || ""}</p>
+              ${risk.recommendation ? `<p style="font-size: 13px; color: #666;"><em>Recommendation: ${risk.recommendation}</em></p>` : ""}
             </div>
-          `).join('')}
+          `,
+            )
+            .join("")}
         `;
       }
 
       // Recommendations
       const recsRaw = (output as Record<string, unknown>).recommendations;
-      const recs = Array.isArray(recsRaw) ? recsRaw as Array<{title?: string; description?: string}> : undefined;
+      const recs = Array.isArray(recsRaw)
+        ? (recsRaw as Array<{ title?: string; description?: string }>)
+        : undefined;
       if (recs && recs.length > 0) {
         html += `
           <h3>Recommendations</h3>
-          ${recs.map(rec => `
+          ${recs
+            .map(
+              (rec) => `
             <div class="recommendation">
-              <strong>${rec.title || 'Recommendation'}</strong>
-              <p>${rec.description || ''}</p>
+              <strong>${rec.title || "Recommendation"}</strong>
+              <p>${rec.description || ""}</p>
             </div>
-          `).join('')}
+          `,
+            )
+            .join("")}
         `;
       }
 
-      html += '</div>'; // Close appendix
+      html += "</div>"; // Close appendix
     });
   }
 
@@ -1382,7 +1630,7 @@ function exportToPdf() {
   `;
 
   // Open print window
-  const printWindow = window.open('', '_blank');
+  const printWindow = window.open("", "_blank");
   if (printWindow) {
     printWindow.document.write(html);
     printWindow.document.close();
@@ -1390,23 +1638,30 @@ function exportToPdf() {
       printWindow.print();
     };
   } else {
-    console.error('[LegalDepartment] Failed to open print window');
-    alert('Please allow popups to export PDF');
+    console.error("[LegalDepartment] Failed to open print window");
+    alert("Please allow popups to export PDF");
   }
 }
 
 // Helper functions for PDF export
-function calculateOverallRiskLevel(risks: Array<{severity: string}>): string {
-  if (risks.some(r => r.severity === 'critical')) return 'critical';
-  if (risks.some(r => r.severity === 'high')) return 'high';
-  if (risks.some(r => r.severity === 'medium')) return 'medium';
-  return 'low';
+function calculateOverallRiskLevel(risks: Array<{ severity: string }>): string {
+  if (risks.some((r) => r.severity === "critical")) return "critical";
+  if (risks.some((r) => r.severity === "high")) return "high";
+  if (risks.some((r) => r.severity === "medium")) return "medium";
+  return "low";
 }
 
-function countRisksBySeverity(risks: Array<{severity: string}>): Record<string, number> {
-  const counts: Record<string, number> = { critical: 0, high: 0, medium: 0, low: 0 };
+function countRisksBySeverity(
+  risks: Array<{ severity: string }>,
+): Record<string, number> {
+  const counts: Record<string, number> = {
+    critical: 0,
+    high: 0,
+    medium: 0,
+    low: 0,
+  };
   for (const risk of risks) {
-    const severity = (risk.severity || 'medium').toLowerCase();
+    const severity = (risk.severity || "medium").toLowerCase();
     if (severity in counts) counts[severity]++;
   }
   return counts;
@@ -1414,34 +1669,37 @@ function countRisksBySeverity(risks: Array<{severity: string}>): Record<string, 
 
 function formatSpecialistName(key: string): string {
   const names: Record<string, string> = {
-    contract: 'Contract',
-    compliance: 'Compliance',
-    ip: 'IP',
-    privacy: 'Privacy',
-    employment: 'Employment',
-    corporate: 'Corporate',
-    litigation: 'Litigation',
-    real_estate: 'Real Estate',
-    realEstate: 'Real Estate',
+    contract: "Contract",
+    compliance: "Compliance",
+    ip: "IP",
+    privacy: "Privacy",
+    employment: "Employment",
+    corporate: "Corporate",
+    litigation: "Litigation",
+    real_estate: "Real Estate",
+    realEstate: "Real Estate",
   };
   return names[key] || key.charAt(0).toUpperCase() + key.slice(1);
 }
 
 function formatClauseLabel(key: string): string {
   return key
-    .replace(/([A-Z])/g, ' $1')
-    .replace(/_/g, ' ')
+    .replace(/([A-Z])/g, " $1")
+    .replace(/_/g, " ")
     .trim()
-    .split(' ')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(' ');
+    .split(" ")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
 }
 
 async function handleRetry() {
   error.value = null;
 
   // If we have a conversation ID, try to reload existing analysis
-  const conversationIdToUse = (route.query.conversationId as string) || props.conversationId || currentConversationId.value;
+  const conversationIdToUse =
+    (route.query.conversationId as string) ||
+    props.conversationId ||
+    currentConversationId.value;
   if (conversationIdToUse) {
     await loadExistingAnalysis(conversationIdToUse);
   }
@@ -1455,6 +1713,10 @@ function startNewAnalysis() {
   analysisResults.value = null;
 }
 
+function navigateToNewAnalysis() {
+  router.push({ path: "/app/agents/legal-department" });
+}
+
 function scrollToBottom() {
   nextTick(() => {
     if (responseAreaRef.value) {
@@ -1466,7 +1728,7 @@ function scrollToBottom() {
 // TTS: Check if response is too long for speech
 function isResponseTooLong(text: string): boolean {
   if (text.length > 500) return true;
-  const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
+  const sentences = text.split(/[.!?]+/).filter((s) => s.trim().length > 0);
   if (sentences.length > 5) return true;
   return false;
 }
@@ -1474,24 +1736,24 @@ function isResponseTooLong(text: string): boolean {
 // TTS: Handle text-to-speech conversion
 async function handleTextToSpeech(text: string) {
   try {
-    console.log('[LegalDepartment] TTS: Synthesizing response');
+    console.log("[LegalDepartment] TTS: Synthesizing response");
 
     // Use fallback message if response is too long
     const textToSpeak = isResponseTooLong(text)
-      ? 'I completed your request, but the response is quite lengthy. Please check the analysis for full details.'
+      ? "I completed your request, but the response is quite lengthy. Please check the analysis for full details."
       : text;
 
     const synthesizedAudio = await apiService.synthesizeText(
       textToSpeak,
-      'EXAVITQu4vr4xnSDxMaL', // Default voice ID
-      0.5 // Speaking rate/stability
+      "EXAVITQu4vr4xnSDxMaL", // Default voice ID
+      0.5, // Speaking rate/stability
     );
 
     // Play the audio
     await playAudio(synthesizedAudio.audioData);
-    console.log('[LegalDepartment] TTS: Playback complete');
+    console.log("[LegalDepartment] TTS: Playback complete");
   } catch (err) {
-    console.error('[LegalDepartment] TTS failed:', err);
+    console.error("[LegalDepartment] TTS failed:", err);
   } finally {
     chatUiStore.setLastMessageWasSpeech(false);
   }
@@ -1504,7 +1766,7 @@ function playAudio(audioData: string): Promise<void> {
     audio.onended = () => resolve();
     audio.onerror = (err) => reject(err);
 
-    if (audioData.startsWith('data:')) {
+    if (audioData.startsWith("data:")) {
       audio.src = audioData;
     } else {
       audio.src = `data:audio/mpeg;base64,${audioData}`;
@@ -1518,7 +1780,7 @@ function playAudio(audioData: string): Promise<void> {
 watch(analysisResults, (newResults) => {
   if (newResults && chatUiStore.lastMessageWasSpeech) {
     // Get text to speak
-    let textToSpeak = newResults.summary || '';
+    let textToSpeak = newResults.summary || "";
 
     // For text-only responses, use the summary
     // For document analysis, provide a brief summary
@@ -1613,6 +1875,10 @@ watch(analysisResults, (newResults) => {
 .model-selector {
   margin-top: 24px;
   max-width: 400px;
+}
+
+.history-button {
+  margin-top: 16px;
 }
 
 /* Request Display */
@@ -1730,12 +1996,20 @@ watch(analysisResults, (newResults) => {
   animation: thinking-pulse 1.4s infinite ease-in-out;
 }
 
-.thinking-dots .dot:nth-child(1) { animation-delay: -0.32s; }
-.thinking-dots .dot:nth-child(2) { animation-delay: -0.16s; }
-.thinking-dots .dot:nth-child(3) { animation-delay: 0s; }
+.thinking-dots .dot:nth-child(1) {
+  animation-delay: -0.32s;
+}
+.thinking-dots .dot:nth-child(2) {
+  animation-delay: -0.16s;
+}
+.thinking-dots .dot:nth-child(3) {
+  animation-delay: 0s;
+}
 
 @keyframes thinking-pulse {
-  0%, 80%, 100% {
+  0%,
+  80%,
+  100% {
     transform: scale(0.8);
     opacity: 0.5;
   }
@@ -1833,10 +2107,18 @@ watch(analysisResults, (newResults) => {
   color: var(--ion-color-dark);
 }
 
-.response-content.markdown-content :deep(h1) { font-size: 1.5em; }
-.response-content.markdown-content :deep(h2) { font-size: 1.3em; }
-.response-content.markdown-content :deep(h3) { font-size: 1.15em; }
-.response-content.markdown-content :deep(h4) { font-size: 1em; }
+.response-content.markdown-content :deep(h1) {
+  font-size: 1.5em;
+}
+.response-content.markdown-content :deep(h2) {
+  font-size: 1.3em;
+}
+.response-content.markdown-content :deep(h3) {
+  font-size: 1.15em;
+}
+.response-content.markdown-content :deep(h4) {
+  font-size: 1em;
+}
 
 .response-content.markdown-content :deep(p) {
   margin-bottom: 1em;
@@ -1885,6 +2167,12 @@ watch(analysisResults, (newResults) => {
 
 .response-hint ion-icon {
   font-size: 18px;
+}
+
+.new-analysis-action {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
 }
 
 @media (max-width: 600px) {

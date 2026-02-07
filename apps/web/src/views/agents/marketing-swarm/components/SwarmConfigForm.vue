@@ -1,5 +1,17 @@
 <template>
   <div class="swarm-config-form">
+    <div class="history-action">
+      <ion-button
+        fill="outline"
+        color="medium"
+        size="default"
+        @click="emit('browse-history')"
+      >
+        <ion-icon :icon="timeOutline" slot="start" />
+        Previous Swarms
+      </ion-button>
+    </div>
+
     <ion-card>
       <ion-card-header>
         <ion-card-title>Content Configuration</ion-card-title>
@@ -23,7 +35,10 @@
           </ion-select>
         </ion-item>
 
-        <p v-if="selectedContentTypeDescription" class="content-type-description">
+        <p
+          v-if="selectedContentTypeDescription"
+          class="content-type-description"
+        >
           {{ selectedContentTypeDescription }}
         </p>
       </ion-card-content>
@@ -33,7 +48,9 @@
     <ion-card>
       <ion-card-header>
         <ion-card-title>Content Brief</ion-card-title>
-        <ion-card-subtitle>Answer these questions to guide content creation</ion-card-subtitle>
+        <ion-card-subtitle
+          >Answer these questions to guide content creation</ion-card-subtitle
+        >
       </ion-card-header>
       <ion-card-content>
         <ion-item>
@@ -74,13 +91,23 @@
 
         <ion-item>
           <ion-label position="stacked">Tone *</ion-label>
-          <ion-select v-model="promptData.tone" placeholder="Select tone" interface="popover">
-            <ion-select-option value="professional">Professional</ion-select-option>
-            <ion-select-option value="conversational">Conversational</ion-select-option>
+          <ion-select
+            v-model="promptData.tone"
+            placeholder="Select tone"
+            interface="popover"
+          >
+            <ion-select-option value="professional"
+              >Professional</ion-select-option
+            >
+            <ion-select-option value="conversational"
+              >Conversational</ion-select-option
+            >
             <ion-select-option value="casual">Casual</ion-select-option>
             <ion-select-option value="formal">Formal</ion-select-option>
             <ion-select-option value="persuasive">Persuasive</ion-select-option>
-            <ion-select-option value="educational">Educational</ion-select-option>
+            <ion-select-option value="educational"
+              >Educational</ion-select-option
+            >
           </ion-select>
         </ion-item>
 
@@ -103,7 +130,9 @@
         </ion-item>
 
         <ion-item>
-          <ion-label position="stacked">Additional Context (optional)</ion-label>
+          <ion-label position="stacked"
+            >Additional Context (optional)</ion-label
+          >
           <ion-textarea
             v-model="promptData.additionalContext"
             placeholder="Any other relevant information?"
@@ -117,7 +146,9 @@
     <ion-card>
       <ion-card-header>
         <ion-card-title>Agent Configuration</ion-card-title>
-        <ion-card-subtitle>Configure agents with their LLM models</ion-card-subtitle>
+        <ion-card-subtitle
+          >Configure agents with their LLM models</ion-card-subtitle
+        >
       </ion-card-header>
       <ion-card-content>
         <!-- Writers Section -->
@@ -185,7 +216,9 @@
               :key="index"
               class="agent-row selected-row"
             >
-              <span class="agent-name">{{ getAgentName('writer', config.agentSlug) }}</span>
+              <span class="agent-name">{{
+                getAgentName("writer", config.agentSlug)
+              }}</span>
               <ion-select
                 :value="config.llmProvider"
                 interface="popover"
@@ -214,7 +247,12 @@
                   {{ model.displayName }}
                 </ion-select-option>
               </ion-select>
-              <ion-button fill="clear" size="small" color="danger" @click="removeAgent('writer', index)">
+              <ion-button
+                fill="clear"
+                size="small"
+                color="danger"
+                @click="removeAgent('writer', index)"
+              >
                 <ion-icon :icon="removeCircleOutline" />
               </ion-button>
             </div>
@@ -286,7 +324,9 @@
               :key="index"
               class="agent-row selected-row"
             >
-              <span class="agent-name">{{ getAgentName('editor', config.agentSlug) }}</span>
+              <span class="agent-name">{{
+                getAgentName("editor", config.agentSlug)
+              }}</span>
               <ion-select
                 :value="config.llmProvider"
                 interface="popover"
@@ -315,7 +355,12 @@
                   {{ model.displayName }}
                 </ion-select-option>
               </ion-select>
-              <ion-button fill="clear" size="small" color="danger" @click="removeAgent('editor', index)">
+              <ion-button
+                fill="clear"
+                size="small"
+                color="danger"
+                @click="removeAgent('editor', index)"
+              >
                 <ion-icon :icon="removeCircleOutline" />
               </ion-button>
             </div>
@@ -387,7 +432,9 @@
               :key="index"
               class="agent-row selected-row"
             >
-              <span class="agent-name">{{ getAgentName('evaluator', config.agentSlug) }}</span>
+              <span class="agent-name">{{
+                getAgentName("evaluator", config.agentSlug)
+              }}</span>
               <ion-select
                 :value="config.llmProvider"
                 interface="popover"
@@ -416,7 +463,12 @@
                   {{ model.displayName }}
                 </ion-select-option>
               </ion-select>
-              <ion-button fill="clear" size="small" color="danger" @click="removeAgent('evaluator', index)">
+              <ion-button
+                fill="clear"
+                size="small"
+                color="danger"
+                @click="removeAgent('evaluator', index)"
+              >
                 <ion-icon :icon="removeCircleOutline" />
               </ion-button>
             </div>
@@ -523,11 +575,18 @@
       <ion-card-content>
         <p><strong>Writers:</strong> {{ selectedWriterCount }} agent(s)</p>
         <p><strong>Editors:</strong> {{ selectedEditorCount }} agent(s)</p>
-        <p><strong>Evaluators:</strong> {{ selectedEvaluatorCount }} agent(s)</p>
+        <p>
+          <strong>Evaluators:</strong> {{ selectedEvaluatorCount }} agent(s)
+        </p>
         <p><strong>Max Edit Cycles:</strong> {{ maxEditCycles }}</p>
-        <p><strong>Top N for Final Ranking:</strong> {{ topNForFinalRanking }}</p>
+        <p>
+          <strong>Top N for Final Ranking:</strong> {{ topNForFinalRanking }}
+        </p>
         <p><strong>Top N in Deliverable:</strong> {{ topNForDeliverable }}</p>
-        <p><strong>Concurrency:</strong> {{ maxLocalConcurrent }} local / {{ maxCloudConcurrent }} cloud</p>
+        <p>
+          <strong>Concurrency:</strong> {{ maxLocalConcurrent }} local /
+          {{ maxCloudConcurrent }} cloud
+        </p>
         <p class="total-combinations">
           <strong>Total Combinations:</strong> {{ totalCombinations }}
         </p>
@@ -549,7 +608,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch, onMounted } from "vue";
 import {
   IonCard,
   IonCardHeader,
@@ -564,63 +623,85 @@ import {
   IonRange,
   IonButton,
   IonIcon,
-} from '@ionic/vue';
-import { addCircleOutline, removeCircleOutline } from 'ionicons/icons';
-import { useMarketingSwarmStore } from '@/stores/marketingSwarmStore';
-import { llmService, type LLMProvider, type LLMModel } from '@/services/llmService';
-import { marketingSwarmService } from '@/services/marketingSwarmService';
+} from "@ionic/vue";
+import {
+  addCircleOutline,
+  removeCircleOutline,
+  timeOutline,
+} from "ionicons/icons";
+import { useMarketingSwarmStore } from "@/stores/marketingSwarmStore";
+import {
+  llmService,
+  type LLMProvider,
+  type LLMModel,
+} from "@/services/llmService";
+import { marketingSwarmService } from "@/services/marketingSwarmService";
 import type {
   PromptData,
   SwarmConfig,
   AgentConfig,
-  MarketingAgent,
-} from '@/types/marketing-swarm';
+} from "@/types/marketing-swarm";
 
 const emit = defineEmits<{
-  (e: 'execute', data: { contentTypeSlug: string; contentTypeContext: string; promptData: PromptData; config: SwarmConfig }): void;
+  (
+    e: "execute",
+    data: {
+      contentTypeSlug: string;
+      contentTypeContext: string;
+      promptData: PromptData;
+      config: SwarmConfig;
+    },
+  ): void;
+  (e: "browse-history"): void;
 }>();
 
 const store = useMarketingSwarmStore();
 
 // Content type selection - default to blog-post for faster testing
-const selectedContentType = ref<string>('blog-post');
+const selectedContentType = ref<string>("blog-post");
 
 const contentTypes = computed(() => store.contentTypes);
 
 const selectedContentTypeDescription = computed(() => {
-  const type = contentTypes.value.find((t) => t.slug === selectedContentType.value);
-  return type?.description || '';
+  const type = contentTypes.value.find(
+    (t) => t.slug === selectedContentType.value,
+  );
+  return type?.description || "";
 });
 
 const selectedContentTypeContext = computed(() => {
-  const type = contentTypes.value.find((t) => t.slug === selectedContentType.value);
-  return type?.systemPromptTemplate || '';
+  const type = contentTypes.value.find(
+    (t) => t.slug === selectedContentType.value,
+  );
+  return type?.systemPromptTemplate || "";
 });
 
 // Prompt data - pre-filled with test defaults for faster testing
 const promptData = ref<PromptData>({
-  topic: 'AI-Powered Marketing Automation: How Small Businesses Can Compete with Enterprise',
-  audience: 'Small business owners and marketing managers looking to leverage AI tools',
-  goal: 'Educate readers on practical AI marketing tools and inspire them to start automating',
+  topic:
+    "AI-Powered Marketing Automation: How Small Businesses Can Compete with Enterprise",
+  audience:
+    "Small business owners and marketing managers looking to leverage AI tools",
+  goal: "Educate readers on practical AI marketing tools and inspire them to start automating",
   keyPoints: [
-    'AI marketing tools are now affordable for small businesses',
-    'Start with email automation and social media scheduling',
-    'Use AI for content generation and personalization',
-    'Measure ROI and iterate on your strategy',
+    "AI marketing tools are now affordable for small businesses",
+    "Start with email automation and social media scheduling",
+    "Use AI for content generation and personalization",
+    "Measure ROI and iterate on your strategy",
   ],
-  tone: 'professional',
-  constraints: '',
-  examples: '',
-  additionalContext: '',
+  tone: "professional",
+  constraints: "",
+  examples: "",
+  additionalContext: "",
 });
 
 const keyPointsText = ref(
-  'AI marketing tools are now affordable for small businesses\nStart with email automation and social media scheduling\nUse AI for content generation and personalization\nMeasure ROI and iterate on your strategy'
+  "AI marketing tools are now affordable for small businesses\nStart with email automation and social media scheduling\nUse AI for content generation and personalization\nMeasure ROI and iterate on your strategy",
 );
 
 watch(keyPointsText, (text) => {
   promptData.value.keyPoints = text
-    .split('\n')
+    .split("\n")
     .map((line) => line.trim())
     .filter((line) => line.length > 0);
 });
@@ -632,15 +713,15 @@ const llmProvidersLoading = ref(false);
 const llmModelsLoading = ref(false);
 
 // State for "Add New" rows
-const newWriterAgent = ref<string>('');
-const newWriterProvider = ref<string>('');
-const newWriterModel = ref<string>('');
-const newEditorAgent = ref<string>('');
-const newEditorProvider = ref<string>('');
-const newEditorModel = ref<string>('');
-const newEvaluatorAgent = ref<string>('');
-const newEvaluatorProvider = ref<string>('');
-const newEvaluatorModel = ref<string>('');
+const newWriterAgent = ref<string>("");
+const newWriterProvider = ref<string>("");
+const newWriterModel = ref<string>("");
+const newEditorAgent = ref<string>("");
+const newEditorProvider = ref<string>("");
+const newEditorModel = ref<string>("");
+const newEvaluatorAgent = ref<string>("");
+const newEvaluatorProvider = ref<string>("");
+const newEvaluatorModel = ref<string>("");
 
 // Get models for a specific provider
 function getModelsForProvider(provider: string): LLMModel[] {
@@ -650,7 +731,9 @@ function getModelsForProvider(provider: string): LLMModel[] {
 
 // Get model info by provider and model name
 function getModelInfo(provider: string, model: string): LLMModel | undefined {
-  return llmModels.value.find((m) => m.provider === provider && m.model === model);
+  return llmModels.value.find(
+    (m) => m.provider === provider && m.model === model,
+  );
 }
 
 // Load providers on mount
@@ -659,7 +742,7 @@ async function loadProviders() {
   try {
     llmProviders.value = await llmService.getProviders();
   } catch (error) {
-    console.error('Failed to load LLM providers:', error);
+    console.error("Failed to load LLM providers:", error);
   } finally {
     llmProvidersLoading.value = false;
   }
@@ -671,7 +754,7 @@ async function loadModels() {
   try {
     llmModels.value = await llmService.getModels();
   } catch (error) {
-    console.error('Failed to load LLM models:', error);
+    console.error("Failed to load LLM models:", error);
   } finally {
     llmModelsLoading.value = false;
   }
@@ -679,66 +762,78 @@ async function loadModels() {
 
 // Watch agent selection - auto-fill provider/model from agent's LLM config
 // These watches run BEFORE provider watches to set the correct values
-watch(newWriterAgent, async (agentSlug) => {
-  if (!agentSlug) {
-    newWriterProvider.value = '';
-    newWriterModel.value = '';
-    return;
-  }
-  try {
-    const configs = await marketingSwarmService.getAgentLLMConfigs(agentSlug);
-    if (configs.length > 0) {
-      // Use the default config if available, otherwise use the first one
-      const defaultConfig = configs.find(c => c.isDefault) || configs[0];
-      if (defaultConfig) {
-        newWriterProvider.value = defaultConfig.llmProvider;
-        newWriterModel.value = defaultConfig.llmModel;
-      }
+watch(
+  newWriterAgent,
+  async (agentSlug) => {
+    if (!agentSlug) {
+      newWriterProvider.value = "";
+      newWriterModel.value = "";
+      return;
     }
-  } catch (error) {
-    console.error('Failed to load LLM config for writer agent:', error);
-  }
-}, { immediate: false });
+    try {
+      const configs = await marketingSwarmService.getAgentLLMConfigs(agentSlug);
+      if (configs.length > 0) {
+        // Use the default config if available, otherwise use the first one
+        const defaultConfig = configs.find((c) => c.isDefault) || configs[0];
+        if (defaultConfig) {
+          newWriterProvider.value = defaultConfig.llmProvider;
+          newWriterModel.value = defaultConfig.llmModel;
+        }
+      }
+    } catch (error) {
+      console.error("Failed to load LLM config for writer agent:", error);
+    }
+  },
+  { immediate: false },
+);
 
-watch(newEditorAgent, async (agentSlug) => {
-  if (!agentSlug) {
-    newEditorProvider.value = '';
-    newEditorModel.value = '';
-    return;
-  }
-  try {
-    const configs = await marketingSwarmService.getAgentLLMConfigs(agentSlug);
-    if (configs.length > 0) {
-      const defaultConfig = configs.find(c => c.isDefault) || configs[0];
-      if (defaultConfig) {
-        newEditorProvider.value = defaultConfig.llmProvider;
-        newEditorModel.value = defaultConfig.llmModel;
-      }
+watch(
+  newEditorAgent,
+  async (agentSlug) => {
+    if (!agentSlug) {
+      newEditorProvider.value = "";
+      newEditorModel.value = "";
+      return;
     }
-  } catch (error) {
-    console.error('Failed to load LLM config for editor agent:', error);
-  }
-}, { immediate: false });
+    try {
+      const configs = await marketingSwarmService.getAgentLLMConfigs(agentSlug);
+      if (configs.length > 0) {
+        const defaultConfig = configs.find((c) => c.isDefault) || configs[0];
+        if (defaultConfig) {
+          newEditorProvider.value = defaultConfig.llmProvider;
+          newEditorModel.value = defaultConfig.llmModel;
+        }
+      }
+    } catch (error) {
+      console.error("Failed to load LLM config for editor agent:", error);
+    }
+  },
+  { immediate: false },
+);
 
-watch(newEvaluatorAgent, async (agentSlug) => {
-  if (!agentSlug) {
-    newEvaluatorProvider.value = '';
-    newEvaluatorModel.value = '';
-    return;
-  }
-  try {
-    const configs = await marketingSwarmService.getAgentLLMConfigs(agentSlug);
-    if (configs.length > 0) {
-      const defaultConfig = configs.find(c => c.isDefault) || configs[0];
-      if (defaultConfig) {
-        newEvaluatorProvider.value = defaultConfig.llmProvider;
-        newEvaluatorModel.value = defaultConfig.llmModel;
-      }
+watch(
+  newEvaluatorAgent,
+  async (agentSlug) => {
+    if (!agentSlug) {
+      newEvaluatorProvider.value = "";
+      newEvaluatorModel.value = "";
+      return;
     }
-  } catch (error) {
-    console.error('Failed to load LLM config for evaluator agent:', error);
-  }
-}, { immediate: false });
+    try {
+      const configs = await marketingSwarmService.getAgentLLMConfigs(agentSlug);
+      if (configs.length > 0) {
+        const defaultConfig = configs.find((c) => c.isDefault) || configs[0];
+        if (defaultConfig) {
+          newEvaluatorProvider.value = defaultConfig.llmProvider;
+          newEvaluatorModel.value = defaultConfig.llmModel;
+        }
+      }
+    } catch (error) {
+      console.error("Failed to load LLM config for evaluator agent:", error);
+    }
+  },
+  { immediate: false },
+);
 
 // Watch provider changes for "Add New" rows - reset model when provider changes
 // Only reset if agent wasn't just selected (to avoid overriding agent's config)
@@ -749,7 +844,7 @@ watch(newWriterProvider, (newProvider, oldProvider) => {
     if (validModels.length > 0) {
       newWriterModel.value = validModels[0].model;
     } else {
-      newWriterModel.value = '';
+      newWriterModel.value = "";
     }
   }
 });
@@ -760,7 +855,7 @@ watch(newEditorProvider, (newProvider, oldProvider) => {
     if (validModels.length > 0) {
       newEditorModel.value = validModels[0].model;
     } else {
-      newEditorModel.value = '';
+      newEditorModel.value = "";
     }
   }
 });
@@ -771,7 +866,7 @@ watch(newEvaluatorProvider, (newProvider, oldProvider) => {
     if (validModels.length > 0) {
       newEvaluatorModel.value = validModels[0].model;
     } else {
-      newEvaluatorModel.value = '';
+      newEvaluatorModel.value = "";
     }
   }
 });
@@ -792,15 +887,27 @@ const availableEvaluatorAgents = computed(() => evaluatorAgents.value);
 
 // Can add checks
 const canAddWriter = computed(() => {
-  return !!(newWriterAgent.value && newWriterProvider.value && newWriterModel.value);
+  return !!(
+    newWriterAgent.value &&
+    newWriterProvider.value &&
+    newWriterModel.value
+  );
 });
 
 const canAddEditor = computed(() => {
-  return !!(newEditorAgent.value && newEditorProvider.value && newEditorModel.value);
+  return !!(
+    newEditorAgent.value &&
+    newEditorProvider.value &&
+    newEditorModel.value
+  );
 });
 
 const canAddEvaluator = computed(() => {
-  return !!(newEvaluatorAgent.value && newEvaluatorProvider.value && newEvaluatorModel.value);
+  return !!(
+    newEvaluatorAgent.value &&
+    newEvaluatorProvider.value &&
+    newEvaluatorModel.value
+  );
 });
 
 // Add agent functions
@@ -815,9 +922,9 @@ function addWriter() {
     displayName: modelInfo?.displayName || newWriterModel.value,
   });
   // Reset the add row
-  newWriterAgent.value = '';
-  newWriterProvider.value = '';
-  newWriterModel.value = '';
+  newWriterAgent.value = "";
+  newWriterProvider.value = "";
+  newWriterModel.value = "";
 }
 
 function addEditor() {
@@ -831,14 +938,17 @@ function addEditor() {
     displayName: modelInfo?.displayName || newEditorModel.value,
   });
   // Reset the add row
-  newEditorAgent.value = '';
-  newEditorProvider.value = '';
-  newEditorModel.value = '';
+  newEditorAgent.value = "";
+  newEditorProvider.value = "";
+  newEditorModel.value = "";
 }
 
 function addEvaluator() {
   if (!canAddEvaluator.value) return;
-  const modelInfo = getModelInfo(newEvaluatorProvider.value, newEvaluatorModel.value);
+  const modelInfo = getModelInfo(
+    newEvaluatorProvider.value,
+    newEvaluatorModel.value,
+  );
   selectedEvaluators.value.push({
     agentSlug: newEvaluatorAgent.value,
     llmConfigId: `${newEvaluatorProvider.value}:${newEvaluatorModel.value}`,
@@ -847,16 +957,16 @@ function addEvaluator() {
     displayName: modelInfo?.displayName || newEvaluatorModel.value,
   });
   // Reset the add row
-  newEvaluatorAgent.value = '';
-  newEvaluatorProvider.value = '';
-  newEvaluatorModel.value = '';
+  newEvaluatorAgent.value = "";
+  newEvaluatorProvider.value = "";
+  newEvaluatorModel.value = "";
 }
 
 // Remove agent
-function removeAgent(role: 'writer' | 'editor' | 'evaluator', index: number) {
-  if (role === 'writer') {
+function removeAgent(role: "writer" | "editor" | "evaluator", index: number) {
+  if (role === "writer") {
     selectedWriters.value.splice(index, 1);
-  } else if (role === 'editor') {
+  } else if (role === "editor") {
     selectedEditors.value.splice(index, 1);
   } else {
     selectedEvaluators.value.splice(index, 1);
@@ -864,9 +974,18 @@ function removeAgent(role: 'writer' | 'editor' | 'evaluator', index: number) {
 }
 
 // Update agent provider (reset model to first available)
-function updateAgentProvider(role: 'writer' | 'editor' | 'evaluator', index: number, event: CustomEvent) {
+function updateAgentProvider(
+  role: "writer" | "editor" | "evaluator",
+  index: number,
+  event: CustomEvent,
+) {
   const newProvider = event.detail.value;
-  const list = role === 'writer' ? selectedWriters : role === 'editor' ? selectedEditors : selectedEvaluators;
+  const list =
+    role === "writer"
+      ? selectedWriters
+      : role === "editor"
+        ? selectedEditors
+        : selectedEvaluators;
   const config = list.value[index];
   if (config) {
     config.llmProvider = newProvider;
@@ -880,9 +999,18 @@ function updateAgentProvider(role: 'writer' | 'editor' | 'evaluator', index: num
 }
 
 // Update agent model
-function updateAgentModel(role: 'writer' | 'editor' | 'evaluator', index: number, event: CustomEvent) {
+function updateAgentModel(
+  role: "writer" | "editor" | "evaluator",
+  index: number,
+  event: CustomEvent,
+) {
   const newModel = event.detail.value;
-  const list = role === 'writer' ? selectedWriters : role === 'editor' ? selectedEditors : selectedEvaluators;
+  const list =
+    role === "writer"
+      ? selectedWriters
+      : role === "editor"
+        ? selectedEditors
+        : selectedEvaluators;
   const config = list.value[index];
   if (config) {
     config.llmModel = newModel;
@@ -893,8 +1021,16 @@ function updateAgentModel(role: 'writer' | 'editor' | 'evaluator', index: number
 }
 
 // Get agent name for display
-function getAgentName(role: 'writer' | 'editor' | 'evaluator', slug: string): string {
-  const agents = role === 'writer' ? writerAgents : role === 'editor' ? editorAgents : evaluatorAgents;
+function getAgentName(
+  role: "writer" | "editor" | "evaluator",
+  slug: string,
+): string {
+  const agents =
+    role === "writer"
+      ? writerAgents
+      : role === "editor"
+        ? editorAgents
+        : evaluatorAgents;
   const agent = agents.value.find((a) => a.slug === slug);
   return agent?.name || slug;
 }
@@ -931,14 +1067,16 @@ const canExecute = computed(() => {
 });
 
 const validationMessage = computed(() => {
-  if (!selectedContentType.value) return 'Please select a content type';
-  if (!promptData.value.topic) return 'Please enter a topic';
-  if (!promptData.value.audience) return 'Please enter target audience';
-  if (!promptData.value.goal) return 'Please enter a goal';
-  if (promptData.value.keyPoints.length === 0) return 'Please enter at least one key point';
-  if (!promptData.value.tone) return 'Please select a tone';
-  if (selectedWriters.value.length === 0) return 'Please add at least one writer agent';
-  return '';
+  if (!selectedContentType.value) return "Please select a content type";
+  if (!promptData.value.topic) return "Please enter a topic";
+  if (!promptData.value.audience) return "Please enter target audience";
+  if (!promptData.value.goal) return "Please enter a goal";
+  if (promptData.value.keyPoints.length === 0)
+    return "Please enter at least one key point";
+  if (!promptData.value.tone) return "Please select a tone";
+  if (selectedWriters.value.length === 0)
+    return "Please add at least one writer agent";
+  return "";
 });
 
 // Load LLM data and auto-select all multi-provider agents on mount
@@ -951,85 +1089,137 @@ onMounted(async () => {
 
   const autoSelectAgents = async () => {
     // Auto-select one of each writer type (conversational, creative, technical, persuasive)
-    const writerTypes = ['writer-conversational', 'writer-creative', 'writer-technical', 'writer-persuasive'];
-    
+    const writerTypes = [
+      "writer-conversational",
+      "writer-creative",
+      "writer-technical",
+      "writer-persuasive",
+    ];
+
     // Auto-select one of each editor type (clarity, brand, engagement, seo)
-    const editorTypes = ['editor-clarity', 'editor-brand', 'editor-engagement', 'editor-seo'];
-    
+    const editorTypes = [
+      "editor-clarity",
+      "editor-brand",
+      "editor-engagement",
+      "editor-seo",
+    ];
+
     // Auto-select one of each evaluator type (quality, conversion, creativity)
-    const evaluatorTypes = ['evaluator-quality', 'evaluator-conversion', 'evaluator-creativity'];
+    const evaluatorTypes = [
+      "evaluator-quality",
+      "evaluator-conversion",
+      "evaluator-creativity",
+    ];
 
     // Add one writer of each type with their default LLM configs
     for (const writerType of writerTypes) {
-      const writer = writerAgents.value.find(a => a.slug === writerType);
+      const writer = writerAgents.value.find((a) => a.slug === writerType);
       if (writer) {
         try {
-          const configs = await marketingSwarmService.getAgentLLMConfigs(writer.slug);
+          const configs = await marketingSwarmService.getAgentLLMConfigs(
+            writer.slug,
+          );
           if (configs.length > 0) {
-            const defaultConfig = configs.find(c => c.isDefault) || configs[0];
+            const defaultConfig =
+              configs.find((c) => c.isDefault) || configs[0];
             if (defaultConfig) {
-              const modelInfo = getModelInfo(defaultConfig.llmProvider, defaultConfig.llmModel);
+              const modelInfo = getModelInfo(
+                defaultConfig.llmProvider,
+                defaultConfig.llmModel,
+              );
               selectedWriters.value.push({
                 agentSlug: writer.slug,
                 llmConfigId: `${defaultConfig.llmProvider}:${defaultConfig.llmModel}`,
                 llmProvider: defaultConfig.llmProvider,
                 llmModel: defaultConfig.llmModel,
-                displayName: modelInfo?.displayName || defaultConfig.displayName || defaultConfig.llmModel,
+                displayName:
+                  modelInfo?.displayName ||
+                  defaultConfig.displayName ||
+                  defaultConfig.llmModel,
               });
             }
           }
         } catch (error) {
-          console.error(`Failed to load LLM config for writer ${writer.slug}:`, error);
+          console.error(
+            `Failed to load LLM config for writer ${writer.slug}:`,
+            error,
+          );
         }
       }
     }
 
     // Add one editor of each type with their default LLM configs
     for (const editorType of editorTypes) {
-      const editor = editorAgents.value.find(a => a.slug === editorType);
+      const editor = editorAgents.value.find((a) => a.slug === editorType);
       if (editor) {
         try {
-          const configs = await marketingSwarmService.getAgentLLMConfigs(editor.slug);
+          const configs = await marketingSwarmService.getAgentLLMConfigs(
+            editor.slug,
+          );
           if (configs.length > 0) {
-            const defaultConfig = configs.find(c => c.isDefault) || configs[0];
+            const defaultConfig =
+              configs.find((c) => c.isDefault) || configs[0];
             if (defaultConfig) {
-              const modelInfo = getModelInfo(defaultConfig.llmProvider, defaultConfig.llmModel);
+              const modelInfo = getModelInfo(
+                defaultConfig.llmProvider,
+                defaultConfig.llmModel,
+              );
               selectedEditors.value.push({
                 agentSlug: editor.slug,
                 llmConfigId: `${defaultConfig.llmProvider}:${defaultConfig.llmModel}`,
                 llmProvider: defaultConfig.llmProvider,
                 llmModel: defaultConfig.llmModel,
-                displayName: modelInfo?.displayName || defaultConfig.displayName || defaultConfig.llmModel,
+                displayName:
+                  modelInfo?.displayName ||
+                  defaultConfig.displayName ||
+                  defaultConfig.llmModel,
               });
             }
           }
         } catch (error) {
-          console.error(`Failed to load LLM config for editor ${editor.slug}:`, error);
+          console.error(
+            `Failed to load LLM config for editor ${editor.slug}:`,
+            error,
+          );
         }
       }
     }
 
     // Add one evaluator of each type with their default LLM configs
     for (const evaluatorType of evaluatorTypes) {
-      const evaluator = evaluatorAgents.value.find(a => a.slug === evaluatorType);
+      const evaluator = evaluatorAgents.value.find(
+        (a) => a.slug === evaluatorType,
+      );
       if (evaluator) {
         try {
-          const configs = await marketingSwarmService.getAgentLLMConfigs(evaluator.slug);
+          const configs = await marketingSwarmService.getAgentLLMConfigs(
+            evaluator.slug,
+          );
           if (configs.length > 0) {
-            const defaultConfig = configs.find(c => c.isDefault) || configs[0];
+            const defaultConfig =
+              configs.find((c) => c.isDefault) || configs[0];
             if (defaultConfig) {
-              const modelInfo = getModelInfo(defaultConfig.llmProvider, defaultConfig.llmModel);
+              const modelInfo = getModelInfo(
+                defaultConfig.llmProvider,
+                defaultConfig.llmModel,
+              );
               selectedEvaluators.value.push({
                 agentSlug: evaluator.slug,
                 llmConfigId: `${defaultConfig.llmProvider}:${defaultConfig.llmModel}`,
                 llmProvider: defaultConfig.llmProvider,
                 llmModel: defaultConfig.llmModel,
-                displayName: modelInfo?.displayName || defaultConfig.displayName || defaultConfig.llmModel,
+                displayName:
+                  modelInfo?.displayName ||
+                  defaultConfig.displayName ||
+                  defaultConfig.llmModel,
               });
             }
           }
         } catch (error) {
-          console.error(`Failed to load LLM config for evaluator ${evaluator.slug}:`, error);
+          console.error(
+            `Failed to load LLM config for evaluator ${evaluator.slug}:`,
+            error,
+          );
         }
       }
     }
@@ -1041,13 +1231,21 @@ onMounted(async () => {
   };
 
   unwatchFn = watch(
-    () => [writerAgents.value.length, editorAgents.value.length, evaluatorAgents.value.length],
+    () => [
+      writerAgents.value.length,
+      editorAgents.value.length,
+      evaluatorAgents.value.length,
+    ],
     () => {
-      if (writerAgents.value.length > 0 && editorAgents.value.length > 0 && evaluatorAgents.value.length > 0) {
+      if (
+        writerAgents.value.length > 0 &&
+        editorAgents.value.length > 0 &&
+        evaluatorAgents.value.length > 0
+      ) {
         autoSelectAgents();
       }
     },
-    { immediate: true }
+    { immediate: true },
   );
 });
 
@@ -1055,7 +1253,7 @@ onMounted(async () => {
 function handleExecute() {
   if (!canExecute.value) return;
 
-  emit('execute', {
+  emit("execute", {
     contentTypeSlug: selectedContentType.value,
     contentTypeContext: selectedContentTypeContext.value,
     promptData: { ...promptData.value },
@@ -1170,6 +1368,12 @@ function handleExecute() {
   font-size: 0.875rem;
   margin-top: 12px;
   text-align: center;
+}
+
+.history-action {
+  display: flex;
+  justify-content: center;
+  padding: 12px 16px 0;
 }
 
 ion-card {

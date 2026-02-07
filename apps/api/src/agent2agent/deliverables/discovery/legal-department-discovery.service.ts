@@ -152,6 +152,11 @@ export class LegalDepartmentDiscoveryService implements IDeliverableDiscovery {
             );
 
             // Create a deliverable representation for this document extraction
+            const createdAtValue =
+              extraction.created_at || matchingTask?.created_at;
+            const updatedAtValue =
+              extraction.created_at || matchingTask?.created_at;
+
             discovered.push({
               id: `legal-doc-${extraction.id}`, // Synthetic ID since it's not a real deliverable
               title: `Document: ${extraction.original_filename || 'Untitled Document'}`,
@@ -159,8 +164,8 @@ export class LegalDepartmentDiscoveryService implements IDeliverableDiscovery {
               agentName: 'legal-department',
               isExternal: true,
               conversationId,
-              createdAt: extraction.created_at || matchingTask?.created_at,
-              updatedAt: extraction.created_at || matchingTask?.created_at,
+              createdAt: createdAtValue ? new Date(createdAtValue) : new Date(),
+              updatedAt: updatedAtValue ? new Date(updatedAtValue) : new Date(),
               metadata: {
                 documentId: extraction.id,
                 taskId: extraction.analysis_task_id,
