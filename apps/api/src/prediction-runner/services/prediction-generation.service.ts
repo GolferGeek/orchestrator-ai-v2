@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { ExecutionContext } from '@orchestrator-ai/transport-types';
 import { PredictionRepository } from '../repositories/prediction.repository';
 import { PortfolioRepository } from '../repositories/portfolio.repository';
@@ -11,6 +11,8 @@ import { AnalystPositionService } from './analyst-position.service';
 import { TestPriceDataRouterService } from './test-price-data-router.service';
 import { TestTargetMirrorService } from './test-target-mirror.service';
 import { ObservabilityEventsService } from '@/observability/observability-events.service';
+import { CompositeScoreRepository } from '@/risk-runner/repositories/composite-score.repository';
+import { ActiveCompositeScoreView } from '@/risk-runner/interfaces/composite-score.interface';
 import { AnalystAssessmentResult } from '../interfaces/ensemble.interface';
 import { Target } from '../interfaces/target.interface';
 import {
@@ -51,6 +53,9 @@ import { SnapshotBuildInput } from '../interfaces/snapshot.interface';
 export class PredictionGenerationService {
   private readonly logger = new Logger(PredictionGenerationService.name);
 
+  /** Cached risk scores for the current batch run */
+  private riskScoreCache: Map<string, ActiveCompositeScoreView> | null = null;
+
   constructor(
     private readonly predictionRepository: PredictionRepository,
     private readonly portfolioRepository: PortfolioRepository,
@@ -63,11 +68,14 @@ export class PredictionGenerationService {
     private readonly analystPositionService: AnalystPositionService,
     private readonly testPriceDataRouterService: TestPriceDataRouterService,
     private readonly testTargetMirrorService: TestTargetMirrorService,
+    @Optional()
+    private readonly compositeScoreRepository?: CompositeScoreRepository,
   ) {}
 
   /**
-   * Attempt to generate a prediction for a target
-   * Returns null if threshold not met or if an active prediction already exists
+   * Attempt to generate or update predictions for a target.
+   * Returns null if threshold not met.
+   * If threshold is met, upserts per-analyst predictions (creates or updates).
    */
   async attemptPredictionGeneration(
     ctx: ExecutionContext,
@@ -78,55 +86,7 @@ export class PredictionGenerationService {
 
     this.logger.log(`Attempting prediction generation for target: ${targetId}`);
 
-    // Check for existing active analyst predictions
-    const existingPredictions = await this.predictionRepository.findByTarget(
-      targetId,
-      'active',
-    );
-
-    // If we have active predictions for this target, check if refresh is needed
-    // Use the first prediction as representative (all 5 are created together)
-    const existingPrediction = existingPredictions[0];
-    if (existingPrediction) {
-      // Evaluate current predictors to see if refresh is needed
-      const thresholdResult =
-        await this.predictorManagementService.evaluateThreshold(
-          targetId,
-          effectiveConfig,
-        );
-
-      if (!thresholdResult.meetsThreshold) {
-        this.logger.debug(
-          `Active prediction exists for ${targetId}, threshold not met for refresh`,
-        );
-        return existingPrediction;
-      }
-
-      // Check if we should refresh the existing prediction
-      const shouldRefresh = this.shouldRefreshPrediction(
-        existingPrediction,
-        thresholdResult,
-      );
-
-      if (shouldRefresh.refresh) {
-        this.logger.log(
-          `Refreshing prediction for ${targetId}: ${shouldRefresh.reason}`,
-        );
-        return this.refreshPrediction(
-          ctx,
-          existingPrediction,
-          thresholdResult,
-          effectiveConfig,
-        );
-      }
-
-      this.logger.debug(
-        `Active prediction for ${targetId} is still valid, no refresh needed`,
-      );
-      return existingPrediction;
-    }
-
-    // Evaluate threshold
+    // Evaluate threshold against active predictors
     const thresholdResult =
       await this.predictorManagementService.evaluateThreshold(
         targetId,
@@ -143,7 +103,7 @@ export class PredictionGenerationService {
       return null;
     }
 
-    // Threshold met - generate prediction
+    // Threshold met - generate/update predictions (upsert per analyst)
     return this.generatePrediction(
       ctx,
       targetId,
@@ -152,175 +112,8 @@ export class PredictionGenerationService {
     );
   }
 
-  /**
-   * Determine if an existing prediction should be refreshed
-   * Refresh if: direction changes OR confidence shifts > 15%
-   */
-  private shouldRefreshPrediction(
-    existing: Prediction,
-    newThreshold: ThresholdEvaluationResult,
-  ): { refresh: boolean; reason: string } {
-    // Map new dominant direction to prediction direction
-    const newDirection = this.mapPredictorToPredictonDirection(
-      newThreshold.dominantDirection,
-    );
-
-    // Check for direction change
-    if (existing.direction !== newDirection) {
-      return {
-        refresh: true,
-        reason: `direction changed from ${existing.direction} to ${newDirection}`,
-      };
-    }
-
-    // Estimate new confidence based on threshold (simplified)
-    // Full confidence calculation happens in generatePrediction
-    const estimatedNewConfidence =
-      newThreshold.directionConsensus * 0.6 +
-      newThreshold.details.avgConfidence * 0.4;
-
-    // Check for significant confidence shift (> 15%)
-    const confidenceDiff = Math.abs(
-      existing.confidence - estimatedNewConfidence,
-    );
-    if (confidenceDiff > 0.15) {
-      return {
-        refresh: true,
-        reason: `confidence shifted by ${(confidenceDiff * 100).toFixed(0)}% (${(existing.confidence * 100).toFixed(0)}% → ${(estimatedNewConfidence * 100).toFixed(0)}%)`,
-      };
-    }
-
-    return { refresh: false, reason: 'no significant change' };
-  }
-
-  /**
-   * Refresh an existing prediction with new predictor data
-   * Updates confidence, reasoning, and appends to version history
-   */
-  async refreshPrediction(
-    ctx: ExecutionContext,
-    existingPrediction: Prediction,
-    thresholdResult: ThresholdEvaluationResult,
-    _config: ThresholdConfig,
-  ): Promise<Prediction> {
-    const targetId = existingPrediction.target_id;
-    this.logger.log(`Refreshing prediction ${existingPrediction.id}`);
-
-    const target = await this.targetService.findByIdOrThrow(targetId);
-
-    // Get active predictors (will NOT be consumed - they continue to contribute)
-    const predictors =
-      await this.predictorManagementService.getActivePredictors(targetId);
-
-    // Run fresh ensemble evaluation using three-way fork
-    const ensembleInput: EnsembleInput = {
-      targetId,
-      content: await this.buildPredictionContext(
-        predictors,
-        thresholdResult,
-        targetId,
-      ),
-    };
-
-    const threeWayResult = await this.ensembleService.runThreeWayForkEnsemble(
-      ctx,
-      target,
-      ensembleInput,
-    );
-    const ensembleResult = threeWayResult.final;
-
-    // Calculate new prediction parameters
-    const newDirection = this.mapPredictorToPredictonDirection(
-      thresholdResult.dominantDirection,
-    );
-    const newMagnitude = this.estimateMagnitude(predictors, ensembleResult);
-    const newConfidence = this.calculateFinalConfidence(
-      thresholdResult,
-      ensembleResult,
-    );
-    const magnitudeCategory = this.categorizeMagnitude(newMagnitude);
-
-    // Build version history entry
-    const previousVersion = {
-      timestamp: existingPrediction.updated_at || existingPrediction.created_at,
-      direction: existingPrediction.direction,
-      confidence: existingPrediction.confidence,
-      magnitude: existingPrediction.magnitude || 'unknown',
-      predictor_count:
-        (existingPrediction.analyst_ensemble as { predictor_count?: number })
-          ?.predictor_count || 0,
-    };
-
-    // Get existing version history or create new
-    const existingEnsemble =
-      (existingPrediction.analyst_ensemble as {
-        versions?: Array<{
-          timestamp: string;
-          direction: string;
-          confidence: number;
-          magnitude: string;
-          predictor_count: number;
-        }>;
-      }) || {};
-    const versions = [...(existingEnsemble.versions || [])];
-    versions.push(previousVersion);
-
-    // Update prediction with new values
-    const updatedPrediction = await this.predictionRepository.update(
-      existingPrediction.id,
-      {
-        direction: newDirection,
-        confidence: newConfidence,
-        magnitude: magnitudeCategory,
-        reasoning: ensembleResult.aggregated.reasoning,
-      },
-    );
-
-    // Update analyst_ensemble with new data and version history
-    // Note: This requires a separate update since analyst_ensemble is JSONB
-    await this.updateAnalystEnsemble(existingPrediction.id, {
-      predictor_count: predictors.length,
-      combined_strength: thresholdResult.combinedStrength,
-      direction_consensus: thresholdResult.directionConsensus,
-      versions,
-      last_refresh: new Date().toISOString(),
-    });
-
-    this.logger.log(
-      `Refreshed prediction ${existingPrediction.id}: ` +
-        `${newDirection} (was ${existingPrediction.direction}), ` +
-        `confidence ${(newConfidence * 100).toFixed(0)}% (was ${(existingPrediction.confidence * 100).toFixed(0)}%)`,
-    );
-
-    // Emit prediction.refreshed event for observability
-    await this.observabilityEventsService.push({
-      context: ctx,
-      source_app: 'prediction-runner',
-      hook_event_type: 'prediction.refreshed',
-      status: 'refreshed',
-      message: `Prediction refreshed: ${target.symbol} ${newDirection} (${(newConfidence * 100).toFixed(0)}% confidence)`,
-      progress: null,
-      step: 'prediction-refreshed',
-      payload: {
-        predictionId: existingPrediction.id,
-        targetId,
-        targetSymbol: target.symbol,
-        previousDirection: existingPrediction.direction,
-        newDirection,
-        previousConfidence: existingPrediction.confidence,
-        newConfidence,
-        previousMagnitude: existingPrediction.magnitude,
-        newMagnitude: magnitudeCategory,
-        predictorCount: predictors.length,
-        combinedStrength: thresholdResult.combinedStrength,
-        directionConsensus: thresholdResult.directionConsensus,
-        versionCount: versions.length,
-      },
-      timestamp: Date.now(),
-    });
-
-    return updatedPrediction;
-  }
+  // shouldRefreshPrediction and refreshPrediction removed - replaced by
+  // per-analyst upsert logic in generatePrediction() + updateAnalystPrediction()
 
   /**
    * Update the analyst_ensemble JSONB field
@@ -348,9 +141,10 @@ export class PredictionGenerationService {
   }
 
   /**
-   * Generate predictions (called when threshold is confirmed met)
-   * Creates per-analyst predictions plus an arbitrator prediction
-   * Returns the arbitrator prediction as the primary prediction
+   * Generate or update per-analyst predictions (upsert pattern).
+   * For each analyst: if active prediction exists, UPDATE it; otherwise CREATE new.
+   * Predictors are NOT consumed - they remain active for rolling re-evaluation.
+   * Positions are NOT created here - they are created at end-of-day.
    */
   async generatePrediction(
     ctx: ExecutionContext,
@@ -359,20 +153,16 @@ export class PredictionGenerationService {
     _config: ThresholdConfig,
   ): Promise<Prediction> {
     this.logger.log(
-      `Generating per-analyst predictions for target: ${targetId}`,
+      `Generating/updating per-analyst predictions for target: ${targetId}`,
     );
 
     const target = await this.targetService.findByIdOrThrow(targetId);
 
-    // Get active predictors (will be consumed)
+    // Get active predictors (NOT consumed - they stay active for rolling re-evaluation)
     const predictors =
       await this.predictorManagementService.getActivePredictors(targetId);
 
     // Run final ensemble evaluation for prediction parameters
-    // Using three-way fork ensemble for full reasoning per analyst:
-    // - user fork: user-maintained context
-    // - ai fork: AI-maintained context
-    // - arbitrator fork: combined context for final call
     const ensembleInput: EnsembleInput = {
       targetId,
       content: await this.buildPredictionContext(
@@ -388,16 +178,14 @@ export class PredictionGenerationService {
       ensembleInput,
     );
 
-    // Use arbitrator fork assessments as the primary assessments
-    // but we'll store all three forks for display
     const ensembleResult: EnsembleResult = threeWayResult.final;
 
-    // Filter out flat-only analysts (both user AND ai forks are flat/neutral)
+    // Filter out flat-only analysts
     const filtered = this.filterFlatOnlyAnalysts(threeWayResult);
 
     if (filtered.arbitratorForkAssessments.length === 0) {
       this.logger.log(
-        `All analysts are flat for ${target.symbol} — no predictions created, predictors remain active`,
+        `All analysts are flat for ${target.symbol} — no predictions created/updated`,
       );
       return null as unknown as Prediction;
     }
@@ -414,16 +202,13 @@ export class PredictionGenerationService {
       ensembleResult,
     );
 
-    // Track all created predictions
-    const createdPredictions: Prediction[] = [];
+    // Track all upserted predictions
+    const upsertedPredictions: Prediction[] = [];
+    let createdCount = 0;
+    let updatedCount = 0;
 
-    // Create per-analyst predictions using ONLY arbitrator fork assessments (one per analyst)
-    // The arbitrator fork has the combined context and is the "official" analyst assessment
-    // Only includes analysts that passed the flat-only filter
-    const arbitratorForkAssessments = filtered.arbitratorForkAssessments;
-
-    for (const assessment of arbitratorForkAssessments) {
-      // Find the corresponding user and ai fork assessments for this analyst
+    // Upsert per-analyst predictions
+    for (const assessment of filtered.arbitratorForkAssessments) {
       const userFork = filtered.userForkAssessments.find(
         (a) => a.analyst.slug === assessment.analyst.slug,
       );
@@ -431,40 +216,52 @@ export class PredictionGenerationService {
         (a) => a.analyst.slug === assessment.analyst.slug,
       );
 
-      const analystPrediction = await this.createAnalystPredictionWithForks(
-        ctx,
-        target,
-        assessment,
-        userFork,
-        aiFork,
-        horizonHours,
-        expiresAt,
-        contextVersions,
+      // Check if this analyst already has an active prediction for this target
+      const existing = await this.predictionRepository.findByTargetAndAnalyst(
+        targetId,
+        assessment.analyst.slug,
+        'active',
       );
-      createdPredictions.push(analystPrediction);
+
+      if (existing) {
+        // UPDATE existing prediction
+        const updated = await this.updateAnalystPrediction(
+          existing,
+          assessment,
+          userFork,
+          aiFork,
+          horizonHours,
+          expiresAt,
+          predictors,
+          thresholdResult,
+        );
+        upsertedPredictions.push(updated);
+        updatedCount++;
+      } else {
+        // CREATE new prediction
+        const created = await this.createAnalystPredictionWithForks(
+          ctx,
+          target,
+          assessment,
+          userFork,
+          aiFork,
+          horizonHours,
+          expiresAt,
+          contextVersions,
+        );
+        upsertedPredictions.push(created);
+        createdCount++;
+      }
     }
 
-    // Note: No separate arbitrator prediction - the 5 analyst predictions each contain
-    // their 3 fork assessments (user, ai, arbitrator). Users view the analysts and
-    // draw their own conclusions rather than seeing a computed "consensus".
-
     this.logger.log(
-      `Created ${createdPredictions.length} predictions for ${target.symbol}: ` +
-        `${arbitratorForkAssessments.length} analyst predictions`,
+      `Predictions for ${target.symbol}: ${createdCount} created, ${updatedCount} updated`,
     );
 
-    // Use the first prediction as the "primary" for consuming predictors
-    // (all 5 are equally valid, this is just for the foreign key relationship)
-    const primaryPrediction = createdPredictions[0];
+    const primaryPrediction = upsertedPredictions[0];
 
-    // Consume predictors (link to primary prediction)
+    // Create snapshot for audit trail (no predictor consumption)
     if (primaryPrediction) {
-      await this.predictorManagementService.consumePredictors(
-        targetId,
-        primaryPrediction.id,
-      );
-
-      // Create snapshot for audit trail
       await this.createPredictionSnapshot(
         primaryPrediction,
         predictors,
@@ -473,15 +270,15 @@ export class PredictionGenerationService {
       );
     }
 
-    // Emit prediction.created event for observability
+    // Emit observability event
     await this.observabilityEventsService.push({
       context: ctx,
       source_app: 'prediction-runner',
-      hook_event_type: 'prediction.created',
-      status: 'created',
-      message: `Created ${createdPredictions.length} predictions for ${target.symbol}: ${createdPredictions.map((p) => p.analyst_slug).join(', ')}`,
+      hook_event_type: 'prediction.upserted',
+      status: 'completed',
+      message: `Predictions for ${target.symbol}: ${createdCount} created, ${updatedCount} updated (${upsertedPredictions.map((p) => p.analyst_slug).join(', ')})`,
       progress: null,
-      step: 'prediction-created',
+      step: 'prediction-upserted',
       payload: {
         targetId,
         targetSymbol: target.symbol,
@@ -490,7 +287,9 @@ export class PredictionGenerationService {
         predictorCount: predictors.length,
         combinedStrength: thresholdResult.combinedStrength,
         directionConsensus: thresholdResult.directionConsensus,
-        analystPredictions: createdPredictions.map((p) => ({
+        createdCount,
+        updatedCount,
+        analystPredictions: upsertedPredictions.map((p) => ({
           id: p.id,
           analyst_slug: p.analyst_slug,
           direction: p.direction,
@@ -500,25 +299,115 @@ export class PredictionGenerationService {
       timestamp: Date.now(),
     });
 
-    // Create positions for all three forks (user, ai, arbitrator)
-    // Uses filtered assessments so flat-only analysts don't get positions
-    if (primaryPrediction) {
-      const filteredThreeWayResult: ThreeWayForkEnsembleResult = {
-        ...threeWayResult,
-        userForkAssessments: filtered.userForkAssessments,
-        aiForkAssessments: filtered.aiForkAssessments,
-        arbitratorForkAssessments: filtered.arbitratorForkAssessments,
-      };
-      await this.createThreeWayForkPositions(
-        ctx,
-        target,
-        filteredThreeWayResult,
-        primaryPrediction.id,
-      );
-    }
-
-    // Return the first prediction (all 5 are equally valid)
     return primaryPrediction!;
+  }
+
+  /**
+   * Update an existing analyst prediction with fresh assessment data.
+   * Preserves version history in analyst_ensemble JSONB.
+   */
+  private async updateAnalystPrediction(
+    existing: Prediction,
+    arbitratorAssessment: AnalystAssessmentResult,
+    userAssessment: AnalystAssessmentResult | undefined,
+    aiAssessment: AnalystAssessmentResult | undefined,
+    horizonHours: number,
+    expiresAt: Date,
+    predictors: Predictor[],
+    thresholdResult: ThresholdEvaluationResult,
+  ): Promise<Prediction> {
+    const assessment = arbitratorAssessment;
+    const direction = this.mapAnalystDirection(assessment.direction);
+    const magnitude = assessment.confidence * 5;
+    const magnitudeCategory = this.categorizeMagnitude(magnitude);
+
+    // Build version history entry from current values
+    const previousVersion = {
+      timestamp: existing.updated_at || existing.created_at,
+      direction: existing.direction,
+      confidence: existing.confidence,
+      magnitude: existing.magnitude || 'unknown',
+      predictor_count: predictors.length,
+    };
+
+    // Get existing version history
+    const existingEnsemble =
+      (existing.analyst_ensemble as {
+        versions?: Array<Record<string, unknown>>;
+      }) || {};
+    const versions = [...(existingEnsemble.versions || [])];
+    versions.push(previousVersion);
+
+    // Build updated analyst_ensemble with fork data + version history
+    const updatedEnsemble: Record<string, unknown> = {
+      analyst_slug: assessment.analyst.slug,
+      analyst_name: assessment.analyst.name,
+      key_factors: assessment.key_factors,
+      risks: assessment.risks,
+      tier: assessment.tier,
+      user_fork: userAssessment
+        ? {
+            direction: userAssessment.direction,
+            confidence: userAssessment.confidence,
+            reasoning: userAssessment.reasoning,
+            is_flat: this.isDirectionFlat(userAssessment.direction),
+          }
+        : undefined,
+      ai_fork: aiAssessment
+        ? {
+            direction: aiAssessment.direction,
+            confidence: aiAssessment.confidence,
+            reasoning: aiAssessment.reasoning,
+            is_flat: this.isDirectionFlat(aiAssessment.direction),
+          }
+        : undefined,
+      arbitrator_fork: {
+        direction: assessment.direction,
+        confidence: assessment.confidence,
+        reasoning: assessment.reasoning,
+        is_flat: this.isDirectionFlat(assessment.direction),
+      },
+      active_forks: [
+        ...(userAssessment && !this.isDirectionFlat(userAssessment.direction)
+          ? ['user']
+          : []),
+        ...(aiAssessment && !this.isDirectionFlat(aiAssessment.direction)
+          ? ['ai']
+          : []),
+        ...(!this.isDirectionFlat(assessment.direction)
+          ? ['arbitrator']
+          : []),
+      ],
+      predictor_count: predictors.length,
+      combined_strength: thresholdResult.combinedStrength,
+      direction_consensus: thresholdResult.directionConsensus,
+      versions,
+      last_refresh: new Date().toISOString(),
+    };
+
+    // Update the prediction record
+    const updated = await this.predictionRepository.update(existing.id, {
+      direction,
+      confidence: assessment.confidence,
+      magnitude: magnitudeCategory,
+      reasoning: assessment.reasoning,
+      timeframe_hours: horizonHours,
+      expires_at: expiresAt.toISOString(),
+      analyst_ensemble: updatedEnsemble,
+      llm_ensemble: {
+        direction: assessment.direction,
+        confidence: assessment.confidence,
+        tier: assessment.tier,
+      },
+    });
+
+    this.logger.debug(
+      `Updated prediction ${existing.id} for ${assessment.analyst.slug}: ` +
+        `${direction} (${(assessment.confidence * 100).toFixed(0)}% confidence), ` +
+        `was ${existing.direction} (${(existing.confidence * 100).toFixed(0)}%)`,
+    );
+
+    return updated;
   }
 
   /**
@@ -1184,6 +1073,43 @@ export class PredictionGenerationService {
    * Build context string from predictors for final ensemble
    * Includes market data when available for better-informed predictions
    */
+  /**
+   * Get risk score for a target symbol from the risk-runner system.
+   * Caches scores for the duration of a batch run.
+   */
+  private async getRiskScoreForSymbol(
+    symbol: string,
+  ): Promise<ActiveCompositeScoreView | null> {
+    if (!this.compositeScoreRepository) return null;
+
+    try {
+      // Load and cache all active risk scores on first call
+      if (!this.riskScoreCache) {
+        const allScores =
+          await this.compositeScoreRepository.findAllActiveView();
+        this.riskScoreCache = new Map();
+        for (const score of allScores) {
+          this.riskScoreCache.set(
+            score.subject_identifier.toUpperCase(),
+            score,
+          );
+        }
+      }
+
+      return this.riskScoreCache.get(symbol.toUpperCase()) ?? null;
+    } catch (error) {
+      this.logger.warn(
+        `Failed to fetch risk score for ${symbol}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+      return null;
+    }
+  }
+
+  /** Clear risk score cache (call at start of each batch run) */
+  clearRiskScoreCache(): void {
+    this.riskScoreCache = null;
+  }
+
   private async buildPredictionContext(
     predictors: Predictor[],
     threshold: ThresholdEvaluationResult,
@@ -1218,6 +1144,34 @@ export class PredictionGenerationService {
       } catch {
         // Non-critical - continue without market data
       }
+
+      // Add risk assessment data if available
+      try {
+        const target = await this.targetService.findByIdOrThrow(targetId);
+        const riskScore = await this.getRiskScoreForSymbol(target.symbol);
+        if (riskScore) {
+          parts.push('');
+          parts.push('## Risk Assessment');
+          parts.push(`Overall Risk Score: ${riskScore.overall_score}/100`);
+          parts.push(
+            `Risk Confidence: ${(riskScore.confidence * 100).toFixed(0)}%`,
+          );
+          if (riskScore.dimension_scores) {
+            for (const [dimension, score] of Object.entries(
+              riskScore.dimension_scores,
+            )) {
+              parts.push(`- ${dimension}: ${score}/100`);
+            }
+          }
+          if (riskScore.debate_adjustment) {
+            parts.push(
+              `Debate Adjustment: ${riskScore.debate_adjustment > 0 ? '+' : ''}${riskScore.debate_adjustment}`,
+            );
+          }
+        }
+      } catch {
+        // Non-critical - continue without risk data
+      }
     }
 
     parts.push('');
@@ -1225,7 +1179,7 @@ export class PredictionGenerationService {
 
     for (const p of predictors) {
       parts.push(
-        `- ${p.direction} (strength: ${p.strength}, confidence: ${(p.confidence * 100).toFixed(0)}%)`,
+        `- ${p.analyst_slug}${p.fork_type ? '/' + p.fork_type : ''}: ${p.direction} (strength: ${p.strength}, confidence: ${(p.confidence * 100).toFixed(0)}%)`,
       );
       if (p.reasoning) {
         parts.push(`  Reasoning: ${p.reasoning}`);

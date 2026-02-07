@@ -185,7 +185,7 @@ function validateRiskRunnerConfig(): ConfigValidationResult {
 @Module({
   imports: [SupabaseModule, LLMModule, ObservabilityModule, CrawlerModule],
   providers: [...repositories, ...services, ...runners, ...dashboardHandlers],
-  exports: [...services, ...runners, ...dashboardHandlers],
+  exports: [...repositories, ...services, ...runners, ...dashboardHandlers],
 })
 export class RiskRunnerModule implements OnModuleInit {
   private readonly logger = new Logger(RiskRunnerModule.name);

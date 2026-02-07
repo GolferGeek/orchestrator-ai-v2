@@ -75,6 +75,7 @@ describe('PredictionGenerationService', () => {
       key_factors: ['volume spike', 'RSI breakout'],
       risks: ['market volatility'],
     },
+      fork_type: null,
     llm_usage_id: null,
     status: 'active',
     consumed_at: null,
@@ -523,82 +524,8 @@ describe('PredictionGenerationService', () => {
     });
   });
 
-  describe('refreshPrediction', () => {
-    it('should update prediction with new values', async () => {
-      const existingPrediction: Prediction = {
-        ...mockPrediction,
-        is_arbitrator: false,
-        analyst_slug: 'technical-analyst',
-      };
-      targetService.findByIdOrThrow.mockResolvedValue(mockTarget);
-      predictorManagementService.getActivePredictors.mockResolvedValue([
-        mockPredictor,
-      ]);
-      ensembleService.runThreeWayForkEnsemble.mockResolvedValue(
-        mockThreeWayResult,
-      );
-      predictionRepository.update.mockResolvedValue({
-        ...existingPrediction,
-        confidence: 0.9,
-      });
-
-      const result = await service.refreshPrediction(
-        mockContext,
-        existingPrediction,
-        mockThresholdResult,
-        mockThresholdConfig,
-      );
-
-      expect(result).toBeDefined();
-      expect(predictionRepository.update).toHaveBeenCalledWith(
-        existingPrediction.id,
-        expect.objectContaining({
-          direction: expect.any(String),
-          confidence: expect.any(Number),
-          magnitude: expect.any(String),
-          reasoning: expect.any(String),
-        }),
-      );
-    });
-
-    it('should update analyst ensemble with version history', async () => {
-      const existingPrediction: Prediction = {
-        ...mockPrediction,
-        is_arbitrator: false,
-        analyst_slug: 'technical-analyst',
-        analyst_ensemble: {
-          predictor_count: 2,
-          versions: [],
-        },
-      };
-      targetService.findByIdOrThrow.mockResolvedValue(mockTarget);
-      predictorManagementService.getActivePredictors.mockResolvedValue([
-        mockPredictor,
-      ]);
-      ensembleService.runThreeWayForkEnsemble.mockResolvedValue(
-        mockThreeWayResult,
-      );
-      predictionRepository.update.mockResolvedValue(existingPrediction);
-
-      await service.refreshPrediction(
-        mockContext,
-        existingPrediction,
-        mockThresholdResult,
-        mockThresholdConfig,
-      );
-
-      expect(predictionRepository.updateAnalystEnsemble).toHaveBeenCalledWith(
-        existingPrediction.id,
-        expect.objectContaining({
-          predictor_count: expect.any(Number),
-          combined_strength: expect.any(Number),
-          direction_consensus: expect.any(Number),
-          versions: expect.any(Array),
-          last_refresh: expect.any(String),
-        }),
-      );
-    });
-  });
+  // refreshPrediction tests removed - method replaced by per-analyst upsert logic
+  // in generatePrediction() + updateAnalystPrediction()
 
   describe('direction mapping', () => {
     it('should map bullish to up correctly', async () => {

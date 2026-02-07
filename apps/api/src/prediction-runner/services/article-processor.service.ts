@@ -408,8 +408,9 @@ Respond with: {"direction": "bullish" | "bearish" | "neutral", "reasoning": "one
   }
 
   /**
-   * Create a predictor from an article for a specific target
-   * Runs ensemble evaluation and creates predictor if approved
+   * Create per-analyst predictors from an article for a specific target.
+   * Runs three-way fork ensemble (5 analysts x 3 forks = 15 assessments).
+   * Creates one predictor per non-flat assessment.
    */
   private async createPredictorFromArticle(
     ctx: ExecutionContext,
@@ -441,97 +442,109 @@ Respond with: {"direction": "bullish" | "bearish" | "neutral", "reasoning": "one
       },
     };
 
-    // Run ensemble evaluation
-    const ensembleResult = await this.ensembleService.runEnsemble(
-      ensembleCtx,
-      target,
-      ensembleInput,
-    );
-
-    const { aggregated } = ensembleResult;
-
-    // Determine if we should create a predictor
-    // Threshold: confidence >= 0.5 and consensus_strength >= 0.6
-    const shouldCreate =
-      aggregated.confidence >= 0.5 && aggregated.consensus_strength >= 0.6;
-
-    if (!shouldCreate) {
-      this.logger.debug(
-        `Article ${article.id} rejected for ${target.symbol}: ` +
-          `confidence=${aggregated.confidence}, consensus=${aggregated.consensus_strength}`,
+    // Run three-way fork ensemble (5 analysts x 3 forks)
+    const threeWayResult =
+      await this.ensembleService.runThreeWayForkEnsemble(
+        ensembleCtx,
+        target,
+        ensembleInput,
       );
-      return false;
-    }
-
-    // Calculate strength from confidence (1-10 scale)
-    const strength = Math.round(aggregated.confidence * 10);
 
     // Calculate expiration time
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + this.config.predictor_ttl_hours);
 
-    // Map direction
-    const direction = this.mapDirection(aggregated.direction);
+    // Collect all assessments with their fork type
+    const allAssessments = [
+      ...threeWayResult.userForkAssessments.map((a) => ({
+        assessment: a,
+        forkType: 'user' as const,
+      })),
+      ...threeWayResult.aiForkAssessments.map((a) => ({
+        assessment: a,
+        forkType: 'ai' as const,
+      })),
+      ...threeWayResult.arbitratorForkAssessments.map((a) => ({
+        assessment: a,
+        forkType: 'arbitrator' as const,
+      })),
+    ];
 
-    // Extract key factors and risks from ensemble
-    const keyFactors = ensembleResult.assessments
-      .flatMap((a) => a.key_factors)
-      .slice(0, 5);
-    const risks = ensembleResult.assessments
-      .flatMap((a) => a.risks)
-      .slice(0, 5);
+    let predictorsCreated = 0;
 
-    const predictorData: CreatePredictorData = {
-      article_id: article.id,
-      target_id: target.id,
-      direction,
-      strength,
-      confidence: aggregated.confidence,
-      reasoning: aggregated.reasoning,
-      analyst_slug: 'ensemble',
-      analyst_assessment: {
+    for (const { assessment, forkType } of allAssessments) {
+      const direction = this.mapDirection(assessment.direction);
+
+      // Skip flat/neutral assessments - only keep directional predictors
+      if (direction === 'neutral') {
+        this.logger.debug(
+          `Skipping flat predictor for ${target.symbol} from ${assessment.analyst.slug}/${forkType}`,
+        );
+        continue;
+      }
+
+      const strength = Math.round(assessment.confidence * 10);
+
+      const predictorData: CreatePredictorData = {
+        article_id: article.id,
+        target_id: target.id,
         direction,
-        confidence: aggregated.confidence,
-        reasoning: aggregated.reasoning,
-        key_factors: keyFactors,
-        risks,
-      },
-      status: 'active',
-      expires_at: expiresAt.toISOString(),
-      is_test: article.is_test,
-    };
-
-    const predictor = await this.predictorRepository.create(predictorData);
-
-    this.logger.log(
-      `Created predictor ${predictor.id} for ${target.symbol} from article ${article.id} ` +
-        `(direction: ${direction}, strength: ${strength})`,
-    );
-
-    // Emit predictor.created event
-    await this.observabilityEventsService.push({
-      context: ensembleCtx,
-      source_app: 'prediction-runner',
-      hook_event_type: 'predictor.created',
-      status: 'completed',
-      message: `Predictor created for ${target.symbol}: ${direction} (confidence: ${(aggregated.confidence * 100).toFixed(0)}%)`,
-      progress: 100,
-      step: 'predictor-created',
-      payload: {
-        predictorId: predictor.id,
-        articleId: article.id,
-        targetId: target.id,
-        targetSymbol: target.symbol,
-        direction,
-        confidence: aggregated.confidence,
         strength,
-        keyFactors,
-        risks,
-      },
-      timestamp: Date.now(),
-    });
+        confidence: assessment.confidence,
+        reasoning: assessment.reasoning,
+        analyst_slug: assessment.analyst.slug,
+        analyst_assessment: {
+          direction,
+          confidence: assessment.confidence,
+          reasoning: assessment.reasoning,
+          key_factors: assessment.key_factors,
+          risks: assessment.risks,
+        },
+        fork_type: forkType,
+        status: 'active',
+        expires_at: expiresAt.toISOString(),
+        is_test: article.is_test,
+      };
 
-    return true;
+      const predictor = await this.predictorRepository.create(predictorData);
+      predictorsCreated++;
+
+      this.logger.debug(
+        `Created predictor ${predictor.id} for ${target.symbol} ` +
+          `(${assessment.analyst.slug}/${forkType}: ${direction}, strength: ${strength})`,
+      );
+    }
+
+    if (predictorsCreated > 0) {
+      this.logger.log(
+        `Created ${predictorsCreated} predictors for ${target.symbol} from article ${article.id}`,
+      );
+
+      // Emit predictor.created event
+      await this.observabilityEventsService.push({
+        context: ensembleCtx,
+        source_app: 'prediction-runner',
+        hook_event_type: 'predictor.created',
+        status: 'completed',
+        message: `${predictorsCreated} predictors created for ${target.symbol} (5 analysts x 3 forks, flat filtered)`,
+        progress: 100,
+        step: 'predictor-created',
+        payload: {
+          articleId: article.id,
+          targetId: target.id,
+          targetSymbol: target.symbol,
+          predictorsCreated,
+          metadata: threeWayResult.metadata,
+        },
+        timestamp: Date.now(),
+      });
+    } else {
+      this.logger.debug(
+        `No directional predictors for ${target.symbol} from article ${article.id} (all flat)`,
+      );
+    }
+
+    return predictorsCreated > 0;
   }
 
   /**

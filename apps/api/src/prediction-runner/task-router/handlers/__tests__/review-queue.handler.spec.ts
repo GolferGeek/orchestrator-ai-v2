@@ -68,6 +68,7 @@ describe('ReviewQueueHandler', () => {
       key_factors: ['RSI breakout', 'MACD crossover'],
       risks: ['Overbought conditions'],
     },
+      fork_type: null,
     llm_usage_id: 'llm-1',
     status: 'active' as const,
     consumed_at: null,

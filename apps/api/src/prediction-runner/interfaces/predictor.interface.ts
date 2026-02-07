@@ -22,6 +22,8 @@ export type PredictorStatus = 'active' | 'consumed' | 'expired' | 'invalidated';
  */
 export type PredictorDirection = 'bullish' | 'bearish' | 'neutral';
 
+export type PredictorForkType = 'user' | 'ai' | 'arbitrator';
+
 export interface Predictor {
   id: string;
   article_id: string | null; // Reference to crawler.articles
@@ -32,6 +34,7 @@ export interface Predictor {
   reasoning: string;
   analyst_slug: string;
   analyst_assessment: AnalystAssessment;
+  fork_type: PredictorForkType | null;
   llm_usage_id: string | null;
   status: PredictorStatus;
   consumed_at: string | null;
@@ -61,6 +64,7 @@ export interface CreatePredictorData {
   reasoning: string;
   analyst_slug: string;
   analyst_assessment: AnalystAssessment;
+  fork_type?: PredictorForkType;
   llm_usage_id?: string;
   expires_at: string;
   status?: PredictorStatus;

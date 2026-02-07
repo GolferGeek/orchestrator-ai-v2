@@ -98,8 +98,17 @@ export interface UpdatePredictionData {
   confidence?: number;
   magnitude?: 'small' | 'medium' | 'large' | null;
   reasoning?: string;
+  timeframe_hours?: number;
+  expires_at?: string;
+  entry_price?: number | null;
+  target_price?: number | null;
+  stop_loss?: number | null;
+  analyst_ensemble?: Record<string, unknown>;
+  llm_ensemble?: Record<string, unknown>;
   status?: PredictionStatus;
   outcome_value?: number;
   outcome_captured_at?: string;
   resolution_notes?: string;
+  recommended_quantity?: number | null;
+  quantity_reasoning?: string | null;
 }

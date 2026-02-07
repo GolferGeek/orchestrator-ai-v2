@@ -5,6 +5,7 @@ import { UniverseRepository } from '../../repositories/universe.repository';
 import { PredictionGenerationService } from '../../services/prediction-generation.service';
 import { PredictorManagementService } from '../../services/predictor-management.service';
 import { StrategyService } from '../../services/strategy.service';
+import { AnalystPositionService } from '../../services/analyst-position.service';
 
 describe('BatchPredictionGeneratorRunner', () => {
   let runner: BatchPredictionGeneratorRunner;
@@ -131,6 +132,12 @@ describe('BatchPredictionGeneratorRunner', () => {
           useValue: {
             findById: jest.fn(),
             getAppliedStrategy: jest.fn(),
+          },
+        },
+        {
+          provide: AnalystPositionService,
+          useValue: {
+            createEndOfDayPositions: jest.fn(),
           },
         },
       ],

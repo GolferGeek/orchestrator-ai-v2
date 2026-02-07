@@ -1,8 +1,9 @@
-import { Module, OnModuleInit, Logger } from '@nestjs/common';
+import { Module, OnModuleInit, Logger, forwardRef } from '@nestjs/common';
 import { SupabaseModule } from '@/supabase/supabase.module';
 import { LLMModule } from '@/llms/llm.module';
 import { ObservabilityModule } from '@/observability/observability.module';
 import { CrawlerModule } from '@/crawler/crawler.module';
+import { RiskRunnerModule } from '@/risk-runner/risk-runner.module';
 
 // Repositories
 import {
@@ -376,7 +377,7 @@ function validatePredictionRunnerConfig(): ConfigValidationResult {
 }
 
 @Module({
-  imports: [SupabaseModule, LLMModule, ObservabilityModule, CrawlerModule],
+  imports: [SupabaseModule, LLMModule, ObservabilityModule, CrawlerModule, forwardRef(() => RiskRunnerModule)],
   providers: [...repositories, ...services, ...runners, ...dashboardHandlers],
   exports: [...services, ...runners, ...dashboardHandlers],
 })

@@ -183,6 +183,7 @@ describe('SignalDetectionService', () => {
           key_factors: [],
           risks: [],
         },
+      fork_type: null,
         llm_usage_id: null,
         status: 'active',
         consumed_at: null,

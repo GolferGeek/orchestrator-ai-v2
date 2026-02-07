@@ -7,6 +7,7 @@ import { UniverseRepository } from '../repositories/universe.repository';
 import { PredictionGenerationService } from '../services/prediction-generation.service';
 import { PredictorManagementService } from '../services/predictor-management.service';
 import { StrategyService } from '../services/strategy.service';
+import { AnalystPositionService } from '../services/analyst-position.service';
 
 /**
  * Batch Prediction Generator Runner - Phase 7, Step 7-3
@@ -33,6 +34,7 @@ export class BatchPredictionGeneratorRunner {
     private readonly predictionGenerationService: PredictionGenerationService,
     private readonly predictorManagementService: PredictorManagementService,
     private readonly strategyService: StrategyService,
+    private readonly analystPositionService: AnalystPositionService,
   ) {}
 
   /**
@@ -49,6 +51,34 @@ export class BatchPredictionGeneratorRunner {
   async generatePredictionsBatch(): Promise<void> {
     if (this.isDisabled()) return;
     await this.runBatchGeneration();
+  }
+
+  /**
+   * End-of-day position creation - Mon-Fri 21:05 UTC (~4 PM ET)
+   * Creates positions for all active directional predictions
+   */
+  @Cron('5 21 * * 1-5')
+  async createEndOfDayPositionsBatch(): Promise<void> {
+    if (this.isDisabled()) return;
+
+    this.logger.log('Starting end-of-day position creation');
+    try {
+      const result =
+        await this.analystPositionService.createEndOfDayPositions();
+
+      this.logger.log(
+        `EOD positions: ${result.positionsCreated} created, ` +
+          `${result.positionsSkipped} skipped, ${result.errors.length} errors`,
+      );
+
+      if (result.errors.length > 0) {
+        this.logger.warn(`EOD position errors: ${result.errors.join('; ')}`);
+      }
+    } catch (error) {
+      this.logger.error(
+        `EOD position creation failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   }
 
   /**

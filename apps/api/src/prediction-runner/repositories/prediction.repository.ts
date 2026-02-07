@@ -103,6 +103,47 @@ export class PredictionRepository {
   }
 
   /**
+   * Find an active prediction for a specific target and analyst.
+   * Returns the most recent active prediction for this analyst+target pair.
+   * Used by the upsert logic to decide whether to update or create.
+   */
+  async findByTargetAndAnalyst(
+    targetId: string,
+    analystSlug: string,
+    status?: PredictionStatus,
+    filter: TestDataFilter = DEFAULT_FILTER,
+  ): Promise<Prediction | null> {
+    let query = this.getClient()
+      .schema(this.schema)
+      .from(this.table)
+      .select('*')
+      .eq('target_id', targetId)
+      .eq('analyst_slug', analystSlug);
+
+    if (status) {
+      query = query.eq('status', status);
+    }
+
+    query = this.applyTestDataFilter(query, filter);
+
+    const { data, error } = (await query
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()) as SupabaseSelectResponse<Prediction>;
+
+    if (error) {
+      this.logger.error(
+        `Failed to find prediction for target=${targetId} analyst=${analystSlug}: ${error.message}`,
+      );
+      throw new Error(
+        `Failed to find prediction by target+analyst: ${error.message}`,
+      );
+    }
+
+    return data;
+  }
+
+  /**
    * Find predictions by universe ID
    * Since predictions link to targets which link to universes,
    * we need to join through the targets table

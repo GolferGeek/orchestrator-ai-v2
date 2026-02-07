@@ -27,6 +27,7 @@ describe('PredictorManagementService', () => {
       key_factors: ['factor1'],
       risks: ['risk1'],
     },
+      fork_type: null,
     llm_usage_id: null,
     status: 'active',
     consumed_at: null,

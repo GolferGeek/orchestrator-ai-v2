@@ -1,6 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AnalystPositionService } from '../analyst-position.service';
 import { PortfolioRepository } from '../../repositories/portfolio.repository';
+import { PredictionRepository } from '../../repositories/prediction.repository';
+import { TargetSnapshotRepository } from '../../repositories/target-snapshot.repository';
+import { TargetRepository } from '../../repositories/target.repository';
+import { AnalystRepository } from '../../repositories/analyst.repository';
 import { ActiveAnalyst } from '../../interfaces/analyst.interface';
 import { Target } from '../../interfaces/target.interface';
 import { AnalystAssessmentResult } from '../../interfaces/ensemble.interface';
@@ -125,6 +129,30 @@ describe('AnalystPositionService', () => {
         {
           provide: PortfolioRepository,
           useValue: mockPortfolioRepository,
+        },
+        {
+          provide: PredictionRepository,
+          useValue: {
+            findActivePredictions: jest.fn().mockResolvedValue([]),
+          },
+        },
+        {
+          provide: TargetSnapshotRepository,
+          useValue: {
+            findLatest: jest.fn(),
+          },
+        },
+        {
+          provide: TargetRepository,
+          useValue: {
+            findById: jest.fn(),
+          },
+        },
+        {
+          provide: AnalystRepository,
+          useValue: {
+            getPersonalityAnalysts: jest.fn().mockResolvedValue([]),
+          },
         },
       ],
     }).compile();

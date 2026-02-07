@@ -113,6 +113,7 @@ describe('PredictionHandler', () => {
       key_factors: ['momentum', 'volume'],
       risks: ['market volatility'],
     },
+      fork_type: null,
     llm_usage_id: null,
     status: 'active' as const,
     consumed_at: null,

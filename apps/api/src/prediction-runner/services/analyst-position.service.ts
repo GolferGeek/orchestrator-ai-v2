@@ -1,7 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PortfolioRepository } from '../repositories/portfolio.repository';
+import { PredictionRepository } from '../repositories/prediction.repository';
+import { TargetSnapshotRepository } from '../repositories/target-snapshot.repository';
+import { TargetRepository } from '../repositories/target.repository';
+import { AnalystRepository } from '../repositories/analyst.repository';
 import { AnalystAssessmentResult } from '../interfaces/ensemble.interface';
 import { Target } from '../interfaces/target.interface';
+import { Prediction } from '../interfaces/prediction.interface';
 import {
   AnalystPosition,
   AnalystPortfolio,
@@ -43,7 +48,13 @@ export class AnalystPositionService {
   private readonly DEFAULT_POSITION_PERCENT = 0.05; // 5% default position
   private readonly MIN_CONFIDENCE_FOR_POSITION = 0.0; // Always take a position when directional (size reflects confidence)
 
-  constructor(private readonly portfolioRepository: PortfolioRepository) {}
+  constructor(
+    private readonly portfolioRepository: PortfolioRepository,
+    private readonly predictionRepository: PredictionRepository,
+    private readonly targetSnapshotRepository: TargetSnapshotRepository,
+    private readonly targetRepository: TargetRepository,
+    private readonly analystRepository: AnalystRepository,
+  ) {}
 
   /**
    * Create a position for an analyst assessment
@@ -327,5 +338,155 @@ export class AnalystPositionService {
     this.logger.log(
       `Updated ${positions.length} positions for target ${targetId} to price $${currentPrice}`,
     );
+  }
+
+  /**
+   * Create end-of-day positions for all active directional predictions.
+   * For each prediction with direction up/down (not flat):
+   * - Check if an open position already exists for this analyst + target + fork
+   * - If not, create a position using tiered sizing
+   */
+  async createEndOfDayPositions(): Promise<{
+    positionsCreated: number;
+    positionsSkipped: number;
+    errors: string[];
+  }> {
+    const result = {
+      positionsCreated: 0,
+      positionsSkipped: 0,
+      errors: [] as string[],
+    };
+
+    // Get all active non-test predictions
+    const activePredictions =
+      await this.predictionRepository.findActivePredictions();
+
+    // Filter to directional predictions only (up/down, not flat)
+    const directionalPredictions = activePredictions.filter(
+      (p) => p.direction === 'up' || p.direction === 'down',
+    );
+
+    this.logger.log(
+      `EOD positions: ${directionalPredictions.length} directional predictions out of ${activePredictions.length} active`,
+    );
+
+    // Get all open positions to check for duplicates
+    const openPositions =
+      await this.portfolioRepository.getOpenAnalystPositions();
+    const openPositionSet = new Set(
+      openPositions.map(
+        (p) => `${p.symbol}:${p.prediction_id || ''}`,
+      ),
+    );
+
+    // Get personality analysts for portfolio lookup
+    const analysts = await this.analystRepository.getPersonalityAnalysts();
+
+    for (const prediction of directionalPredictions) {
+      try {
+        // Skip if a position already exists for this prediction
+        if (openPositionSet.has(`${prediction.target_id}:${prediction.id}`)) {
+          result.positionsSkipped++;
+          continue;
+        }
+
+        // Get the target for this prediction
+        const target = await this.targetRepository.findById(
+          prediction.target_id,
+        );
+        if (!target) {
+          result.errors.push(
+            `Target not found for prediction ${prediction.id}`,
+          );
+          continue;
+        }
+
+        // Get latest price
+        const snapshot = await this.targetSnapshotRepository.findLatest(
+          prediction.target_id,
+        );
+        if (!snapshot) {
+          result.errors.push(
+            `No price snapshot for ${target.symbol}`,
+          );
+          continue;
+        }
+
+        const entryPrice = snapshot.value;
+        if (entryPrice <= 0) {
+          result.errors.push(
+            `Invalid entry price for ${target.symbol}: ${entryPrice}`,
+          );
+          continue;
+        }
+
+        // Find the analyst for this prediction
+        const analyst = analysts.find(
+          (a) => a.slug === prediction.analyst_slug,
+        );
+        if (!analyst) {
+          result.errors.push(
+            `Analyst ${prediction.analyst_slug} not found for prediction ${prediction.id}`,
+          );
+          continue;
+        }
+
+        // Get fork info from the prediction's analyst_ensemble
+        const ensemble = prediction.analyst_ensemble as {
+          active_forks?: string[];
+          arbitrator_fork?: { direction?: string; confidence?: number };
+        } | null;
+        const activeForks = ensemble?.active_forks || ['arbitrator'];
+
+        // Create position for each active fork
+        for (const forkType of activeForks) {
+          const forkAssessment: AnalystAssessmentResult = {
+            analyst: {
+              ...analyst,
+              effective_weight: analyst.default_weight,
+              effective_tier: 'silver',
+              learned_patterns: [],
+              scope_level: 'target',
+            } as AnalystAssessmentResult['analyst'],
+            tier: 'silver' as never,
+            direction: prediction.direction === 'up' ? 'bullish' : 'bearish',
+            confidence: prediction.confidence,
+            reasoning: prediction.reasoning,
+            key_factors: [],
+            risks: [],
+            learnings_applied: [],
+            fork_type: forkType as 'user' | 'ai' | 'arbitrator',
+          };
+
+          const posResult = await this.createPositionFromAssessment({
+            assessment: forkAssessment,
+            target,
+            entryPrice,
+            predictionId: prediction.id,
+          });
+
+          if (posResult) {
+            result.positionsCreated++;
+          } else {
+            result.positionsSkipped++;
+          }
+        }
+      } catch (error) {
+        const msg =
+          error instanceof Error ? error.message : 'Unknown error';
+        result.errors.push(
+          `Failed to create position for prediction ${prediction.id}: ${msg}`,
+        );
+        this.logger.error(
+          `EOD position error for prediction ${prediction.id}: ${msg}`,
+        );
+      }
+    }
+
+    this.logger.log(
+      `EOD positions complete: ${result.positionsCreated} created, ${result.positionsSkipped} skipped, ${result.errors.length} errors`,
+    );
+
+    return result;
   }
 }
