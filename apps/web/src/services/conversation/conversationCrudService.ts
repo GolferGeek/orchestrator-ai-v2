@@ -19,9 +19,14 @@ export class ConversationCrudService {
    * Create a new conversation in the backend
    */
   async createConversation(agent: Agent): Promise<string> {
-    // Use agent's organization if available, otherwise fall back to user's current org
+    // Use agent's specific organization if available, otherwise fall back to user's current org
+    // 'global' and '*' mean the agent is not org-specific — use the user's current org instead
     const authStore = useAuthStore();
-    const orgSlug = agent.organizationSlug || authStore.currentOrganization || 'demo-org';
+    const agentOrg = agent.organizationSlug;
+    const isGlobalAgent = !agentOrg || agentOrg === 'global' || agentOrg === '*';
+    const orgSlug = isGlobalAgent
+      ? (authStore.currentOrganization || 'finance')
+      : agentOrg;
 
     // All agents now use the Agent2Agent conversation service
     // Use dedicated Agent2Agent conversation service for all agents
