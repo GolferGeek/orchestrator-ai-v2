@@ -176,6 +176,8 @@ import { useExecutionContextStore } from '@/stores/executionContextStore';
 import { useRbacStore } from '@/stores/rbacStore';
 import { useChatUiStore } from '@/stores/ui/chatUiStore';
 import { useUserPreferencesStore } from '@/stores/userPreferencesStore';
+import { useLLMPreferencesStore } from '@/stores/llmPreferencesStore';
+import { useAgentsStore } from '@/stores/agentsStore';
 import { legalDepartmentService, type ProgressEvent } from './legalDepartmentService';
 import agent2AgentConversationsService from '@/services/agent2AgentConversationsService';
 import { apiService } from '@/services/apiService';
@@ -211,6 +213,8 @@ const executionContextStore = useExecutionContextStore();
 const rbacStore = useRbacStore();
 const chatUiStore = useChatUiStore();
 const userPreferencesStore = useUserPreferencesStore();
+const llmStore = useLLMPreferencesStore();
+const agentsStore = useAgentsStore();
 
 // Refs
 const responseAreaRef = ref<HTMLElement | null>(null);
@@ -287,6 +291,8 @@ onMounted(async () => {
 onUnmounted(() => {
   // Cleanup SSE connection when component unmounts
   legalDepartmentService.disconnectSSEStream();
+  // Reset agent local model requirement when component unmounts
+  llmStore.setAgentRequiresLocalModel(false);
 });
 
 // Watch for route query changes to handle new conversation requests
@@ -310,6 +316,22 @@ watch(
       console.log('[LegalDepartment] Model preference changed:', { provider: newProvider, model: newModel });
     }
   }
+);
+
+// Watch for agent data to set local model requirement
+watch(
+  () => agentsStore.availableAgents,
+  () => {
+    const legalAgent = agentsStore.availableAgents.find(
+      (a) => a.slug === 'legal-department' || a.name === 'legal-department'
+    );
+    const requireLocalModel = legalAgent?.requireLocalModel ?? false;
+    if (requireLocalModel) {
+      console.log('[LegalDepartment] Agent requires local model - enforcing sovereign mode');
+      llmStore.setAgentRequiresLocalModel(true);
+    }
+  },
+  { immediate: true }
 );
 
 // Methods
@@ -465,6 +487,19 @@ async function initializeConversation() {
           contentType: 'legal-analysis',
         },
       });
+    }
+
+    // Check if legal-department agent requires local model (sovereign mode)
+    const legalAgent = agentsStore.availableAgents.find(
+      (a) => a.slug === 'legal-department' || a.name === 'legal-department'
+    );
+    const requireLocalModel = legalAgent?.requireLocalModel ?? false;
+
+    if (requireLocalModel) {
+      console.log('[LegalDepartment] Agent requires local model - enforcing sovereign mode');
+      llmStore.setAgentRequiresLocalModel(true);
+    } else {
+      llmStore.setAgentRequiresLocalModel(false);
     }
 
     executionContextStore.initialize({

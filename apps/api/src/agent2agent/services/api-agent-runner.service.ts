@@ -2116,8 +2116,8 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
         }
       }
 
-      // Check if this is a LangGraph/forwardConverse agent - skip deliverable creation
-      // These agents return structured data that doesn't need deliverable storage
+      // Check if this is a LangGraph/forwardConverse agent
+      // These agents need special handling but SHOULD still create deliverables
       const rawMetadata = definition.record?.metadata as Record<
         string,
         unknown
@@ -2126,7 +2126,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
 
       if (isLangGraphAgent) {
         this.logger.log(
-          `LangGraph agent ${definition.slug} - skipping deliverable creation, returning data directly`,
+          `LangGraph agent ${definition.slug} - formatting response for deliverable creation`,
         );
 
         // Extract nested data from LangGraph response: { success: true, data: { ... } }
@@ -2135,21 +2135,41 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
             ? (responseData as Record<string, unknown>).data || responseData
             : null;
 
-        const langGraphContent = langGraphData
-          ? {
-              // Include LangGraph-specific data for frontend extraction
-              specialistOutputs: (langGraphData as Record<string, unknown>)
-                .specialistOutputs,
-              legalMetadata: (langGraphData as Record<string, unknown>)
-                .legalMetadata,
-              routingDecision: (langGraphData as Record<string, unknown>)
-                .routingDecision,
-              response: (langGraphData as Record<string, unknown>).response,
-              status: (langGraphData as Record<string, unknown>).status,
-              threadId: (langGraphData as Record<string, unknown>).threadId,
-            }
-          : { response: formattedContent };
+        // Check if this is Marketing Swarm with versioned deliverable structure
+        // Marketing Swarm returns: { data: { type: 'versioned', versions: [...], winner: {...} } }
+        const langGraphDataObj = langGraphData as Record<
+          string,
+          unknown
+        > | null;
+        const hasVersionedDeliverable =
+          langGraphDataObj?.type === 'versioned' &&
+          Array.isArray(langGraphDataObj.versions);
 
+        // Format content so createFromTaskResult can process it
+        const langGraphContent = hasVersionedDeliverable
+          ? {
+              // Format as versioned deliverable for Marketing Swarm
+              type: 'versioned',
+              versions: langGraphDataObj.versions,
+              winner: langGraphDataObj.winner,
+              status: 'completed', // Ensure status is set so createFromTaskResult processes it
+              ...langGraphDataObj,
+            }
+          : langGraphDataObj
+            ? {
+                // Include LangGraph-specific data for frontend extraction
+                specialistOutputs: langGraphDataObj.specialistOutputs,
+                legalMetadata: langGraphDataObj.legalMetadata,
+                routingDecision: langGraphDataObj.routingDecision,
+                response: langGraphDataObj.response,
+                status: langGraphDataObj.status || 'completed', // Ensure status is set
+                threadId: langGraphDataObj.threadId,
+                // For CAD Agent and others, include the full response as output
+                output: langGraphDataObj.response || formattedContent,
+              }
+            : { response: formattedContent, status: 'completed' };
+
+        // Return response - controller will call createFromTaskResult which can now process it
         return TaskResponseDto.success(AgentTaskMode.BUILD, {
           content: langGraphContent,
           metadata: this.buildMetadata(request, {

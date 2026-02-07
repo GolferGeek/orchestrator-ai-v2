@@ -101,13 +101,15 @@ export class AgentConversationsService {
     userId: string,
     dto: CreateAgentConversationDto,
   ): Promise<AgentConversation> {
-    const validatedAgentType = this.validateAgentType(dto.agentType);
+    try {
+      const validatedAgentType = this.validateAgentType(dto.agentType);
 
-    const now = new Date().toISOString();
-    const result = await this.supabaseService
-      .getAnonClient()
-      .from(getTableName('conversations'))
-      .insert({
+      this.logger.log(
+        `Creating conversation: userId=${userId}, agentName=${dto.agentName}, agentType=${validatedAgentType}, organization=${dto.organization || 'null'}`,
+      );
+
+      const now = new Date().toISOString();
+      const insertData = {
         user_id: userId,
         agent_name: dto.agentName,
         agent_type: validatedAgentType,
@@ -119,17 +121,37 @@ export class AgentConversationsService {
           primary_work_product_type: dto.workProduct.type,
           primary_work_product_id: dto.workProduct.id,
         }),
-      })
-      .select()
-      .single();
+      };
 
-    if (result.error) {
-      throw new Error(`Failed to create conversation: ${result.error.message}`);
+      this.logger.debug(`Insert data: ${JSON.stringify(insertData)}`);
+
+      const result = await this.supabaseService
+        .getAnonClient()
+        .from(getTableName('conversations'))
+        .insert(insertData)
+        .select()
+        .single();
+
+      if (result.error) {
+        this.logger.error(
+          `Failed to create conversation: ${result.error.message}`,
+          result.error,
+        );
+        throw new Error(
+          `Failed to create conversation: ${result.error.message} (code: ${result.error.code || 'unknown'})`,
+        );
+      }
+
+      return this.mapToAgentConversation(
+        result.data as AgentConversationDbRecord,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Error in createConversation: ${error instanceof Error ? error.message : String(error)}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw error;
     }
-
-    return this.mapToAgentConversation(
-      result.data as AgentConversationDbRecord,
-    );
   }
 
   /**

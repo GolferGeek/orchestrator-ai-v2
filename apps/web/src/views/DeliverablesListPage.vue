@@ -136,7 +136,7 @@
                   </div>
                 </div>
                 <div class="deliverable-preview" v-else>
-                  <p class="content-preview">{{ getContentPreview(getDeliverableContent(deliverable)) }}</p>
+                  <p class="content-preview">{{ getContentPreview(getDeliverableContent(deliverable), getDeliverableFormat(deliverable)) }}</p>
                 </div>
                 <div class="deliverable-meta">
                   <div class="meta-item" v-if="getCreatedByAgent(deliverable)">
@@ -274,7 +274,7 @@
               </ion-card-subtitle>
             </ion-card-header>
             <ion-card-content>
-              <p class="content-preview">{{ getContentPreview((version.content as string) || '') }}</p>
+              <p class="content-preview">{{ getContentPreview((version.content as string) || '', version.format) }}</p>
               <div class="version-actions">
                 <ion-button
                   fill="outline"
@@ -356,13 +356,15 @@ import {
   checkmarkCircleOutline,
   personOutline,
 } from 'ionicons/icons';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { useDeliverables } from '@/composables/useDeliverables';
 import { DeliverableType, type Deliverable, type DeliverableVersion, deliverablesService } from '@/services/deliverablesService';
 import { useDeliverablesStore } from '@/stores/deliverablesStore';
+import { useAuthStore } from '@/stores/rbacStore';
 import { deleteDeliverable as deleteDeliverableAction, setCurrentVersion } from '@/services/agent2agent/actions';
 import NewDeliverableDialog from '@/components/NewDeliverableDialog.vue';
 const router = useRouter();
+const route = useRoute();
 const deliverables = useDeliverables();
 const deliverablesStore = useDeliverablesStore();
 // Reactive state
@@ -379,7 +381,12 @@ const isLoadingVersions = ref(false);
 const selectedDeliverableId = ref<string | null>(null);
 // Computed properties
 const displayedDeliverables = computed(() => {
-  let filtered = deliverables.recentDeliverables.value.map((d: Record<string, unknown>) => d);
+  // Use all deliverables from store, not just recent (recentDeliverables only shows first 10)
+  const allDeliverables = deliverablesStore.deliverables;
+  console.log('[DeliverablesListPage] displayedDeliverables computed - store has', allDeliverables.length, 'deliverables');
+  let filtered = allDeliverables.map((d: Record<string, unknown>) => d);
+  console.log('[DeliverablesListPage] After mapping:', filtered.length, 'items');
+  
   // Apply search filter
   if (searchQuery.value.trim()) {
     const query = searchQuery.value.toLowerCase();
@@ -388,12 +395,14 @@ const displayedDeliverables = computed(() => {
       getDeliverableContent(deliverable).toLowerCase().includes(query) ||
       getDeliverableTags(deliverable)?.some((tag: string) => tag.toLowerCase().includes(query))
     );
+    console.log('[DeliverablesListPage] After search filter:', filtered.length, 'items');
   }
   // Apply type filter
   if (typeFilter.value) {
     filtered = filtered.filter(deliverable => 
       deliverable.type === typeFilter.value
     );
+    console.log('[DeliverablesListPage] After type filter:', filtered.length, 'items');
   }
   // Apply sorting
   const [sortField, sortOrder] = sortBy.value.split('_');
@@ -445,6 +454,10 @@ const loadDeliverables = async () => {
       latestOnly: true,
     });
 
+    console.log('[DeliverablesListPage] Loaded deliverables from API:', result.items.length, 'items');
+    console.log('[DeliverablesListPage] Deliverables with conversationId:', 
+      result.items.filter(item => item.conversationId).length);
+
     // Clear existing
     deliverablesStore.clearAll();
 
@@ -459,6 +472,10 @@ const loadDeliverables = async () => {
     });
 
     const loadedDeliverables = (await Promise.all(deliverablePromises)).filter(Boolean) as Deliverable[];
+
+    console.log('[DeliverablesListPage] Successfully loaded', loadedDeliverables.length, 'full deliverable objects');
+    console.log('[DeliverablesListPage] Deliverables with conversationId:', 
+      loadedDeliverables.filter(d => d.conversationId).length);
 
     // Update store
     loadedDeliverables.forEach((deliverable) => {
@@ -551,40 +568,107 @@ function openImage(img: ImageAsset) {
   } catch {}
 }
 const viewDeliverable = async (deliverable: Record<string, unknown>) => {
-  // Create a viewing conversation for this deliverable
   try {
     deliverablesStore.setLoading(true);
 
-    // Create conversation with "view" intent
-    const result = await deliverablesService.createEditingConversation(
-      deliverable.id as string,
-      {
-        action: 'discuss',
-        agentName: (deliverable.agentName as string) || 'blog_post', // Fallback to blog post writer
-        initialMessage: `Please show me this deliverable: "${deliverable.title as string}"`
+    // Check if deliverable already has a conversationId - if so, use existing conversation
+    const existingConversationId = deliverable.conversationId as string | undefined;
+    
+    if (existingConversationId) {
+      // Use existing conversation - EXACTLY like clicking on a conversation in the sidebar
+      // This matches handleConversationSelected in AgentsPage.vue
+      const { useChatUiStore } = await import('@/stores/ui/chatUiStore');
+      const { useConversationsStore } = await import('@/stores/conversationsStore');
+      const chatUiStore = useChatUiStore();
+      const conversationsStore = useConversationsStore();
+      
+      // Check if conversation is already loaded in the store (like sidebar conversations)
+      const existingConversation = conversationsStore.conversationById(existingConversationId);
+      
+      if (!existingConversation) {
+        // Load the conversation BEFORE navigating (so it's in the store when components mount)
+        // This ensures activeConversation computed property returns the conversation immediately
+        const { conversationLoadingService } = await import('@/services/conversationLoadingService');
+        const result = await conversationLoadingService.loadConversationFromQuery(
+          existingConversationId,
+          router,
+          { name: route.name, params: route.params, query: route.query }
+        );
+        
+        if (!result.success) {
+          deliverablesStore.setLoading(false);
+          const toast = await toastController.create({
+            message: 'Failed to load conversation: ' + (result.error || 'Unknown error'),
+            duration: 3000,
+            position: 'bottom',
+            color: 'danger'
+          });
+          await toast.present();
+          return;
+        }
+      } else {
+        // Conversation already loaded - just set it as active
+        chatUiStore.setActiveConversation(existingConversationId);
       }
-    );
+      
+      // Set flag in sessionStorage to indicate active conversation
+      sessionStorage.setItem('activeConversation', 'true');
+      
+      // Navigate to home page - conversation is already loaded, so tabs will receive it immediately
+      // The tabs (MarketingSwarmTab/CadAgentTab) will receive the conversation prop
+      // and automatically call loadConversationState() which loads everything from tasks
+      await router.push({
+        path: '/app/home',
+        query: {
+          forceHome: 'true',
+          conversationId: existingConversationId,
+        }
+      });
+      
+      deliverablesStore.setLoading(false);
+      return;
+    }
 
-    // Update store with new conversation link
+    // No existing conversation - create a new one (same pattern as clicking on an agent)
+    const agentName = getAgentNameForDeliverable(deliverable);
+    const agentType = getAgentTypeForDeliverable(agentName);
+    
+    const authStore = useAuthStore();
+    const orgSlug = authStore.currentOrganization || 'finance';
+
+    const agent2AgentConversationsService = await import('@/services/agent2AgentConversationsService');
+    
+    const conversation = await agent2AgentConversationsService.default.createConversation({
+      agentName,
+      agentType,
+      organizationSlug: orgSlug,
+      metadata: {
+        source: 'deliverable-view',
+        deliverableId: deliverable.id as string,
+        deliverableTitle: deliverable.title as string,
+      },
+    });
+
+    // Link the deliverable to the new conversation
     const updatedDeliverable = deliverablesStore.getDeliverableById(deliverable.id as string);
     if (updatedDeliverable) {
-      updatedDeliverable.conversationId = result.conversationId;
+      updatedDeliverable.conversationId = conversation.id;
       deliverablesStore.addDeliverable(updatedDeliverable);
     }
 
-    deliverablesStore.setLoading(false);
-    // Navigate to split view with conversation and deliverable
+    // Navigate to home with new conversationId
     await router.push({
-      name: 'Home',
+      path: '/app/home',
       query: {
-        conversationId: result.conversationId as string,
+        forceHome: 'true',
+        conversationId: conversation.id,
         deliverableId: deliverable.id as string,
-        mode: 'view'
       }
     });
-  } catch (error: unknown) {
 
-    // Show error toast
+    deliverablesStore.setLoading(false);
+  } catch (error: unknown) {
+    deliverablesStore.setLoading(false);
     const toast = await toastController.create({
       message: 'Failed to open deliverable: ' + (error instanceof Error ? error.message : 'Unknown error'),
       duration: 3000,
@@ -596,29 +680,108 @@ const viewDeliverable = async (deliverable: Record<string, unknown>) => {
 };
 const editDeliverable = async (deliverable: Record<string, unknown>) => {
   try {
-    // Create editing conversation for this deliverable
-    const result = await deliverablesService.createEditingConversation(
-      deliverable.id as string,
-      {
-        action: 'edit',
-        agentName: (deliverable.agentName as string) || 'blog_post', // Fallback to blog post writer
-        initialMessage: `I want to edit this deliverable: "${deliverable.title as string}"`
+    deliverablesStore.setLoading(true);
+
+    // Check if deliverable already has a conversationId - if so, use existing conversation
+    const existingConversationId = deliverable.conversationId as string | undefined;
+    
+    if (existingConversationId) {
+      // Use existing conversation - EXACTLY like clicking on a conversation in the sidebar
+      // This matches handleConversationSelected in AgentsPage.vue
+      const { useChatUiStore } = await import('@/stores/ui/chatUiStore');
+      const { useConversationsStore } = await import('@/stores/conversationsStore');
+      const chatUiStore = useChatUiStore();
+      const conversationsStore = useConversationsStore();
+      
+      // Check if conversation is already loaded in the store (like sidebar conversations)
+      const existingConversation = conversationsStore.conversationById(existingConversationId);
+      
+      if (!existingConversation) {
+        // Load the conversation BEFORE navigating (so it's in the store when components mount)
+        // This ensures activeConversation computed property returns the conversation immediately
+        const { conversationLoadingService } = await import('@/services/conversationLoadingService');
+        const result = await conversationLoadingService.loadConversationFromQuery(
+          existingConversationId,
+          router,
+          { name: route.name, params: route.params, query: route.query }
+        );
+        
+        if (!result.success) {
+          deliverablesStore.setLoading(false);
+          const toast = await toastController.create({
+            message: 'Failed to load conversation: ' + (result.error || 'Unknown error'),
+            duration: 3000,
+            position: 'bottom',
+            color: 'danger'
+          });
+          await toast.present();
+          return;
+        }
+      } else {
+        // Conversation already loaded - just set it as active
+        chatUiStore.setActiveConversation(existingConversationId);
       }
-    );
-    // Navigate to split view with conversation and deliverable
-    await router.push({
-      name: 'Home',
-      query: {
-        conversationId: result.conversationId as string,
+      
+      // Set flag in sessionStorage to indicate active conversation
+      sessionStorage.setItem('activeConversation', 'true');
+      
+      // Navigate to home page - conversation is already loaded, so tabs will receive it immediately
+      // The tabs (MarketingSwarmTab/CadAgentTab) will receive the conversation prop
+      // and automatically call loadConversationState() which loads everything from tasks
+      await router.push({
+        path: '/app/home',
+        query: {
+          forceHome: 'true',
+          conversationId: existingConversationId,
+        }
+      });
+      
+      deliverablesStore.setLoading(false);
+      return;
+    }
+
+    // No existing conversation - create a new one (same pattern as clicking on an agent)
+    const agentName = getAgentNameForDeliverable(deliverable);
+    const agentType = getAgentTypeForDeliverable(agentName);
+    
+    const authStore = useAuthStore();
+    const orgSlug = authStore.currentOrganization || 'finance';
+
+    const agent2AgentConversationsService = await import('@/services/agent2AgentConversationsService');
+    
+    const conversation = await agent2AgentConversationsService.default.createConversation({
+      agentName,
+      agentType,
+      organizationSlug: orgSlug,
+      metadata: {
+        source: 'deliverable-edit',
         deliverableId: deliverable.id as string,
-        mode: 'edit'
+        deliverableTitle: deliverable.title as string,
+      },
+    });
+
+    // Link the deliverable to the new conversation
+    const updatedDeliverable = deliverablesStore.getDeliverableById(deliverable.id as string);
+    if (updatedDeliverable) {
+      updatedDeliverable.conversationId = conversation.id;
+      deliverablesStore.addDeliverable(updatedDeliverable);
+    }
+
+    // Navigate to home with new conversationId
+    await router.push({
+      path: '/app/home',
+      query: {
+        forceHome: 'true',
+        conversationId: conversation.id,
+        deliverableId: deliverable.id as string,
       }
     });
-  } catch (err: unknown) {
 
-    // Show error toast
+    deliverablesStore.setLoading(false);
+  } catch (err: unknown) {
+    deliverablesStore.setLoading(false);
     const toast = await toastController.create({
-      message: 'Failed to start editing: ' + (err instanceof Error ? err.message : 'Unknown error'),
+      message: 'Failed to edit deliverable: ' + (err instanceof Error ? err.message : 'Unknown error'),
       duration: 3000,
       position: 'bottom',
       color: 'danger'
@@ -698,10 +861,94 @@ const getDeliverableContent = (deliverable: Record<string, unknown>): string => 
   const version = deliverable.currentVersion as DeliverableVersion | undefined;
   return version?.content || '';
 };
+
+const getDeliverableFormat = (deliverable: Record<string, unknown>): string => {
+  const version = deliverable.currentVersion as DeliverableVersion | undefined;
+  return version?.format || 'text';
+};
 const getCreatedByAgent = (deliverable: Record<string, unknown>): string | null => {
   const version = deliverable.currentVersion as DeliverableVersion | undefined;
   const metadata = version?.metadata as Record<string, unknown> | undefined;
   return (metadata?.createdByAgent as string) || null;
+};
+
+/**
+ * Determine the correct agent name/slug for a deliverable based on:
+ * 1. deliverable.agentName (stored in DB)
+ * 2. deliverable title (e.g., "API Response: Marketing Swarm" -> "marketing-swarm")
+ * 3. deliverable metadata
+ * 4. Fallback to appropriate default based on type
+ */
+const getAgentNameForDeliverable = (deliverable: Record<string, unknown>): string => {
+  // First, try the stored agentName
+  if (deliverable.agentName && typeof deliverable.agentName === 'string') {
+    const agentName = deliverable.agentName.trim();
+    if (agentName) return agentName;
+  }
+  
+  // Check metadata for agent info
+  const version = deliverable.currentVersion as DeliverableVersion | undefined;
+  const metadata = version?.metadata as Record<string, unknown> | undefined;
+  if (metadata?.agentName && typeof metadata.agentName === 'string') {
+    const agentName = metadata.agentName.trim();
+    if (agentName) return agentName;
+  }
+  if (metadata?.agentSlug && typeof metadata.agentSlug === 'string') {
+    const agentSlug = metadata.agentSlug.trim();
+    if (agentSlug) return agentSlug;
+  }
+  
+  // Try to infer from title
+  const title = (deliverable.title as string) || '';
+  const titleLower = title.toLowerCase();
+  
+  if (titleLower.includes('marketing swarm') || titleLower.includes('marketing-swarm') || titleLower.includes('api response: marketing')) {
+    return 'marketing-swarm';
+  }
+  if (titleLower.includes('cad agent') || titleLower.includes('cad-agent') || titleLower.includes('api response: cad')) {
+    return 'cad-agent';
+  }
+  if (titleLower.includes('blog post') || titleLower.includes('blog-post')) {
+    return 'write_blog_post';
+  }
+  
+  // Check content for clues
+  const content = getDeliverableContent(deliverable);
+  if (content) {
+    try {
+      const parsed = JSON.parse(content);
+      // Marketing Swarm responses have specific structure
+      if (parsed.data?.data?.outputs || parsed.data?.outputs || parsed.outputs) {
+        return 'marketing-swarm';
+      }
+      // CAD Agent responses have drawingId
+      if (parsed.data?.data?.drawingId || parsed.data?.drawingId || parsed.drawingId) {
+        return 'cad-agent';
+      }
+    } catch {
+      // Not JSON, ignore
+    }
+  }
+  
+  // Default fallback based on deliverable type
+  const type = deliverable.type as string;
+  if (type === 'document') {
+    return 'write_blog_post'; // Default document writer
+  }
+  
+  // Last resort: generic blog post writer
+  return 'write_blog_post';
+};
+
+/**
+ * Determine the correct agentType for a deliverable based on agent name
+ * Marketing Swarm and CAD Agent use 'api' type, others use 'context'
+ */
+const getAgentTypeForDeliverable = (agentName: string): string => {
+  if (agentName === 'marketing-swarm' || agentName === 'cad-agent') {
+    return 'api';
+  }
+  return 'context';
 };
 const getDeliverableTags = (deliverable: Record<string, unknown>): string[] => {
   const version = deliverable.currentVersion as DeliverableVersion | undefined;
@@ -713,7 +960,44 @@ const getVersionCreatedByAgent = (version: DeliverableVersion): string | null =>
   return (metadata?.createdByAgent as string) || null;
 };
 // Utility methods
-const getContentPreview = (content: string): string => {
+const getContentPreview = (content: string, format?: string): string => {
+  if (!content) return '';
+  
+  // If format is explicitly JSON, or content looks like JSON, format it
+  const isJsonFormat = format === 'json' || format === 'JSON';
+  const looksLikeJson = content.trim().startsWith('{') || content.trim().startsWith('[');
+  
+  if (isJsonFormat || looksLikeJson) {
+    try {
+      const parsed = JSON.parse(content);
+      if (typeof parsed === 'object' && parsed !== null) {
+        // Format JSON nicely
+        const formatted = JSON.stringify(parsed, null, 2);
+        // For preview, show a summary instead of raw JSON
+        if (parsed.success !== undefined || parsed.statusCode !== undefined) {
+          // API response - show key info
+          const status = parsed.statusCode || (parsed.success ? 'Success' : 'Failed');
+          const dataPreview = parsed.data ? ' (has data)' : '';
+          return `API Response: ${status}${dataPreview}`;
+        } else if (parsed.outputs || parsed.data?.outputs) {
+          // Marketing Swarm response
+          const outputCount = parsed.outputs?.length || parsed.data?.outputs?.length || 0;
+          return `Marketing Swarm: ${outputCount} output${outputCount !== 1 ? 's' : ''} generated`;
+        } else if (parsed.drawingId || parsed.data?.drawingId) {
+          // CAD Agent response
+          return `CAD Drawing: ${parsed.drawingId || parsed.data?.drawingId}`;
+        } else {
+          // Generic JSON - show structure summary
+          const keys = Object.keys(parsed).slice(0, 3);
+          return `JSON: { ${keys.join(', ')}${Object.keys(parsed).length > 3 ? '...' : ''} }`;
+        }
+      }
+    } catch {
+      // Not valid JSON, fall through to text handling
+    }
+  }
+  
+  // For non-JSON content, strip markdown and truncate
   const stripped = content.replace(/[#*`_~]/g, '').trim();
   return stripped.length > 150 ? stripped.substring(0, 150) + '...' : stripped;
 };

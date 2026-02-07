@@ -1015,8 +1015,11 @@ export class Agent2AgentController {
    */
   private normalizeOrgSlug(orgSlug: string): string {
     // 'global' is now an explicit organization slug for shared agents
-    // No longer converting to null
-    return orgSlug || 'global';
+    // '*' wildcard means "any organization" - treat as null to match global agents
+    if (orgSlug === '*' || !orgSlug) {
+      return 'global';
+    }
+    return orgSlug;
   }
 
   private attachStreamMetadata(

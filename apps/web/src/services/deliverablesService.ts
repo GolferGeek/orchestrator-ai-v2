@@ -334,8 +334,25 @@ class DeliverablesService {
       action?: 'edit' | 'enhance' | 'revise' | 'discuss' | 'new-version';
     } = {}
   ): Promise<{ conversationId: string; message: string }> {
-    const response = await this.axiosInstance.post(`/deliverables/${deliverableId}/conversations`, options);
-    return response.data;
+    try {
+      const response = await this.axiosInstance.post(`/deliverables/${deliverableId}/conversations`, options);
+      return response.data;
+    } catch (error: unknown) {
+      // Log the full error for debugging
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { data?: unknown; status?: number } };
+        console.error('[DeliverablesService] Conversation creation error:', {
+          status: axiosError.response?.status,
+          data: axiosError.response?.data,
+          requestPayload: options,
+          deliverableId
+        });
+        throw new Error(
+          `Failed to create conversation: ${JSON.stringify(axiosError.response?.data || 'Unknown error')}`
+        );
+      }
+      throw error;
+    }
   }
   // Legacy method aliases for backward compatibility
   async getVersions(deliverableId: string): Promise<DeliverableVersion[]> {

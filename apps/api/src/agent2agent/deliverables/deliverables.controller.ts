@@ -12,6 +12,7 @@ import {
   ParseUUIDPipe,
   HttpCode,
   HttpStatus,
+  Logger,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -23,6 +24,8 @@ import {
 } from '@nestjs/swagger';
 import { Request } from 'express';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
+import { CurrentUser } from '@/auth/decorators/current-user.decorator';
+import { SupabaseAuthUserDto } from '@/auth/dto/auth.dto';
 import { DeliverablesService } from './deliverables.service';
 import {
   CreateDeliverableDto,
@@ -51,6 +54,8 @@ interface AuthenticatedRequest extends Request {
 @UseGuards(JwtAuthGuard)
 @Controller('deliverables')
 export class DeliverablesController {
+  private readonly logger = new Logger(DeliverablesController.name);
+
   constructor(private readonly deliverablesService: DeliverablesService) {}
 
   @Post()
@@ -141,7 +146,7 @@ export class DeliverablesController {
   })
   async findAll(
     @Query() filters: DeliverableFiltersDto,
-    @Req() req: { user?: { sub?: string; id?: string; userId?: string } },
+    @CurrentUser() currentUser: SupabaseAuthUserDto,
   ): Promise<{
     items: DeliverableSearchResult[];
     total: number;
@@ -149,10 +154,13 @@ export class DeliverablesController {
     offset: number;
     hasMore: boolean;
   }> {
-    const userId = req.user?.sub || req.user?.id || req.user?.userId;
+    const userId = currentUser.id;
     if (!userId) {
       throw new Error('User not authenticated');
     }
+    this.logger.log(
+      `[DeliverablesController] findAll - userId: ${userId}, filters: ${JSON.stringify(filters)}`,
+    );
     return this.deliverablesService.findAll(userId, filters);
   }
 
@@ -179,6 +187,15 @@ export class DeliverablesController {
     }
 
     return this.deliverablesService.findOne(id, userId);
+  }
+
+  @Get('debug/all')
+  @ApiOperation({
+    summary: '[DEBUG] Get all deliverables without user filtering',
+    description: 'Debug endpoint to see all deliverables in the database',
+  })
+  async debugAllDeliverables(): Promise<Record<string, unknown>> {
+    return this.deliverablesService.debugAllDeliverables();
   }
 
   @Get('conversation/:conversationId')

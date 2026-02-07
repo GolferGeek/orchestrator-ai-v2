@@ -29,6 +29,8 @@ import {
   IActionHandler,
   ActionResult,
 } from '../common/interfaces/action-handler.interface';
+import { DeliverableDiscoveryRegistry } from './discovery/deliverable-discovery-registry.service';
+import type { DiscoveredDeliverable } from './deliverable-discovery.interface';
 
 /**
  * Database record type for deliverables table
@@ -98,6 +100,7 @@ export class DeliverablesService implements IActionHandler {
     private readonly supabaseService: SupabaseService,
     private readonly versionsService: DeliverableVersionsService,
     private readonly agentConversationsService: AgentConversationsService,
+    private readonly discoveryRegistry: DeliverableDiscoveryRegistry,
   ) {}
 
   // ============================================================================
@@ -765,6 +768,8 @@ export class DeliverablesService implements IActionHandler {
     hasMore: boolean;
   }> {
     try {
+      this.logger.log(`[findAll] Querying deliverables for userId: ${userId}`);
+
       // Build query with deliverable and version data
       let query = this.supabaseService
         .getServiceClient()
@@ -821,6 +826,56 @@ export class DeliverablesService implements IActionHandler {
       }
 
       const deliverables = (result as DeliverableDbRecord[] | null) || [];
+      this.logger.log(
+        `[findAll] Found ${deliverables.length} deliverables for userId: ${userId}`,
+      );
+      this.logger.log(
+        `[findAll] Deliverables with conversationId: ${deliverables.filter((d) => d.conversation_id).length}`,
+      );
+      this.logger.log(
+        `[findAll] Deliverable IDs: ${deliverables.map((d) => d.id).join(', ')}`,
+      );
+      this.logger.log(
+        `[findAll] Deliverable titles: ${deliverables.map((d) => d.title).join(', ')}`,
+      );
+      this.logger.log(
+        `[findAll] Deliverable agent_names: ${deliverables.map((d) => (d as unknown as { agent_name?: string }).agent_name || 'none').join(', ')}`,
+      );
+      this.logger.log(
+        `[findAll] Deliverable user_ids: ${deliverables.map((d) => d.user_id).join(', ')}`,
+      );
+
+      // Debug: Check if there are any deliverables with different user_id but same conversationId
+      // This would indicate a userId mismatch issue
+      if (deliverables.length < 4) {
+        this.logger.warn(
+          `[findAll] Only found ${deliverables.length} deliverables, expected more. Checking for deliverables with different user_id...`,
+        );
+        // Query all deliverables to see if there are any with different user_id
+        const { data: allDeliverables, error: allError } =
+          await this.supabaseService
+            .getServiceClient()
+            .from(getTableName('deliverables'))
+            .select('id, title, user_id, conversation_id, agent_name')
+            .not('conversation_id', 'is', null)
+            .order('created_at', { ascending: false })
+            .limit(10);
+
+        if (!allError && allDeliverables) {
+          this.logger.log(
+            `[findAll] All deliverables with conversationId (first 10): ${JSON.stringify(allDeliverables)}`,
+          );
+          const differentUserIds = (
+            allDeliverables as Array<{ user_id: string }>
+          )
+            .map((d) => d.user_id)
+            .filter((id, index, arr) => arr.indexOf(id) === index); // unique user_ids
+          this.logger.log(
+            `[findAll] Unique user_ids found: ${differentUserIds.join(', ')}`,
+          );
+        }
+      }
+
       const items = deliverables.map(
         (deliverable: {
           id: string;
@@ -864,15 +919,99 @@ export class DeliverablesService implements IActionHandler {
         },
       );
 
+      // DISCOVERY: Find deliverables from custom systems (Marketing Swarm, CAD Agent, etc.)
+      // Query conversations with 'api' agent type (complex agents that might have external deliverables)
+      try {
+        const { conversations } =
+          await this.agentConversationsService.listConversations({
+            userId,
+            agentType: 'api', // Focus on API agents (Marketing Swarm, CAD Agent)
+            limit: 100, // Get all API conversations
+          });
+
+        this.logger.log(
+          `[findAll] Found ${conversations.length} API conversations, discovering external deliverables...`,
+        );
+
+        // Discover deliverables from all API conversations
+        const discoveryResults = await Promise.all(
+          conversations.map(async (conv) => {
+            try {
+              const results = await this.discoveryRegistry.discoverAll(
+                conv.id,
+                userId,
+                conv.agentName,
+                conv.agentType,
+              );
+
+              // Flatten results into single array
+              const discovered: DiscoveredDeliverable[] = [];
+              for (const { deliverables } of results) {
+                discovered.push(...deliverables);
+              }
+
+              return discovered;
+            } catch (error) {
+              this.logger.error(
+                `Failed to discover deliverables for conversation ${conv.id}: ${error instanceof Error ? error.message : String(error)}`,
+              );
+              return [];
+            }
+          }),
+        );
+
+        // Flatten and convert discovered deliverables to DeliverableSearchResult format
+        const discoveredItems: DeliverableSearchResult[] = discoveryResults
+          .flat()
+          .map((discovered) => ({
+            id: discovered.id,
+            userId,
+            conversationId: discovered.conversationId,
+            title: discovered.title,
+            type: discovered.type as DeliverableType,
+            createdAt: discovered.createdAt,
+            updatedAt: discovered.updatedAt,
+            format: (discovered.format as DeliverableFormat) || undefined,
+            content:
+              discovered.content || discovered.contentPreview || undefined,
+            metadata: {
+              ...discovered.metadata,
+              isExternal: true,
+              source: discovered.agentName,
+            },
+            versionNumber: undefined,
+            isCurrentVersion: true,
+            versionId: undefined,
+          }));
+
+        this.logger.log(
+          `[findAll] Discovered ${discoveredItems.length} external deliverables from custom systems`,
+        );
+
+        // Merge discovered deliverables with standard deliverables
+        items.push(...discoveredItems);
+      } catch (discoveryError) {
+        this.logger.error(
+          `Failed to discover external deliverables: ${discoveryError instanceof Error ? discoveryError.message : String(discoveryError)}`,
+        );
+        // Continue without discovered deliverables
+      }
+
+      // Sort all items by createdAt (most recent first)
+      items.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
       const limit = filters.limit || 50;
       const offset = filters.offset || 0;
 
+      // Apply pagination after merging and sorting
+      const paginatedItems = items.slice(offset, offset + limit);
+
       return {
-        items,
-        total: items.length, // Simple count of returned items
+        items: paginatedItems,
+        total: items.length, // Total count including discovered deliverables
         limit,
         offset,
-        hasMore: items.length === limit, // Simple heuristic - if we got exactly limit items, there might be more
+        hasMore: offset + limit < items.length,
       };
     } catch (error) {
       if (error instanceof BadRequestException) {
@@ -1280,6 +1419,18 @@ export class DeliverablesService implements IActionHandler {
       // Note: We default to 'write_blog_post' agent for editing deliverables when no agent is specified
       // This provides a sensible fallback for document editing tasks
 
+      // Determine agentType based on agent name
+      // Marketing Swarm and CAD Agent are API agents (LangGraph-based)
+      // Most other agents are context agents
+      let agentType: string = 'context';
+      if (agentName === 'marketing-swarm' || agentName === 'cad-agent') {
+        agentType = 'api';
+      }
+
+      this.logger.log(
+        `Creating editing conversation for deliverable ${deliverableId}: agentName=${agentName}, agentType=${agentType}`,
+      );
+
       // Determine the action type for context
       const action = dto.action || 'edit';
 
@@ -1293,11 +1444,10 @@ export class DeliverablesService implements IActionHandler {
       };
 
       // Create the conversation
-      // Use 'function' as the agentType since we don't know the actual type from deliverable data
-      // The agent name will determine which agent actually handles the conversation
+      // Use determined agentType based on agent name
       const conversationDto: CreateAgentConversationDto = {
         agentName,
-        agentType: 'function', // Generic type - actual agent is determined by agentName
+        agentType,
         metadata: conversationMetadata,
         workProduct: {
           type: 'deliverable',
@@ -1324,6 +1474,13 @@ export class DeliverablesService implements IActionHandler {
         message: initialMessage,
       };
     } catch (error) {
+      // Log the error for debugging
+      this.logger.error(
+        `Failed to create editing conversation for deliverable ${deliverableId}:`,
+        error instanceof Error ? error.message : String(error),
+        error instanceof Error ? error.stack : undefined,
+      );
+
       if (
         error instanceof NotFoundException ||
         error instanceof BadRequestException
@@ -1331,7 +1488,12 @@ export class DeliverablesService implements IActionHandler {
         throw error;
       }
 
-      throw new BadRequestException('Failed to create editing conversation');
+      // Preserve the original error message if it's an Error
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'Failed to create editing conversation';
+      throw new BadRequestException(errorMessage);
     }
   }
 
@@ -1601,6 +1763,246 @@ export class DeliverablesService implements IActionHandler {
       versionNumber: data.version_number,
       isCurrentVersion: data.is_current_version,
       versionId: data.version_id,
+    };
+  }
+
+  /**
+   * [DEBUG] Get all deliverables without user filtering
+   * Shows complete relationships: conversations -> tasks -> deliverables -> versions
+   */
+  async debugAllDeliverables(): Promise<Record<string, unknown>> {
+    const client = this.supabaseService.getServiceClient();
+
+    // Get all conversations with their tasks, deliverables, and versions
+    const { data: conversations, error: convError } = await client
+      .from('agent_conversations')
+      .select(
+        `
+        id,
+        user_id,
+        agent_name,
+        agent_type,
+        created_at,
+        updated_at,
+        metadata
+      `,
+      )
+      .order('created_at', { ascending: false });
+
+    if (convError) {
+      this.logger.error('Error fetching conversations:', convError);
+      throw new BadRequestException(
+        `Failed to fetch conversations: ${convError.message}`,
+      );
+    }
+
+    interface ConversationRecord {
+      id: string;
+      user_id: string;
+      agent_name: string;
+      agent_type: string;
+      created_at: string;
+      title: string | null;
+    }
+
+    interface TaskRecord {
+      id: string;
+      agent_conversation_id: string;
+      user_id: string;
+      method: string;
+      prompt: string | null;
+      status: string;
+      created_at: string;
+      completed_at: string | null;
+      metadata: Record<string, unknown> | null;
+    }
+
+    interface DeliverableRecord {
+      id: string;
+      user_id: string;
+      conversation_id: string | null;
+      task_id: string | null;
+      title: string;
+      type: string;
+      agent_name: string | null;
+      created_at: string;
+      updated_at: string;
+      metadata: Record<string, unknown> | null;
+    }
+
+    interface VersionRecord {
+      id: string;
+      deliverable_id: string;
+      task_id: string | null;
+      version_number: number;
+      format: string;
+      is_current_version: boolean;
+      created_at: string;
+      metadata: Record<string, unknown> | null;
+    }
+
+    const allConversations = (conversations || []) as ConversationRecord[];
+    const conversationIds = allConversations.map((c) => c.id);
+
+    // Get all tasks for these conversations
+    const { data: tasks, error: tasksError } = await client
+      .from('tasks')
+      .select(
+        `
+        id,
+        agent_conversation_id,
+        user_id,
+        method,
+        prompt,
+        status,
+        created_at,
+        completed_at,
+        metadata
+      `,
+      )
+      .in('agent_conversation_id', conversationIds)
+      .order('created_at', { ascending: false });
+
+    if (tasksError) {
+      this.logger.error('Error fetching tasks:', tasksError);
+    }
+
+    const allTasks = (tasks || []) as TaskRecord[];
+
+    // Get all deliverables
+    const { data: deliverables, error: delError } = await client
+      .from(getTableName('deliverables'))
+      .select(
+        `
+        id,
+        user_id,
+        conversation_id,
+        task_id,
+        title,
+        type,
+        agent_name,
+        created_at,
+        updated_at,
+        metadata
+      `,
+      )
+      .order('created_at', { ascending: false });
+
+    if (delError) {
+      this.logger.error('Error fetching deliverables:', delError);
+      throw new BadRequestException(
+        `Failed to fetch deliverables: ${delError.message}`,
+      );
+    }
+
+    const allDeliverables = (deliverables || []) as DeliverableRecord[];
+    const deliverableIds = allDeliverables.map((d) => d.id);
+
+    // Get all versions
+    let allVersions: VersionRecord[] = [];
+    if (deliverableIds.length > 0) {
+      const { data: versions, error: versionsError } = await client
+        .from('deliverable_versions')
+        .select(
+          `
+          id,
+          deliverable_id,
+          task_id,
+          version_number,
+          format,
+          is_current_version,
+          created_at,
+          metadata
+        `,
+        )
+        .in('deliverable_id', deliverableIds)
+        .order('created_at', { ascending: false });
+
+      if (versionsError) {
+        this.logger.error('Error fetching versions:', versionsError);
+      } else {
+        allVersions = (versions || []) as VersionRecord[];
+      }
+    }
+
+    // Build relationship structure
+    const relationships = allConversations.map((conv) => {
+      const convTasks = allTasks.filter(
+        (t) => t.agent_conversation_id === conv.id,
+      );
+      const convDeliverables = allDeliverables.filter(
+        (d) => d.conversation_id === conv.id,
+      );
+      const convVersions = allVersions.filter((v) =>
+        convDeliverables.some((d) => d.id === v.deliverable_id),
+      );
+
+      return {
+        conversation: conv,
+        tasks: convTasks,
+        deliverables: convDeliverables.map((d) => ({
+          ...d,
+          versions: allVersions.filter((v) => v.deliverable_id === d.id),
+          linkedTask: allTasks.find((t) => t.id === d.task_id),
+        })),
+        versions: convVersions,
+      };
+    });
+
+    // Also include deliverables without conversations
+    const standaloneDeliverables = allDeliverables.filter(
+      (d) => !d.conversation_id,
+    );
+    if (standaloneDeliverables.length > 0) {
+      relationships.push({
+        conversation: null,
+        tasks: [],
+        deliverables: standaloneDeliverables.map((d) => ({
+          ...d,
+          versions: allVersions.filter((v) => v.deliverable_id === d.id),
+          linkedTask: allTasks.find((t) => t.id === d.task_id),
+        })),
+        versions: allVersions.filter((v) =>
+          standaloneDeliverables.some((d) => d.id === v.deliverable_id),
+        ),
+      });
+    }
+
+    // Build summary
+    const byUserId: Record<string, number> = {};
+    const byAgent: Record<string, number> = {};
+
+    allDeliverables.forEach((d) => {
+      byUserId[d.user_id] = (byUserId[d.user_id] || 0) + 1;
+      const agentName = d.agent_name || 'none';
+      byAgent[agentName] = (byAgent[agentName] || 0) + 1;
+    });
+
+    const summary = {
+      totalConversations: allConversations.length,
+      totalTasks: allTasks.length,
+      totalDeliverables: allDeliverables.length,
+      totalVersions: allVersions.length,
+      byUserId,
+      byAgent,
+    };
+
+    this.logger.log(`[debugAllDeliverables] Relationships:`);
+    this.logger.log(`  Conversations: ${summary.totalConversations}`);
+    this.logger.log(`  Tasks: ${summary.totalTasks}`);
+    this.logger.log(`  Deliverables: ${summary.totalDeliverables}`);
+    this.logger.log(`  Versions: ${summary.totalVersions}`);
+    this.logger.log(`  By User ID: ${JSON.stringify(byUserId)}`);
+    this.logger.log(`  By Agent: ${JSON.stringify(byAgent)}`);
+
+    return {
+      allDeliverables,
+      byUserId,
+      byAgent,
+      conversations: allConversations,
+      tasks: allTasks,
+      relationships,
+      summary,
     };
   }
 }

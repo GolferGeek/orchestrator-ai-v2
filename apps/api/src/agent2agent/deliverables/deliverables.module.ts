@@ -6,15 +6,32 @@ import { DeliverableVersionsController } from './deliverable-versions.controller
 import { SupabaseModule } from '@/supabase/supabase.module';
 import { AgentConversationsModule } from '@/agent2agent/conversations/agent-conversations.module';
 import { LLMModule } from '@/llms/llm.module';
+import { DeliverableDiscoveryRegistry } from './discovery/deliverable-discovery-registry.service';
+import { MarketingSwarmDiscoveryService } from './discovery/marketing-swarm-discovery.service';
+import { CadAgentDiscoveryService } from './discovery/cad-agent-discovery.service';
+import { LegalDepartmentDiscoveryService } from './discovery/legal-department-discovery.service';
+import { ConfigModule } from '@nestjs/config';
 
 @Module({
   imports: [
     SupabaseModule,
     AgentConversationsModule,
     forwardRef(() => LLMModule),
+    ConfigModule,
   ],
   controllers: [DeliverablesController, DeliverableVersionsController],
-  providers: [DeliverablesService, DeliverableVersionsService],
-  exports: [DeliverablesService, DeliverableVersionsService],
+  providers: [
+    DeliverablesService,
+    DeliverableVersionsService,
+    DeliverableDiscoveryRegistry,
+    MarketingSwarmDiscoveryService,
+    CadAgentDiscoveryService,
+    LegalDepartmentDiscoveryService,
+  ],
+  exports: [
+    DeliverablesService,
+    DeliverableVersionsService,
+    DeliverableDiscoveryRegistry,
+  ],
 })
 export class DeliverablesModule {}
