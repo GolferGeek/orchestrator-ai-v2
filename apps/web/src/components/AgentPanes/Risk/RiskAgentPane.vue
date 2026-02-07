@@ -1000,8 +1000,14 @@ async function handleTriggerDebateForSubject(subjectId: string) {
     const debate = result.content;
     console.log('[RiskAgentPane] Debate content:', debate);
     if (debate && analysisProgressRef.value) {
+      // Use adjustedScore (final score) instead of scoreAdjustment (just the adjustment)
+      // adjustedScore is the original score + adjustment, which is what we want to display
+      const finalScore = (debate.adjustedScore ?? debate.final_score ?? debate.originalScore ?? 0) as number;
+      // Convert from 0-100 scale if needed (API may return 0-1 or 0-100)
+      const displayScore = finalScore > 1 ? finalScore : finalScore * 100;
+      
       analysisProgressRef.value.setComplete({
-        overallScore: debate.scoreAdjustment || 0, // RiskDebate has scoreAdjustment property
+        overallScore: displayScore,
         confidence: 0,
         assessmentCount: 3, // Blue, Red, Arbiter
         debateTriggered: true,

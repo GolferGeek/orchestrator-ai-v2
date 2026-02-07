@@ -17,9 +17,11 @@
         <div v-if="blueStrengthScore !== null" class="strength-score">
           Confidence: {{ formatPercent(blueStrengthScore) }}
         </div>
-        <div v-if="blueSummary" class="summary">{{ blueSummary }}</div>
+        <!-- eslint-disable-next-line vue/no-v-html -- Sanitized markdown content -->
+        <div v-if="blueSummary" class="summary" v-html="renderMarkdown(blueSummary)"></div>
         <ul v-if="blueKeyPoints.length > 0" class="arguments-list">
-          <li v-for="(point, i) in blueKeyPoints" :key="i">{{ point }}</li>
+          <!-- eslint-disable-next-line vue/no-v-html -- Sanitized markdown content -->
+          <li v-for="(point, i) in blueKeyPoints" :key="i" v-html="renderMarkdown(point)"></li>
         </ul>
       </div>
 
@@ -35,8 +37,9 @@
         <div v-if="redChallengesList.length > 0" class="red-section">
           <strong>Challenges:</strong>
           <ul class="arguments-list">
+            <!-- eslint-disable-next-line vue/no-v-html -- Sanitized markdown content -->
             <li v-for="(challenge, i) in redChallengesList" :key="i">
-              <strong v-if="challenge.area">{{ challenge.area }}:</strong> {{ challenge.text }}
+              <strong v-if="challenge.area">{{ challenge.area }}:</strong> <span v-html="renderMarkdown(challenge.text)"></span>
               <span v-if="challenge.severity" :class="['severity-badge', challenge.severity]">
                 {{ challenge.severity }}
               </span>
@@ -46,19 +49,22 @@
         <div v-if="redBlindSpots.length > 0" class="red-section">
           <strong>Blind Spots:</strong>
           <ul class="arguments-list">
-            <li v-for="(spot, i) in redBlindSpots" :key="'bs-' + i">{{ spot }}</li>
+            <!-- eslint-disable-next-line vue/no-v-html -- Sanitized markdown content -->
+            <li v-for="(spot, i) in redBlindSpots" :key="'bs-' + i" v-html="renderMarkdown(spot)"></li>
           </ul>
         </div>
         <div v-if="redOverstated.length > 0" class="red-section">
           <strong>Overstated Risks:</strong>
           <ul class="arguments-list">
-            <li v-for="(risk, i) in redOverstated" :key="'os-' + i">{{ risk }}</li>
+            <!-- eslint-disable-next-line vue/no-v-html -- Sanitized markdown content -->
+            <li v-for="(risk, i) in redOverstated" :key="'os-' + i" v-html="renderMarkdown(risk)"></li>
           </ul>
         </div>
         <div v-if="redUnderstated.length > 0" class="red-section">
           <strong>Understated Risks:</strong>
           <ul class="arguments-list">
-            <li v-for="(risk, i) in redUnderstated" :key="'us-' + i">{{ risk }}</li>
+            <!-- eslint-disable-next-line vue/no-v-html -- Sanitized markdown content -->
+            <li v-for="(risk, i) in redUnderstated" :key="'us-' + i" v-html="renderMarkdown(risk)"></li>
           </ul>
         </div>
         <p v-if="redChallengesList.length === 0 && redBlindSpots.length === 0" class="no-data">
@@ -72,15 +78,18 @@
           <span class="team-icon">&#9878;</span>
           <span class="team-name">Arbiter (Synthesis)</span>
         </div>
-        <div v-if="arbiterSummary" class="summary">{{ arbiterSummary }}</div>
+        <!-- eslint-disable-next-line vue/no-v-html -- Sanitized markdown content -->
+        <div v-if="arbiterSummary" class="summary" v-html="renderMarkdown(arbiterSummary)"></div>
         <div v-if="arbiterTakeaways.length > 0" class="takeaways">
           <strong>Key Takeaways:</strong>
           <ul>
-            <li v-for="(takeaway, i) in arbiterTakeaways" :key="i">{{ takeaway }}</li>
+            <!-- eslint-disable-next-line vue/no-v-html -- Sanitized markdown content -->
+            <li v-for="(takeaway, i) in arbiterTakeaways" :key="i" v-html="renderMarkdown(takeaway)"></li>
           </ul>
         </div>
         <div v-if="arbiterRecommendation" class="recommendation">
-          <strong>Recommendation:</strong> {{ arbiterRecommendation }}
+          <strong>Recommendation:</strong> <!-- eslint-disable-next-line vue/no-v-html -- Sanitized markdown content -->
+          <span v-html="renderMarkdown(arbiterRecommendation)"></span>
         </div>
       </div>
     </div>
@@ -93,7 +102,22 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import { marked } from 'marked';
 import type { RiskDebate } from '@/types/risk-agent';
+
+// Configure marked for safe rendering
+marked.setOptions({
+  breaks: true,  // Convert \n to <br>
+  gfm: true,     // GitHub Flavored Markdown
+});
+
+/**
+ * Render markdown text to HTML
+ */
+function renderMarkdown(text: string | undefined | null): string {
+  if (!text) return '';
+  return marked.parse(text) as string;
+}
 
 interface Props {
   debate: RiskDebate;
@@ -412,6 +436,68 @@ function formatDate(dateStr: string | undefined): string {
   font-size: 0.8125rem;
   line-height: 1.4;
   margin-bottom: 0.75rem;
+}
+
+/* Markdown content styling */
+.summary :deep(p) {
+  margin: 0 0 0.5rem 0;
+}
+
+.summary :deep(p:last-child) {
+  margin-bottom: 0;
+}
+
+.summary :deep(ul),
+.summary :deep(ol) {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.summary :deep(li) {
+  margin-bottom: 0.375rem;
+  line-height: 1.4;
+}
+
+.summary :deep(strong) {
+  color: var(--ion-color-dark);
+  font-weight: 600;
+}
+
+.arguments-list :deep(p) {
+  margin: 0;
+  display: inline;
+}
+
+.arguments-list :deep(ul),
+.arguments-list :deep(ol) {
+  margin: 0;
+  padding-left: 1.25rem;
+  display: inline-block;
+}
+
+.arguments-list :deep(strong) {
+  color: var(--ion-color-dark);
+  font-weight: 600;
+}
+
+.takeaways :deep(p) {
+  margin: 0;
+  display: inline;
+}
+
+.takeaways :deep(strong) {
+  color: var(--ion-color-dark);
+  font-weight: 600;
+}
+
+.recommendation :deep(p) {
+  margin: 0;
+  display: inline;
+}
+
+.recommendation :deep(strong) {
+  color: var(--ion-color-dark);
+  font-weight: 600;
 }
 
 .recommendation {
