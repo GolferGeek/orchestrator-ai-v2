@@ -38,18 +38,17 @@ interface ConfigResponse {
   evaluators: Agent[];
 }
 
-// Skip this e2e test suite if DATABASE_URL is not configured
+// Skip this e2e test suite if DATABASE_URL or SUPABASE_URL is not configured
 // These tests require a real database connection
 const databaseUrl = process.env.DATABASE_URL;
-const describeOrSkip = databaseUrl ? describe : describe.skip;
+const supabaseUrl = process.env.SUPABASE_URL;
+const describeOrSkip = databaseUrl && supabaseUrl ? describe : describe.skip;
 
 describeOrSkip('MarketingController (e2e)', () => {
   let app: INestApplication;
   let authToken: string;
 
-  // Environment variables
-  const supabaseUrl = process.env.SUPABASE_URL;
-  if (!supabaseUrl) throw new Error('SUPABASE_URL required for test');
+  // Environment variables — guaranteed non-null by describeOrSkip guard
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
   const anonKey = process.env.SUPABASE_ANON_KEY || '';
   const testEmail =
@@ -60,7 +59,7 @@ describeOrSkip('MarketingController (e2e)', () => {
     // Only initialize Supabase if keys are available
     if (supabaseKey && anonKey) {
       // Authenticate to get token
-      const anonClient = createClient(supabaseUrl, anonKey);
+      const anonClient = createClient(supabaseUrl!, anonKey);
       const { data: authData, error: authError } =
         await anonClient.auth.signInWithPassword({
           email: testEmail,

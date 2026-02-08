@@ -1,9 +1,13 @@
 // Test Setup - Global configuration for all tests
 import { beforeEach, afterEach } from 'vitest';
 import { setActivePinia, createPinia } from 'pinia';
+import { resolve } from 'path';
+import { config } from 'dotenv';
+
+// Load environment from root .env (two levels up from apps/web)
+config({ path: resolve(__dirname, '../../../../.env') });
 
 // Configure environment for testing - disable HTTPS enforcement
-// Set process.env which Vite will use
 process.env.VITE_ENFORCE_HTTPS = 'false';
 process.env.NODE_ENV = 'test';
 
