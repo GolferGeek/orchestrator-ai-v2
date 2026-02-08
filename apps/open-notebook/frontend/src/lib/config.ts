@@ -85,10 +85,14 @@ async function fetchConfig(): Promise<AppConfig> {
   console.log('🔧 [Config] NEXT_PUBLIC_API_URL from build:', envApiUrl || '(not set)')
 
   // STEP 3: Smart default - infer API URL from current frontend URL
-  // API port can be configured via OPEN_NOTEBOOK_API_PORT env var (default: 6202)
-  // Note: In browser context, we can't access process.env directly, so we use the default
+  // API port can be configured via OPEN_NOTEBOOK_API_PORT env var
+  // Note: In browser context, we can't access process.env directly
   // The runtime config endpoint will provide the correct port from server-side env vars
-  const defaultApiPort = '6202'
+  const defaultApiPort = process.env.NEXT_PUBLIC_OPEN_NOTEBOOK_API_PORT || process.env.OPEN_NOTEBOOK_API_PORT;
+  if (!defaultApiPort) {
+    console.error('🔧 [Config] OPEN_NOTEBOOK_API_PORT not set - API URL cannot be inferred');
+    throw new Error('OPEN_NOTEBOOK_API_PORT or NEXT_PUBLIC_API_URL environment variable is required');
+  }
   let defaultApiUrl = `http://localhost:${defaultApiPort}`
 
   if (typeof window !== 'undefined') {

@@ -48,7 +48,8 @@ describeOrSkip('MarketingController (e2e)', () => {
   let authToken: string;
 
   // Environment variables
-  const supabaseUrl = process.env.SUPABASE_URL || 'http://127.0.0.1:6010';
+  const supabaseUrl = process.env.SUPABASE_URL;
+  if (!supabaseUrl) throw new Error('SUPABASE_URL required for test');
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
   const anonKey = process.env.SUPABASE_ANON_KEY || '';
   const testEmail =

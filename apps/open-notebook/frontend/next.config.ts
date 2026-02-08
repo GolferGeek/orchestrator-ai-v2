@@ -34,19 +34,24 @@ const nextConfig: NextConfig = {
   // This simplifies reverse proxy configuration
   // Next.js handles internal routing to the API backend
   async rewrites() {
-    // Get API port from environment variable (default: 6202)
-    const apiPort = process.env.OPEN_NOTEBOOK_API_PORT || '6202'
     // INTERNAL_API_URL: Where Next.js server-side should proxy API requests
-    // Default: http://localhost:PORT (single-container deployment)
+    // If not set, falls back to OPEN_NOTEBOOK_API_PORT
     // Override for multi-container: INTERNAL_API_URL=http://api-service:PORT
-    const internalApiUrl = process.env.INTERNAL_API_URL || `http://localhost:${apiPort}`
+    const internalApiUrl = process.env.INTERNAL_API_URL;
+    const apiPort = process.env.OPEN_NOTEBOOK_API_PORT;
 
-    console.log(`[Next.js Rewrites] Proxying /api/* to ${internalApiUrl}/api/*`)
+    if (!internalApiUrl && !apiPort) {
+      throw new Error('Either INTERNAL_API_URL or OPEN_NOTEBOOK_API_PORT environment variable must be set');
+    }
+
+    const proxyUrl = internalApiUrl || `http://localhost:${apiPort}`;
+
+    console.log(`[Next.js Rewrites] Proxying /api/* to ${proxyUrl}/api/*`)
 
     return [
       {
         source: '/api/:path*',
-        destination: `${internalApiUrl}/api/:path*`,
+        destination: `${proxyUrl}/api/:path*`,
       },
     ]
   },

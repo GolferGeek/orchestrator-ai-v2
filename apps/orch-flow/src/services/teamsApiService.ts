@@ -58,14 +58,16 @@ class TeamsApiService {
 
   constructor() {
     // Use MAIN_API_URL for teams/orgs endpoints (same as Notebook)
-    // Falls back to local API URL if MAIN_API_URL not set (for backward compatibility)
     const mainApiUrl = import.meta.env.VITE_MAIN_API_URL || import.meta.env.MAIN_API_URL;
     if (mainApiUrl) {
       this.baseUrl = mainApiUrl;
     } else {
-      // Fallback to local API for backward compatibility
-      const apiPort = import.meta.env.VITE_API_PORT || '6100';
-      this.baseUrl = import.meta.env.VITE_API_URL || `http://127.0.0.1:${apiPort}`;
+      // Fall back to VITE_API_URL if MAIN_API_URL not set
+      const apiUrl = import.meta.env.VITE_API_URL;
+      if (!apiUrl) {
+        throw new Error('VITE_MAIN_API_URL, MAIN_API_URL, or VITE_API_URL environment variable is required');
+      }
+      this.baseUrl = apiUrl;
     }
   }
 

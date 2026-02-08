@@ -80,6 +80,9 @@ services:
       - LANGGRAPH_BASE_URL=http://orchestrator-langgraph:6200
       # Public API URL for generating browser-reachable storage URLs
       - PUBLIC_API_URL=https://api.orchestratorai.io
+      # CORS: Only allow our production domains and the web container origin
+      - CORS_ORIGINS=https://orchestratorai.io,https://app.orchestratorai.io,http://orchestratorai.io,http://app.orchestratorai.io
+      - NODE_ENV=production
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:

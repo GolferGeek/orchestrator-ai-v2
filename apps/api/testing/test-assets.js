@@ -8,8 +8,9 @@
 import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
+import { getApiUrl } from './test-env.js';
 
-const API_BASE = process.env.API_BASE || 'http://localhost:9000';
+const API_BASE = getApiUrl();
 const FILE = process.env.FILE || 'image.png'; // relative to IMAGE_STORAGE_DIR
 const OUT = process.env.OUT || '/tmp/asset_copy.png';
 

@@ -21,8 +21,9 @@
  */
 
 import { EventSource } from 'eventsource';
+import { getApiUrl } from '../test-env';
 
-const API_URL = process.env.API_URL || 'http://localhost:6100';
+const API_URL = getApiUrl();
 const TEST_EMAIL = process.env.SUPABASE_TEST_USER || 'demo.user@orchestratorai.io';
 const TEST_PASSWORD = process.env.SUPABASE_TEST_PASSWORD || 'DemoUser123!';
 const ORG_SLUG = 'finance';

@@ -32,8 +32,14 @@ export async function GET(request: NextRequest) {
     })
   }
 
-  // Get the API port from environment variable (default: 6202)
-  const apiPort = process.env.OPEN_NOTEBOOK_API_PORT || '6202'
+  // Get the API port from environment variable
+  const apiPort = process.env.OPEN_NOTEBOOK_API_PORT;
+  if (!apiPort) {
+    return NextResponse.json(
+      { error: 'OPEN_NOTEBOOK_API_PORT environment variable is required' },
+      { status: 500 },
+    );
+  }
 
   // Priority 2: Auto-detect from request headers
   try {

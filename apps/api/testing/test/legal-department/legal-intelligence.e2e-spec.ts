@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import { SupabaseService } from '@/supabase/supabase.service';
+import { getApiUrl } from '../test-env';
 
 /**
  * Legal Intelligence Integration Test (M1 Refactored)
@@ -20,7 +21,7 @@ import { SupabaseService } from '@/supabase/supabase.service';
  * - Response structure matches frontend expectations
  */
 
-const API_URL = process.env.API_BASE_URL || 'http://localhost:6100';
+const API_URL = getApiUrl();
 const TIMEOUT = 120000; // 2 minutes (LLM call can be slow)
 
 // Test user credentials (from test-user.sql seed)

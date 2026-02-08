@@ -18,7 +18,11 @@ import { chromium } from 'playwright';
         console.error(`[Browser Error] ${err}`);
     });
 
-    const baseUrl = process.env.URL || 'http://localhost:6101';
+    if (!process.env.URL) {
+        console.error('ERROR: URL environment variable is required');
+        process.exit(1);
+    }
+    const baseUrl = process.env.URL;
     console.log(`Navigating to ${baseUrl}...`);
 
     try {

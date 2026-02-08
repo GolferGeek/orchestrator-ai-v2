@@ -8,8 +8,9 @@
  */
 
 const axios = require('axios');
+const { getApiUrl } = require('./test-env');
 
-const API_BASE = process.env.API_URL || 'http://localhost:6100';
+const API_BASE = getApiUrl();
 const TEST_EMAIL = process.env.SUPABASE_TEST_USER || 'demo.user@orchestratorai.io';
 const TEST_PASSWORD = process.env.SUPABASE_TEST_PASSWORD || 'DemoUser123!';
 

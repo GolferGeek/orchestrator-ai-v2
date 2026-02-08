@@ -6,11 +6,16 @@ import { persist } from 'zustand/middleware'
  * This is separate from the local API URL used for Flow-specific operations.
  */
 export const getMainApiUrl = (): string => {
-  // Use environment variable if set, otherwise default to local API
-  if (typeof window !== 'undefined') {
-    return import.meta.env.VITE_MAIN_API_URL || import.meta.env.MAIN_API_URL || 'http://127.0.0.1:6100'
+  // Use environment variable - must be configured
+  const mainApiUrl = typeof window !== 'undefined'
+    ? import.meta.env.VITE_MAIN_API_URL || import.meta.env.MAIN_API_URL
+    : import.meta.env.MAIN_API_URL;
+
+  if (!mainApiUrl) {
+    throw new Error('VITE_MAIN_API_URL or MAIN_API_URL environment variable is required');
   }
-  return import.meta.env.MAIN_API_URL || 'http://127.0.0.1:6100'
+
+  return mainApiUrl;
 }
 
 // Check if we're running in local development
@@ -70,8 +75,10 @@ export const useAuthStore = create<AuthState>()(
           const isLocal = isLocalDev()
           
           // In local dev, use local API if available, otherwise use main API
-          const apiPort = import.meta.env.VITE_API_PORT || '6100'
-          const localApiUrl = import.meta.env.VITE_API_URL || `http://127.0.0.1:${apiPort}`
+          const localApiUrl = import.meta.env.VITE_API_URL;
+          if (!localApiUrl) {
+            throw new Error('VITE_API_URL environment variable is required');
+          }
           const authApiUrl = isLocal ? localApiUrl : mainApiUrl
           const authEndpoint = '/auth/login'
           
@@ -157,9 +164,11 @@ export const useAuthStore = create<AuthState>()(
         try {
           const mainApiUrl = getMainApiUrl()
           const isLocal = isLocalDev()
-          
-          const apiPort = import.meta.env.VITE_API_PORT || '6100'
-          const localApiUrl = import.meta.env.VITE_API_URL || `http://127.0.0.1:${apiPort}`
+
+          const localApiUrl = import.meta.env.VITE_API_URL;
+          if (!localApiUrl) {
+            throw new Error('VITE_API_URL environment variable is required');
+          }
           const authApiUrl = isLocal ? localApiUrl : mainApiUrl
           const authEndpoint = '/auth/signup'
           

@@ -493,7 +493,11 @@ export class AgentExecutionGateway {
         ?.taskId as string | null;
 
       // Fire webhook call (non-blocking)
-      const apiPort = process.env.API_PORT || '6100';
+      const apiPort = process.env.API_PORT;
+      if (!apiPort) {
+        this.logger.warn('API_PORT not set, skipping webhook call');
+        return;
+      }
       const webhookUrl = `http://localhost:${apiPort}/webhooks/status`;
       if (this.httpService) {
         this.httpService

@@ -10,6 +10,7 @@ import {
   NIL_UUID,
 } from "@orchestrator-ai/transport-types";
 import { v4 as uuidv4 } from "uuid";
+import { getSupabaseUrl } from "../test-env";
 
 /**
  * Comprehensive End-to-End Tests for Marketing Swarm Agent (Phase 2)
@@ -48,7 +49,7 @@ describeE2E("Marketing Swarm E2E Tests", () => {
   let testOrgSlug: string;
 
   // Environment variables
-  const supabaseUrl = process.env.SUPABASE_URL || "http://127.0.0.1:6010";
+  const supabaseUrl = getSupabaseUrl();
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
   const anonKey = process.env.SUPABASE_ANON_KEY || "";
   const testEmail =

@@ -4,8 +4,9 @@
  */
 
 const axios = require('axios');
+const { getApiUrl } = require('../test-env');
 
-const API_BASE = process.env.API_BASE || 'http://localhost:3001';
+const API_BASE = getApiUrl();
 
 describe('LLM Unified Architecture Integration Tests', () => {
   let authToken;

@@ -18,7 +18,11 @@
 // eventsource v3 exports EventSource as a named export
 import { EventSource } from 'eventsource';
 
-const API_URL = process.env.API_URL || 'http://localhost:6100';
+const API_URL = process.env.API_URL;
+if (!API_URL) {
+  console.error('ERROR: API_URL environment variable is required');
+  process.exit(1);
+}
 // Use admin user which has admin:audit permission for observability stream
 // Env vars: SUPABASE_TEST_USER, SUPABASE_TEST_PASSWORD
 const TEST_EMAIL = process.env.SUPABASE_TEST_USER || 'admin@orchestratorai.io';

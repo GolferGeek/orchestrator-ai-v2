@@ -18,7 +18,11 @@ import pg from 'pg';
 const { Pool } = pg;
 
 // Configuration
-const DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres:postgres@127.0.0.1:6012/postgres';
+if (!process.env.DATABASE_URL) {
+  console.error('ERROR: DATABASE_URL environment variable is required');
+  process.exit(1);
+}
+const DATABASE_URL = process.env.DATABASE_URL;
 const OLLAMA_URL = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
 const EMBEDDING_MODEL = 'nomic-embed-text';
 const CHUNK_SIZE = 1000;

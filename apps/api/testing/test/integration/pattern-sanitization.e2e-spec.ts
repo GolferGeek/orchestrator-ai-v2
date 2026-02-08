@@ -1,6 +1,6 @@
 /**
  * E2E Test: Pattern-Based Sanitization with Reversibility
- * 
+ *
  * Comprehensive tests for pattern-based sanitization, pseudonymization, and show-stoppers.
  * Tests all combinations:
  * - Show-stoppers only (should block)
@@ -10,18 +10,19 @@
  * - Show-stoppers + Patterns (show-stoppers should block, patterns shouldn't apply)
  * - Show-stoppers + Pseudonyms (show-stoppers should block, pseudonyms shouldn't apply)
  * - All three (show-stoppers should block everything)
- * 
+ *
  * Prerequisites:
  * - API server running on localhost:6100
  * - Supabase running with seeded data
  * - Test user credentials in environment
- * 
+ *
  * Run with: npx jest --config apps/api/testing/test/jest-e2e.json pattern-sanitization.e2e-spec
  */
 
 import { v4 as uuidv4 } from 'uuid';
+import { getApiUrl, getSupabaseUrl } from '../test-env';
 
-const API_URL = process.env.API_URL || 'http://localhost:6100';
+const API_URL = getApiUrl();
 const TEST_EMAIL = process.env.SUPABASE_TEST_USER || 'demo.user@orchestratorai.io';
 const TEST_PASSWORD = process.env.SUPABASE_TEST_PASSWORD || 'DemoUser123!';
 const TEST_USER_ID = process.env.SUPABASE_TEST_USERID || 'b29a590e-b07f-49df-a25b-574c956b5035';
@@ -164,7 +165,7 @@ describe('Pattern-Based Sanitization E2E Tests', () => {
   const getLatestLLMUsage = async (): Promise<LLMUsageRecord | null> => {
     try {
       // Use Supabase REST API to query
-      const supabaseUrl = process.env.SUPABASE_URL || 'http://127.0.0.1:6010';
+      const supabaseUrl = getSupabaseUrl();
       const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
       
       const response = await fetch(

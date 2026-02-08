@@ -4,12 +4,17 @@ import pg from 'pg';
 const { Client } = pg;
 
 async function restoreDatabase() {
+  if (!process.env.PGHOST || !process.env.PGPORT) {
+    console.error('ERROR: PGHOST and PGPORT environment variables are required');
+    process.exit(1);
+  }
+
   const client = new Client({
-    host: '127.0.0.1',
-    port: 6012,
-    user: 'postgres',
-    password: 'postgres',
-    database: 'postgres',
+    host: process.env.PGHOST,
+    port: parseInt(process.env.PGPORT),
+    user: process.env.PGUSER || 'postgres',
+    password: process.env.PGPASSWORD || 'postgres',
+    database: process.env.PGDATABASE || 'postgres',
   });
 
   try {

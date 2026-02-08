@@ -125,8 +125,8 @@ export class SourceBlindingService {
     // Network-level source blinding with proxy/egress control
     proxyConfig: {
       enabled: process.env.SOURCE_BLINDING_PROXY_ENABLED === 'true',
-      host: process.env.SOURCE_BLINDING_PROXY_HOST || 'localhost',
-      port: parseInt(process.env.SOURCE_BLINDING_PROXY_PORT || '8080'),
+      host: process.env.SOURCE_BLINDING_PROXY_HOST || '',
+      port: parseInt(process.env.SOURCE_BLINDING_PROXY_PORT || '0'),
       protocol:
         (process.env.SOURCE_BLINDING_PROXY_PROTOCOL as 'http' | 'https') ||
         'http',

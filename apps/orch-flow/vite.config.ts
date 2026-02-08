@@ -9,7 +9,11 @@ export default defineConfig(({ mode }) => {
   // Vite automatically loads .env files, but we need to ensure it looks in the right place
   const rootDir = path.resolve(__dirname, '../..')
   const env = loadEnv(mode, rootDir, '')
-  const port = parseInt(env.ORCH_FLOW_PORT || process.env.ORCH_FLOW_PORT || '6102', 10)
+  const orchFlowPort = env.ORCH_FLOW_PORT || process.env.ORCH_FLOW_PORT;
+  if (!orchFlowPort) {
+    throw new Error('ORCH_FLOW_PORT environment variable is required. Set it in .env file.');
+  }
+  const port = parseInt(orchFlowPort, 10)
   
   // Debug: Log env vars to verify they're loaded (remove in production)
   if (mode === 'development') {

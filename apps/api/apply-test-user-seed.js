@@ -3,13 +3,20 @@ const { Client } = require('pg');
 const fs = require('fs');
 const path = require('path');
 
-const client = new Client({
-  host: '127.0.0.1',
-  port: 6012, // Supabase local port from config.toml
-  database: 'postgres',
-  user: 'postgres',
-  password: 'postgres'
-});
+if (!process.env.DATABASE_URL && !process.env.PGPORT) {
+  console.error('ERROR: DATABASE_URL or PGPORT environment variable is required');
+  process.exit(1);
+}
+
+const client = new Client(
+  process.env.DATABASE_URL || {
+    host: process.env.PGHOST || '127.0.0.1',
+    port: parseInt(process.env.PGPORT),
+    database: process.env.PGDATABASE || 'postgres',
+    user: process.env.PGUSER || 'postgres',
+    password: process.env.PGPASSWORD || 'postgres'
+  }
+);
 
 const seedFile = path.join(__dirname, 'supabase', 'seed', 'test-user.sql');
 

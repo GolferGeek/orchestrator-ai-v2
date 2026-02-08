@@ -10,7 +10,9 @@
  * Run with: npx jest --config apps/api/testing/jest-e2e.json blog-post-writer-build
  */
 
-const API_URL = process.env.API_URL || 'http://localhost:6100';
+import { getApiUrl } from '../test-env';
+
+const API_URL = getApiUrl();
 const TEST_EMAIL = 'demo.user@orchestratorai.io';
 const TEST_PASSWORD = 'DemoUser123!';
 

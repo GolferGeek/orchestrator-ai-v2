@@ -22,7 +22,11 @@
 
 import { EventSource } from 'eventsource';
 
-const API_URL = process.env.API_URL || 'http://localhost:6100';
+const API_URL = process.env.API_URL;
+if (!API_URL) {
+  console.error('ERROR: API_URL environment variable is required');
+  process.exit(1);
+}
 const TEST_EMAIL = process.env.SUPABASE_TEST_USER || 'demo.user@orchestratorai.io';
 const TEST_PASSWORD = process.env.SUPABASE_TEST_PASSWORD || 'DemoUser123!';
 const ORG_SLUG = 'demo-org';

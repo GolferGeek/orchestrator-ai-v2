@@ -11,18 +11,26 @@ import { resolve } from 'path';
 // Load environment variables
 dotenv.config({ path: resolve(process.cwd(), '.env') });
 
-const supabaseUrl = process.env.SUPABASE_URL || 'http://localhost:54321';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+if (!supabaseUrl) {
+  console.error('SUPABASE_URL environment variable is required');
+  process.exit(1);
+}
 if (!supabaseServiceKey) {
-  console.error('SUPABASE_SERVICE_ROLE_KEY not found in environment');
+  console.error('SUPABASE_SERVICE_ROLE_KEY environment variable is required');
   process.exit(1);
 }
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-// Get LangGraph port from environment
-const langgraphPort = process.env.LANGGRAPH_PORT || '6200';
+// Get LangGraph base URL from environment
+const langgraphPort = process.env.LANGGRAPH_PORT;
+if (!langgraphPort) {
+  console.error('LANGGRAPH_PORT environment variable is required');
+  process.exit(1);
+}
 const langgraphBaseUrl = `http://localhost:${langgraphPort}`;
 
 async function registerLegalDepartmentAgent() {

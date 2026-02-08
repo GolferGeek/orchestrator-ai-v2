@@ -12,8 +12,13 @@ const path = require('path');
  * Create PostgreSQL client connection to Supabase
  */
 function createDbClient() {
-  const host = process.env.PGHOST || '127.0.0.1';
-  const port = parseInt(process.env.PGPORT || '6012');
+  if (!process.env.PGHOST || !process.env.PGPORT) {
+    console.error('ERROR: PGHOST and PGPORT environment variables are required');
+    process.exit(1);
+  }
+
+  const host = process.env.PGHOST;
+  const port = parseInt(process.env.PGPORT);
   const database = process.env.PGDATABASE || 'postgres';
   const user = process.env.PGUSER || 'postgres';
   const password = process.env.PGPASSWORD || 'postgres';

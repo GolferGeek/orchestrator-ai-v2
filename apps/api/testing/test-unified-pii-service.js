@@ -6,10 +6,11 @@
  */
 
 const { createClient } = require('@supabase/supabase-js');
+const { getSupabaseUrl } = require('./test-env');
 require('dotenv').config();
 
 // Supabase setup
-const supabaseUrl = process.env.SUPABASE_URL || 'http://localhost:54321';
+const supabaseUrl = getSupabaseUrl();
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!supabaseServiceKey) {

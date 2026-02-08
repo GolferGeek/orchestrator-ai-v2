@@ -16,7 +16,9 @@
  * Run with: npx jest --config apps/api/testing/test/jest-e2e.json legal-department/document-extraction.e2e-spec
  */
 
-const API_URL = process.env.API_URL || 'http://localhost:6100';
+import { getApiUrl } from '../test-env';
+
+const API_URL = getApiUrl();
 const TEST_EMAIL = process.env.SUPABASE_TEST_USER || 'demo.user@orchestratorai.io';
 const TEST_PASSWORD = process.env.SUPABASE_TEST_PASSWORD || 'DemoUser123!';
 const ORG_SLUG = 'demo-org';

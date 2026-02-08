@@ -28,10 +28,13 @@ async function getNotebookAuthToken() {
   try {
     const { createClient } = require('@supabase/supabase-js');
     // Try different possible env var names for Supabase URL and key
-    const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:6010';
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
-    
-    if (!supabaseAnonKey) {
+
+    if (!supabaseUrl) {
+      console.warn('⚠️  SUPABASE_URL not set, trying Notebook API login instead');
+      // Fall through to Notebook API login below
+    } else if (!supabaseAnonKey) {
       console.warn('⚠️  SUPABASE_ANON_KEY not set, trying Notebook API login instead');
       // Fall through to Notebook API login below
     } else {
@@ -53,14 +56,21 @@ async function getNotebookAuthToken() {
   } catch (error) {
     // If Supabase client not available or fails, try Notebook API login
     console.warn('⚠️  Direct Supabase auth failed, trying Notebook API login:', error.message);
-    
+
     const testUser = process.env.SUPABASE_TEST_USER || 'demo.user@playground.com';
     const testPassword = process.env.SUPABASE_TEST_PASSWORD || 'demouser';
-    const apiPort = process.env.OPEN_NOTEBOOK_API_PORT || '6202';
-    const baseURL = process.env.NOTEBOOK_API_URL || `http://127.0.0.1:${apiPort}`;
+    const apiPort = process.env.OPEN_NOTEBOOK_API_PORT;
+    const baseURL = process.env.NOTEBOOK_API_URL;
+
+    if (!baseURL && !apiPort) {
+      console.warn('⚠️  Neither NOTEBOOK_API_URL nor OPEN_NOTEBOOK_API_PORT is set');
+      return null;
+    }
+
+    const apiUrl = baseURL || `http://127.0.0.1:${apiPort}`;
 
     try {
-      const response = await axios.post(`${baseURL}/api/login`, {
+      const response = await axios.post(`${apiUrl}/api/login`, {
         email: testUser,
         password: testPassword,
       }, {
@@ -82,15 +92,21 @@ async function getNotebookAuthToken() {
  * Create Notebook API client
  */
 async function createNotebookClient() {
-  // Use OPEN_NOTEBOOK_API_PORT to construct URL, or fallback to NOTEBOOK_API_URL or default
-  const apiPort = process.env.OPEN_NOTEBOOK_API_PORT || '6202';
-  const baseURL = process.env.NOTEBOOK_API_URL || `http://127.0.0.1:${apiPort}`;
-  
+  // Use OPEN_NOTEBOOK_API_PORT to construct URL, or fallback to NOTEBOOK_API_URL
+  const apiPort = process.env.OPEN_NOTEBOOK_API_PORT;
+  const baseURL = process.env.NOTEBOOK_API_URL;
+
+  if (!baseURL && !apiPort) {
+    throw new Error('Either NOTEBOOK_API_URL or OPEN_NOTEBOOK_API_PORT environment variable must be set');
+  }
+
+  const apiUrl = baseURL || `http://127.0.0.1:${apiPort}`;
+
   // Get auth token
   const token = await getNotebookAuthToken();
 
   const client = axios.create({
-    baseURL,
+    baseURL: apiUrl,
     timeout: 300000, // 5 minutes for long operations
     headers: {
       'Content-Type': 'application/json',

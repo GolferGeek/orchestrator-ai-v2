@@ -15,8 +15,10 @@
  * Run with: npx jest --config apps/api/testing/test/jest-e2e.json legal-department/transport-types.e2e-spec
  */
 
-const API_URL = process.env.API_URL || 'http://localhost:6100';
-const LANGGRAPH_URL = process.env.LANGGRAPH_URL || 'http://localhost:6200';
+import { getApiUrl, getLanggraphUrl } from '../test-env';
+
+const API_URL = getApiUrl();
+const LANGGRAPH_URL = getLanggraphUrl();
 const TEST_EMAIL = process.env.SUPABASE_TEST_USER || 'demo.user@orchestratorai.io';
 const TEST_PASSWORD = process.env.SUPABASE_TEST_PASSWORD || 'DemoUser123!';
 const ORG_SLUG = 'demo-org';

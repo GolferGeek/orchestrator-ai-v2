@@ -11,8 +11,9 @@
 import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
+import { getApiUrl } from './test-env.js';
 
-const API_BASE = process.env.API_BASE || 'http://localhost:9000';
+const API_BASE = getApiUrl();
 const SRC_PATH = process.env.SRC_PATH || path.join('assets', 'image.png'); // repo-root path
 const IMAGE_STORAGE_DIR = process.env.IMAGE_STORAGE_DIR || path.join('storage', 'images');
 const DEST_REL = process.env.DEST_REL || path.join('test', `copy-${Date.now()}.png`); // relative to IMAGE_STORAGE_DIR

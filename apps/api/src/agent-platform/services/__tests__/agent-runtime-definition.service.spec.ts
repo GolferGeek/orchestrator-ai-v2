@@ -5,7 +5,8 @@ import type { JsonObject } from '@orchestrator-ai/transport-types';
 import { dump as yamlDump } from 'js-yaml';
 
 describe('AgentRuntimeDefinitionService', () => {
-  const service = new AgentRuntimeDefinitionService();
+  const mockConfigService = { get: jest.fn() } as any;
+  const service = new AgentRuntimeDefinitionService(mockConfigService);
   const now = new Date().toISOString();
 
   const createRecord = (overrides: Partial<AgentRecord> = {}): AgentRecord => ({

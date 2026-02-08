@@ -11,7 +11,11 @@
 
 const axios = require('axios');
 
-const API_URL = 'http://localhost:6100';
+if (!process.env.API_URL) {
+  console.error('ERROR: API_URL environment variable is required');
+  process.exit(1);
+}
+const API_URL = process.env.API_URL;
 const TEST_USER_ID = 'b29a590e-b07f-49df-a25b-574c956b5035'; // demo.user@playground.com
 const TEST_USERNAME = 'demo.user@playground.com';
 
@@ -115,8 +119,7 @@ async function testWebhook() {
 
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
   console.log('✅ Test complete!\n');
-  console.log('📊 Check the admin observability UI at:');
-  console.log('   http://localhost:8100/app/admin/observability\n');
+  console.log('📊 Check the admin observability UI at your web app /app/admin/observability\n');
   console.log('💡 You should see 3 test events in the timeline!');
 }
 

@@ -1,6 +1,10 @@
 import { chromium } from 'playwright';
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:6101';
+if (!process.env.BASE_URL) {
+  console.error('ERROR: BASE_URL environment variable is required');
+  process.exit(1);
+}
+const BASE_URL = process.env.BASE_URL;
 
 async function testMarketingSwarm() {
   console.log('🚀 Starting Marketing Swarm browser test...');

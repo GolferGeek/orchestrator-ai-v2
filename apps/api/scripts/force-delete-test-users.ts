@@ -25,9 +25,13 @@ if (fs.existsSync(rootEnvPath)) {
   dotenv.config();
 }
 
-const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:6100';
-const SUPABASE_URL = process.env.SUPABASE_URL || process.env.SUPABASE_URL || '';
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+if (!process.env.API_BASE_URL) {
+  console.error('ERROR: API_BASE_URL environment variable is required');
+  process.exit(1);
+}
+const API_BASE_URL = process.env.API_BASE_URL;
+const SUPABASE_URL = process.env.SUPABASE_URL || '';
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 interface AuthTokens {
   accessToken: string;

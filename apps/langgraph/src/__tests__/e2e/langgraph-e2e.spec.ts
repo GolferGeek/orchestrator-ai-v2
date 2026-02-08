@@ -4,6 +4,7 @@ import request from "supertest";
 import { AppModule } from "../../app.module";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { createMockExecutionContext } from "@orchestrator-ai/transport-types";
+import { getSupabaseUrl } from "../test-env";
 
 /**
  * End-to-End Integration Tests for LangGraph Phase 5
@@ -40,7 +41,7 @@ describeE2E("LangGraph E2E Tests", () => {
   const _mockContext = createMockExecutionContext();
 
   // Load from environment
-  const supabaseUrl = process.env.SUPABASE_URL || "http://127.0.0.1:6010";
+  const supabaseUrl = getSupabaseUrl();
   const supabaseKey = process.env.SUPABASE_ANON_KEY || "test-key";
   const testEmail =
     process.env.SUPABASE_TEST_USER || "golfergeek@orchestratorai.io";

@@ -17,10 +17,14 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 // This client is kept for backward compatibility but may not be needed
 // No warning needed since we're using the main API for auth
 
-export const supabase = createClient(
-  supabaseUrl || 'http://localhost:6010',
-  supabaseAnonKey || 'placeholder-key'
-)
+if (!supabaseUrl) {
+  throw new Error('NEXT_PUBLIC_SUPABASE_URL environment variable is required');
+}
+if (!supabaseAnonKey) {
+  throw new Error('NEXT_PUBLIC_SUPABASE_ANON_KEY environment variable is required');
+}
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 /**
  * Check if Supabase is properly configured.

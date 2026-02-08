@@ -14,6 +14,7 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { createMockExecutionContext } from "@orchestrator-ai/transport-types";
 import { v4 as uuidv4 } from "uuid";
+import { getLanggraphUrl, getSupabaseUrl } from "../test-env";
 
 // Supabase client for test database operations
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -22,10 +23,7 @@ let supabase: SupabaseClient<any, "engineering">;
 // Test constants
 const TEST_ORG_SLUG = "engineering";
 const TEST_USER_ID = "00000000-0000-0000-0000-000000000001"; // engineering-test user
-const LANGGRAPH_PORT = process.env.LANGGRAPH_PORT;
-const LANGGRAPH_URL = LANGGRAPH_PORT
-  ? `http://127.0.0.1:${LANGGRAPH_PORT}`
-  : "http://127.0.0.1:6200";
+const LANGGRAPH_URL = getLanggraphUrl();
 
 // Test data cleanup tracking
 const createdProjectIds: string[] = [];
@@ -91,7 +89,7 @@ async function getCadAgentOutputs(drawingId: string) {
 describe("CAD Agent E2E Tests", () => {
   beforeAll(async () => {
     // Initialize Supabase client with engineering schema
-    const supabaseUrl = process.env.SUPABASE_URL || "http://127.0.0.1:6010";
+    const supabaseUrl = getSupabaseUrl();
     const supabaseKey =
       process.env.SUPABASE_SERVICE_ROLE_KEY ||
       "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU";
@@ -997,7 +995,7 @@ describe("CAD Agent E2E Tests", () => {
     let storageClient: SupabaseClient;
 
     beforeAll(() => {
-      const supabaseUrl = process.env.SUPABASE_URL || "http://127.0.0.1:6010";
+      const supabaseUrl = getSupabaseUrl();
       const supabaseKey =
         process.env.SUPABASE_SERVICE_ROLE_KEY ||
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU";

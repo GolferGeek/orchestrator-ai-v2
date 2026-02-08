@@ -1,11 +1,12 @@
 import axios, { AxiosInstance } from 'axios';
+import { getApiUrl } from './test-env';
 
 /**
  * E2E Test for User Management
  * Tests: Create User -> Change Role -> Delete User
  */
 
-const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:6100';
+const API_BASE_URL = getApiUrl();
 
 interface AuthTokens {
   accessToken: string;

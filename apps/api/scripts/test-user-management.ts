@@ -14,7 +14,11 @@
 
 import axios, { AxiosInstance, AxiosError } from 'axios';
 
-const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:6100';
+if (!process.env.API_BASE_URL) {
+  console.error('ERROR: API_BASE_URL environment variable is required');
+  process.exit(1);
+}
+const API_BASE_URL = process.env.API_BASE_URL;
 
 interface AuthTokens {
   accessToken: string;

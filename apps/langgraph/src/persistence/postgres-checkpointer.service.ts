@@ -42,12 +42,16 @@ export class PostgresCheckpointerService
   private async initialize(): Promise<void> {
     try {
       // Build connection string from environment
-      const host = this.configService.get<string>("DB_HOST") || "localhost";
-      const port = this.configService.get<number>("DB_PORT") || 6012;
-      const database = this.configService.get<string>("DB_NAME") || "postgres";
-      const user = this.configService.get<string>("DB_USER") || "postgres";
-      const password =
-        this.configService.get<string>("DB_PASSWORD") || "postgres";
+      const host = this.configService.get<string>("DB_HOST");
+      const port = this.configService.get<number>("DB_PORT");
+      const database = this.configService.get<string>("DB_NAME");
+      const user = this.configService.get<string>("DB_USER");
+      const password = this.configService.get<string>("DB_PASSWORD");
+      if (!host || !port || !database || !user || !password) {
+        throw new Error(
+          "Database configuration incomplete. Required env vars: DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD",
+        );
+      }
 
       const connectionString = `postgresql://${user}:${password}@${host}:${port}/${database}`;
 

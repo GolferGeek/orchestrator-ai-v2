@@ -6,8 +6,13 @@
 
 import { Pool } from 'pg';
 
+if (!process.env.DATABASE_URL) {
+  console.error('ERROR: DATABASE_URL environment variable is required');
+  process.exit(1);
+}
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@127.0.0.1:6012/postgres'
+  connectionString: process.env.DATABASE_URL
 });
 
 async function checkRBAC() {

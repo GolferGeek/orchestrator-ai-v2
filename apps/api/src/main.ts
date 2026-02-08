@@ -135,75 +135,53 @@ async function bootstrap() {
     },
   });
 
-  // Enable CORS with dynamic origins from environment
-  const webPort = process.env.WEB_PORT || process.env.VITE_WEB_PORT;
-  const orchFlowPort = process.env.ORCH_FLOW_PORT;
+  // Enable CORS with environment-driven origins
+  //
+  // CORS_ORIGINS: Comma-separated list of allowed origins.
+  //   Production example: CORS_ORIGINS=https://orchestratorai.io,https://app.orchestratorai.io
+  //   Dev example: CORS_ORIGINS=http://localhost:6101,http://localhost:6102
+  //
+  // In development mode (NODE_ENV != production), localhost/Tailscale/LAN origins
+  // are automatically allowed regardless of CORS_ORIGINS.
+  //
+  const isDevelopment =
+    process.env.NODE_ENV !== 'production';
 
-  // Build dynamic CORS origins based on configured ports
-  const corsOrigins: string[] = [
-    // Vite dev server default
-    'http://localhost:5173',
-    'http://127.0.0.1:5173',
-  ];
+  const corsOrigins: string[] = process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
+    : [];
 
-  // Add web port if configured
-  if (webPort) {
-    corsOrigins.push(
-      `http://localhost:${webPort}`,
-      `http://127.0.0.1:${webPort}`,
+  if (corsOrigins.length === 0 && !isDevelopment) {
+    console.warn(
+      '[CORS] WARNING: CORS_ORIGINS is not set in production mode. ' +
+        'No cross-origin requests will be allowed. ' +
+        'Set CORS_ORIGINS=https://orchestratorai.io,https://app.orchestratorai.io',
     );
   }
 
-  // Add orch flow port if configured
-  if (orchFlowPort) {
-    corsOrigins.push(
-      `http://localhost:${orchFlowPort}`,
-      `http://127.0.0.1:${orchFlowPort}`,
-    );
+  if (corsOrigins.length > 0) {
+    console.log(`[CORS] Allowed origins: ${corsOrigins.join(', ')}`);
   }
-
-  // Add static origins (Supabase, production domains)
-  corsOrigins.push(
-    // Supabase local development ports (shared across workspaces)
-    'http://localhost:6010',
-    'http://127.0.0.1:6010',
-    'http://localhost:6015', // Supabase Studio
-    'http://127.0.0.1:6015',
-    // Common development ports
-    'http://localhost:3100',
-    'http://127.0.0.1:3100',
-    'http://localhost:3101',
-    'http://127.0.0.1:3101',
-    'http://localhost:8080',
-    'http://127.0.0.1:8080',
-    'http://localhost:8081',
-    'http://127.0.0.1:8081',
-    // Production domains
-    'https://app.orchestratorai.io',
-    'https://api.orchestratorai.io',
-    'http://app.orchestratorai.io',
-    'http://api.orchestratorai.io',
-    'https://orchestratorai.io',
-    'http://orchestratorai.io',
-  );
+  if (isDevelopment) {
+    console.log('[CORS] Development mode: localhost, Tailscale, and LAN origins are auto-allowed');
+  }
 
   app.enableCors({
     origin: (
       origin: string | undefined,
       callback: (err: Error | null, allow?: boolean) => void,
     ) => {
-      // Allow requests with no origin (like mobile apps, curl, or tests)
+      // Allow requests with no origin (like mobile apps, curl, server-to-server, or tests)
       if (!origin) return callback(null, true);
 
-      // Check if we're in development mode
-      const isDevelopment =
-        process.env.NODE_ENV === 'development' ||
-        process.env.NODE_ENV === 'test' ||
-        !process.env.NODE_ENV ||
-        process.env.NODE_ENV === 'undefined';
+      // Check explicit allowlist first (works in all environments)
+      if (corsOrigins.includes(origin)) {
+        return callback(null, true);
+      }
 
+      // In development mode, allow common local/dev origins
       if (isDevelopment) {
-        // Allow localhost and common test origins
+        // localhost and 127.0.0.1
         if (
           origin.startsWith('http://localhost') ||
           origin.startsWith('https://localhost') ||
@@ -214,12 +192,12 @@ async function bootstrap() {
           return callback(null, true);
         }
 
-        // Allow Tailscale origins (*.ts.net)
-        if (origin.includes('.ts.net')) {
+        // Tailscale origins (*.ts.net and 100.x.x.x CGNAT range)
+        if (origin.includes('.ts.net') || /https?:\/\/100\.\d+\.\d+\.\d+/.test(origin)) {
           return callback(null, true);
         }
 
-        // Allow local network IPs (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
+        // Local network IPs (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
         if (
           /https?:\/\/(192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)/.test(
             origin,
@@ -227,30 +205,10 @@ async function bootstrap() {
         ) {
           return callback(null, true);
         }
-
-        // Allow 100.x.x.x range (Tailscale CGNAT range)
-        if (/https?:\/\/100\.\d+\.\d+\.\d+/.test(origin)) {
-          return callback(null, true);
-        }
       }
 
-      // Check if origin is in our list
-      if (corsOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-
-      // In production, you might want to be more restrictive
-      // For now, let's allow all orchestratorai.io subdomains
-      if (origin.includes('orchestratorai.io')) {
-        return callback(null, true);
-      }
-
-      // In development, be more permissive for testing
-      if (isDevelopment) {
-        return callback(null, true);
-      }
-
-      callback(new Error('Not allowed by CORS'));
+      // Reject everything else
+      callback(new Error(`Origin ${origin} not allowed by CORS`));
     },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
     credentials: true,

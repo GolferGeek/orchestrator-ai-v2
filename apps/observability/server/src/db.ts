@@ -4,9 +4,13 @@ import type { HookEvent, FilterOptions, Theme, ThemeSearchQuery, HumanInTheLoopR
 
 // Use direct PostgreSQL connection instead of Supabase REST API
 // This allows us to access the observability schema without exposing it through PostgREST
+if (!process.env.PGHOST || !process.env.PGPORT) {
+  throw new Error('Database configuration required: PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE');
+}
+
 const pool = new Pool({
-  host: process.env.PGHOST || '127.0.0.1',
-  port: parseInt(process.env.PGPORT || '6012'),
+  host: process.env.PGHOST,
+  port: parseInt(process.env.PGPORT),
   user: process.env.PGUSER || 'postgres',
   password: process.env.PGPASSWORD || 'postgres',
   database: process.env.PGDATABASE || 'postgres',
