@@ -131,9 +131,10 @@ export class CadDbService {
   private supabase: SupabaseClient<any, "engineering">;
 
   constructor() {
-    // Use API URL (6010), not database port (6012)
-    const supabaseUrl = process.env.SUPABASE_URL || "http://127.0.0.1:6010";
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl) throw new Error("SUPABASE_URL environment variable is required");
+    if (!supabaseKey) throw new Error("SUPABASE_SERVICE_ROLE_KEY environment variable is required");
 
     this.supabase = createClient(supabaseUrl, supabaseKey, {
       auth: { persistSession: false },

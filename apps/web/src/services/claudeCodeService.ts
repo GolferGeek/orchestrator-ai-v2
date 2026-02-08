@@ -6,6 +6,7 @@
  */
 
 import { apiService } from './apiService';
+import { getSecureApiBaseUrl } from '@/utils/securityConfig';
 
 export interface ClaudeCommand {
   name: string;
@@ -131,7 +132,7 @@ class ClaudeCodeService {
   private readonly baseUrl: string;
 
   constructor() {
-    this.baseUrl = import.meta.env.VITE_API_BASE_URL || `http://localhost:${import.meta.env.VITE_API_PORT || '6100'}`;
+    this.baseUrl = getSecureApiBaseUrl();
   }
 
   /**

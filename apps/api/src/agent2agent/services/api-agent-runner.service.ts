@@ -1570,12 +1570,12 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
             // LangGraph uses db: { schema: 'marketing' }, so we need to match that
             const supabaseUrl =
               this.configService.get<string>('supabase.url') ||
-              this.configService.get<string>('SUPABASE_URL') ||
-              'http://127.0.0.1:6010';
+              this.configService.get<string>('SUPABASE_URL');
             const supabaseKey =
               this.configService.get<string>('supabase.serviceKey') ||
-              this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY') ||
-              '';
+              this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY');
+            if (!supabaseUrl) throw new Error('SUPABASE_URL environment variable is required');
+            if (!supabaseKey) throw new Error('SUPABASE_SERVICE_ROLE_KEY environment variable is required');
             const marketingSupabase = createClient(supabaseUrl, supabaseKey, {
               auth: { persistSession: false },
               db: { schema: 'marketing' },

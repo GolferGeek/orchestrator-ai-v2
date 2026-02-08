@@ -140,7 +140,7 @@ const orgSlug = computed(() => {
 });
 
 const userId = computed(() => {
-  return rbacStore.user?.id || 'demo-user';
+  return rbacStore.user?.id || '';
 });
 
 // Load configuration data on mount

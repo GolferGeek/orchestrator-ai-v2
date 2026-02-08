@@ -79,6 +79,7 @@ import { useMarketingSwarmStore } from "@/stores/marketingSwarmStore";
 import { marketingSwarmService } from "@/services/marketingSwarmService";
 import { tasksService } from "@/services/tasksService";
 import { useRbacStore } from "@/stores/rbacStore";
+import { useAgentsStore } from "@/stores/agentsStore";
 import {
   deliverablesService,
   DeliverableType,
@@ -94,6 +95,7 @@ import type { PromptData, SwarmConfig } from "@/types/marketing-swarm";
 const route = useRoute();
 const store = useMarketingSwarmStore();
 const rbacStore = useRbacStore();
+const agentsStore = useAgentsStore();
 
 const isLoading = computed(() => store.isLoading);
 const isExecuting = computed(() => store.isExecuting);
@@ -105,17 +107,21 @@ const showBrowseModal = ref(false);
 // Get conversationId from route query (passed from AgentsPage when creating conversation)
 const conversationId = ref<string | null>(null);
 
-// Get org slug from route or context
+// Get org slug from agent record, route, or context
 const orgSlug = computed(() => {
+  const agentRecord = agentsStore.availableAgents.find(
+    (a) => a.name === "marketing-swarm",
+  );
   return (
     (route.params.orgSlug as string) ||
+    agentRecord?.organizationSlug ||
     rbacStore.currentOrganization ||
-    "demo-org"
+    "marketing"
   );
 });
 
 const userId = computed(() => {
-  return rbacStore.user?.id || "demo-user";
+  return rbacStore.user?.id || "";
 });
 
 // Load configuration data on mount
@@ -151,6 +157,9 @@ async function handleExecute(data: {
   config: SwarmConfig;
 }) {
   try {
+    if (!userId.value) {
+      throw new Error("User not authenticated. Please log in and try again.");
+    }
     // Reset state before starting a new execution to clear any previous outputs
     store.resetTaskState();
 

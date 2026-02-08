@@ -105,6 +105,7 @@ export class DocumentProcessingService {
   private readonly logger = new Logger(DocumentProcessingService.name);
   private readonly bucketName =
     process.env.LEGAL_DOCUMENTS_BUCKET || 'legal-documents';
+  private readonly publicApiUrl = process.env.PUBLIC_API_URL;
 
   constructor(
     private readonly supabaseService: SupabaseService,
@@ -289,12 +290,17 @@ export class DocumentProcessingService {
       throw new Error(`Failed to upload document: ${uploadError.message}`);
     }
 
-    // Get public URL
-    const { data: urlData } = client.storage
-      .from(this.bucketName)
-      .getPublicUrl(storagePath);
-
-    const publicUrl = urlData.publicUrl;
+    // Get public URL (API-proxied if PUBLIC_API_URL is set)
+    let publicUrl: string;
+    if (this.publicApiUrl) {
+      const base = this.publicApiUrl.replace(/\/$/, '');
+      publicUrl = `${base}/assets/storage/${this.bucketName}/${storagePath}`;
+    } else {
+      const { data: urlData } = client.storage
+        .from(this.bucketName)
+        .getPublicUrl(storagePath);
+      publicUrl = urlData.publicUrl;
+    }
 
     this.logger.log(
       `📄 [DOC-PROCESSING] Document uploaded successfully: ${publicUrl}`,

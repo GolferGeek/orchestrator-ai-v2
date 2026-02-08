@@ -12,6 +12,7 @@ import { useAuthStore } from '@/stores/rbacStore';
 import { useExecutionContextStore } from '@/stores/executionContextStore';
 import { useAgentsStore } from '@/stores/agentsStore';
 import type { JsonValue } from '@/types';
+import { getSecureApiBaseUrl } from '@/utils/securityConfig';
 import type {
   ExecutionContext,
   DashboardRequestPayload,
@@ -38,11 +39,7 @@ import type {
   StrategyListParams,
 } from '@orchestrator-ai/transport-types';
 
-const API_PORT = import.meta.env.VITE_API_PORT || '6100';
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ||
-  import.meta.env.VITE_API_NESTJS_BASE_URL ||
-  `http://localhost:${API_PORT}`;
+const API_BASE_URL = getSecureApiBaseUrl();
 
 // ============================================================================
 // TYPES - Entity Responses
@@ -2370,9 +2367,10 @@ class PredictionDashboardService {
   }> {
     const universeFilters: UniverseListParams | undefined = agentSlug ? { agentSlug } as UniverseListParams : undefined;
     // Exclude test data by default — real predictions are the primary view
+    // Only show active predictions (not cancelled/expired/resolved)
     const predictionFilters = universeId
-      ? { universeId, includeTestData }
-      : { includeTestData };
+      ? { universeId, includeTestData, status: 'active' as const }
+      : { includeTestData, status: 'active' as const };
 
     const [universesRes, predictionsRes, strategiesRes] = await Promise.all([
       this.listUniverses(universeFilters),

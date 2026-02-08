@@ -12,6 +12,7 @@
 
 import { useExecutionContextStore } from '@/stores/executionContextStore';
 import { SSEClient } from '@/services/agent2agent/sse/sseClient';
+import { getSecureApiBaseUrl } from '@/utils/securityConfig';
 import type {
   DocumentType,
   UploadedDocument,
@@ -38,8 +39,7 @@ export interface ProgressEvent {
 export type ProgressCallback = (event: ProgressEvent) => void;
 
 // API Base URL for main API
-const API_PORT = import.meta.env.VITE_API_PORT || '6100';
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || `http://localhost:${API_PORT}`;
+const API_BASE_URL = getSecureApiBaseUrl();
 
 /**
  * Get auth token from storage

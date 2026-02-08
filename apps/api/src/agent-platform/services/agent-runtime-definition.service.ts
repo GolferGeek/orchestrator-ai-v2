@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import type {
   JsonArray,
   JsonObject,
@@ -24,6 +25,31 @@ type UnknownRecord = JsonObject | null | undefined;
 @Injectable()
 export class AgentRuntimeDefinitionService {
   private readonly logger = new Logger(AgentRuntimeDefinitionService.name);
+  private readonly langGraphBaseUrl: string | undefined;
+
+  constructor(private readonly configService: ConfigService) {
+    this.langGraphBaseUrl = this.configService.get<string>('LANGGRAPH_BASE_URL');
+    if (this.langGraphBaseUrl) {
+      this.logger.log(`LangGraph base URL override: ${this.langGraphBaseUrl}`);
+    }
+  }
+
+  /**
+   * Rewrite localhost:6200 agent endpoint URLs when LANGGRAPH_BASE_URL is set.
+   * This allows the same DB records to work for both local dev (localhost:6200)
+   * and Docker (orchestrator-langgraph:6200).
+   */
+  private resolveEndpointUrl(url: string): string {
+    if (!this.langGraphBaseUrl || !url) return url;
+    // Match localhost or 127.0.0.1 on port 6200
+    const localPattern = /^https?:\/\/(localhost|127\.0\.0\.1):6200/;
+    if (localPattern.test(url)) {
+      const resolved = url.replace(localPattern, this.langGraphBaseUrl.replace(/\/$/, ''));
+      this.logger.debug(`Resolved endpoint URL: ${url} → ${resolved}`);
+      return resolved;
+    }
+    return url;
+  }
 
   buildDefinition(record: AgentRecord): AgentRuntimeDefinition {
     // Parse context as markdown (may contain YAML frontmatter or structured data)
@@ -335,10 +361,11 @@ export class AgentRuntimeDefinitionService {
         kind: 'api',
         api: {
           // Support both 'endpoint' and 'url' field names
-          endpoint:
+          endpoint: this.resolveEndpointUrl(
             this.asString(endpointConfig.endpoint) ??
             this.asString(endpointConfig.url) ??
             '',
+          ),
           method: this.asString(endpointConfig.method) ?? 'POST',
           timeout: this.asNumber(endpointConfig.timeout),
           headers,
@@ -371,7 +398,7 @@ export class AgentRuntimeDefinitionService {
       return {
         kind: 'external',
         external: {
-          endpoint: this.asString(endpointConfig.endpoint) ?? '',
+          endpoint: this.resolveEndpointUrl(this.asString(endpointConfig.endpoint) ?? ''),
           protocol: this.asString(endpointConfig.protocol),
           timeout: this.asNumber(endpointConfig.timeout),
           authentication,

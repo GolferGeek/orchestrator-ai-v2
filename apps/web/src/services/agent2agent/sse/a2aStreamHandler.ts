@@ -7,6 +7,7 @@ import type {
   SSEConnectionState,
 } from '@orchestrator-ai/transport-types';
 import { SSEClient } from './sseClient';
+import { getSecureApiBaseUrl } from '@/utils/securityConfig';
 
 type ChunkHandler = (event: AgentStreamChunkSSEEvent['data']) => void;
 type CompleteHandler = (event: AgentStreamCompleteSSEEvent['data']) => void;
@@ -32,11 +33,7 @@ interface NormalizedStreamMetadata {
   conversationId?: string | null;
 }
 
-const API_PORT = import.meta.env.VITE_API_PORT || '6100';
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ||
-  import.meta.env.VITE_API_NESTJS_BASE_URL ||
-  `http://localhost:${API_PORT}`;
+const API_BASE_URL = getSecureApiBaseUrl();
 
 export class A2AStreamHandler {
   private client: SSEClient;

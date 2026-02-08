@@ -1,5 +1,6 @@
 import { ref, computed } from 'vue';
 import axios from 'axios';
+import { getSecureApiBaseUrl } from '@/utils/securityConfig';
 import type { ObservabilityEvent } from './useAdminObservabilityStream';
 
 export interface ConversationMessage {
@@ -49,7 +50,7 @@ export function useConversationDetail() {
   const tasks = ref<TaskDetail[]>([]);
   const deliverables = ref<DeliverableDetail[]>([]);
   
-  const apiUrl = import.meta.env.VITE_API_BASE_URL || `http://localhost:${import.meta.env.VITE_API_PORT || '6100'}`;
+  const apiUrl = getSecureApiBaseUrl();
   
   // Computed
   const hasData = computed(() => conversation.value !== null);

@@ -76,6 +76,10 @@ services:
       - SUPABASE_URL=http://host.docker.internal:6010
       - DATABASE_URL=postgresql://postgres:postgres@host.docker.internal:6012/postgres
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      # LangGraph runs in Docker network - rewrite localhost:6200 URLs from DB
+      - LANGGRAPH_BASE_URL=http://orchestrator-langgraph:6200
+      # Public API URL for generating browser-reachable storage URLs
+      - PUBLIC_API_URL=https://api.orchestratorai.io
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
@@ -141,6 +145,8 @@ services:
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
       # LLM Service pointing to API container
       - LLM_SERVICE_URL=http://api:6100
+      # Public API URL for generating browser-reachable storage URLs
+      - PUBLIC_API_URL=https://api.orchestratorai.io
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:

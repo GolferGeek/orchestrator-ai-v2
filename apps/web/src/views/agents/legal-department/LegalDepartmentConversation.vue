@@ -578,13 +578,34 @@ async function loadExistingAnalysis(conversationId: string): Promise<boolean> {
   }
 }
 
+async function waitForUser(timeoutMs = 5000): Promise<void> {
+  if (rbacStore.user?.id) return;
+  const start = Date.now();
+  while (!rbacStore.user?.id && Date.now() - start < timeoutMs) {
+    await new Promise((r) => setTimeout(r, 100));
+  }
+}
+
 async function initializeConversation() {
   isLoading.value = true;
   error.value = null;
 
   try {
-    const orgSlug = rbacStore.currentOrganization || "demo-org";
-    const userId = rbacStore.user?.id || "demo-user";
+    // Wait for rbacStore.user to be populated (async fetchCurrentUser on store init)
+    await waitForUser();
+
+    // Use the agent's registered org slug, not the user's current org selection
+    const legalAgentRecord = agentsStore.availableAgents.find(
+      (a) => a.name === "legal-department",
+    );
+    const orgSlug =
+      legalAgentRecord?.organizationSlug ||
+      rbacStore.currentOrganization ||
+      "legal";
+    const userId = rbacStore.user?.id;
+    if (!userId) {
+      throw new Error("User not authenticated. Please log in and try again.");
+    }
 
     // Check route query first, then props, then create new
     let conversationIdToUse =

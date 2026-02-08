@@ -11,6 +11,7 @@
 import { useAuthStore } from '@/stores/rbacStore';
 import { useExecutionContextStore } from '@/stores/executionContextStore';
 import { useLLMPreferencesStore } from '@/stores/llmPreferencesStore';
+import { getSecureApiBaseUrl } from '@/utils/securityConfig';
 import type { ExecutionContext } from '@orchestrator-ai/transport-types';
 import type {
   RiskScope,
@@ -70,11 +71,7 @@ import type {
   SourceConfig,
 } from '@/types/risk-agent';
 
-const API_PORT = import.meta.env.VITE_API_PORT || '6100';
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ||
-  import.meta.env.VITE_API_NESTJS_BASE_URL ||
-  `http://localhost:${API_PORT}`;
+const API_BASE_URL = getSecureApiBaseUrl();
 
 // Default agent slug for risk analysis
 const DEFAULT_AGENT_SLUG = 'investment-risk-agent';

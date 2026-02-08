@@ -50,14 +50,27 @@ export class CadStorageService implements OnModuleInit {
   private readonly logger = new Logger(CadStorageService.name);
   private supabase: SupabaseClient;
   private readonly bucketName = "cad-outputs";
+  /**
+   * When PUBLIC_API_URL is set, getPublicUrl returns API-proxied URLs
+   * (e.g., https://api.orchestratorai.io/assets/storage/cad-outputs/...)
+   * instead of direct Supabase URLs (which may not be browser-reachable).
+   */
+  private readonly publicApiUrl: string | undefined;
 
   constructor() {
-    const supabaseUrl = process.env.SUPABASE_URL || "http://127.0.0.1:6010";
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl) throw new Error("SUPABASE_URL environment variable is required");
+    if (!supabaseKey) throw new Error("SUPABASE_SERVICE_ROLE_KEY environment variable is required");
+    this.publicApiUrl = process.env.PUBLIC_API_URL;
 
     this.supabase = createClient(supabaseUrl, supabaseKey, {
       auth: { persistSession: false },
     });
+
+    if (this.publicApiUrl) {
+      this.logger.log(`Using API-proxied storage URLs via ${this.publicApiUrl}`);
+    }
   }
 
   async onModuleInit() {
@@ -259,12 +272,8 @@ export class CadStorageService implements OnModuleInit {
       throw new Error(`Failed to upload CAD file: ${uploadError.message}`);
     }
 
-    // Get public URL
-    const { data: urlData } = this.supabase.storage
-      .from(this.bucketName)
-      .getPublicUrl(storagePath);
-
-    const publicUrl = urlData.publicUrl;
+    // Generate public URL
+    const publicUrl = this.buildPublicUrl(storagePath);
 
     this.logger.log(`📦 [CAD-STORAGE] Uploaded successfully: ${publicUrl}`);
 
@@ -356,12 +365,27 @@ export class CadStorageService implements OnModuleInit {
   }
 
   /**
-   * Get public URL for a stored file
+   * Get public URL for a stored file.
+   * When PUBLIC_API_URL is set, returns an API-proxied URL that is
+   * browser-reachable. Otherwise returns the direct Supabase storage URL.
    *
    * @param storagePath - Storage path
    * @returns Public URL
    */
   getPublicUrl(storagePath: string): string {
+    return this.buildPublicUrl(storagePath);
+  }
+
+  /**
+   * Build a browser-reachable URL for a storage path.
+   * If PUBLIC_API_URL is set, generates: {PUBLIC_API_URL}/assets/storage/{bucket}/{path}
+   * Otherwise falls back to Supabase's getPublicUrl.
+   */
+  private buildPublicUrl(storagePath: string): string {
+    if (this.publicApiUrl) {
+      const base = this.publicApiUrl.replace(/\/$/, '');
+      return `${base}/assets/storage/${this.bucketName}/${storagePath}`;
+    }
     const { data } = this.supabase.storage
       .from(this.bucketName)
       .getPublicUrl(storagePath);

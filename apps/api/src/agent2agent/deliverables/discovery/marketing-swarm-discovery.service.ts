@@ -81,16 +81,14 @@ export class MarketingSwarmDiscoveryService implements IDeliverableDiscovery {
     try {
       const supabaseUrl =
         this.configService.get<string>('supabase.url') ||
-        this.configService.get<string>('SUPABASE_URL') ||
-        'http://127.0.0.1:6010';
+        this.configService.get<string>('SUPABASE_URL');
       const supabaseKey =
         this.configService.get<string>('supabase.serviceKey') ||
-        this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY') ||
-        '';
+        this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY');
 
-      if (!supabaseKey) {
+      if (!supabaseUrl || !supabaseKey) {
         this.logger.warn(
-          'Supabase service key not configured for Marketing Swarm discovery',
+          'SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not configured for Marketing Swarm discovery',
         );
         return [];
       }

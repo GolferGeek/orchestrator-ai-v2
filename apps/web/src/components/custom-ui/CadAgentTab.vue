@@ -115,7 +115,7 @@ const orgSlug = computed(() => {
 });
 
 const userId = computed(() => {
-  return rbacStore.user?.id || 'demo-user';
+  return rbacStore.user?.id || '';
 });
 
 // Handle tab change

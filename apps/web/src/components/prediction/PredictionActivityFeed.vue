@@ -198,6 +198,7 @@
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
 import { useAuthStore } from '@/stores/rbacStore';
 import type { ObservabilityEvent } from '@/stores/observabilityStore';
+import { getSecureApiBaseUrl } from '@/utils/securityConfig';
 
 defineEmits<{
   (e: 'close'): void;
@@ -295,7 +296,7 @@ async function connect() {
   error.value = null;
 
   try {
-    const apiUrl = import.meta.env.VITE_API_BASE_URL || `http://localhost:${import.meta.env.VITE_API_PORT || '6100'}`;
+    const apiUrl = getSecureApiBaseUrl();
     const queryParams = new URLSearchParams();
     queryParams.append('token', token);
     // Filter for prediction-related events
@@ -458,7 +459,7 @@ async function loadHistoricalEvents() {
   isLoadingHistory.value = true;
 
   try {
-    const apiUrl = import.meta.env.VITE_API_BASE_URL || `http://localhost:${import.meta.env.VITE_API_PORT || '6100'}`;
+    const apiUrl = getSecureApiBaseUrl();
     // Get events from last 24 hours for a reasonable history
     const since = Date.now() - 24 * 60 * 60 * 1000;
     const response = await fetch(`${apiUrl}/observability/history?since=${since}&limit=100`, {

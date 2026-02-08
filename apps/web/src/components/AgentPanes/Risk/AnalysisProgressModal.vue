@@ -169,6 +169,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from 'vue';
 import { tokenStorage } from '@/services/tokenStorageService';
+import { getSecureApiBaseUrl } from '@/utils/securityConfig';
 
 interface DimensionProgress {
   slug: string;
@@ -364,8 +365,7 @@ async function connectToSSE() {
     return;
   }
 
-  const apiPort = import.meta.env.VITE_API_PORT || '6100';
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || `http://localhost:${apiPort}`;
+  const baseUrl = getSecureApiBaseUrl();
 
   // Use /observability/stream endpoint like prediction does
   // Filter client-side by taskId since the endpoint doesn't have that filter

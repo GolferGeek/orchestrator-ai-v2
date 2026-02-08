@@ -981,7 +981,7 @@ async function loadPortfolioData() {
       // Load predictions for this portfolio
       // Include test data during development to see all predictions
       const predictionsRes = await predictionDashboardService.listPredictions(
-        { universeId: u.id, includeTestData: true },
+        { universeId: u.id, includeTestData: true, status: 'active' },
         { pageSize: 50 }
       );
       if (predictionsRes.content) {

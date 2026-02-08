@@ -138,11 +138,11 @@ export function validateUrlProtocol(url: string): boolean {
  */
 export function getSecureApiBaseUrl(): string {
   // Priority order for API base URL
-  const apiPort = import.meta.env.VITE_API_PORT || '6100';
+  const apiPort = import.meta.env.VITE_API_PORT;
   const candidates = [
     import.meta.env.VITE_API_BASE_URL,
     import.meta.env.VITE_API_NESTJS_BASE_URL,
-    import.meta.env.VITE_BASE_URL ? `${import.meta.env.VITE_BASE_URL}:${apiPort}` : null,
+    import.meta.env.VITE_BASE_URL && apiPort ? `${import.meta.env.VITE_BASE_URL}:${apiPort}` : null,
   ].filter(Boolean);
 
   // If explicit env var is set, use it
@@ -153,16 +153,18 @@ export function getSecureApiBaseUrl(): string {
   // Dynamic fallback: detect if accessed from non-localhost and use same host with API port
   // This enables Tailscale and other remote access scenarios
   const hostname = window?.location?.hostname;
-  if (hostname && hostname !== 'localhost' && hostname !== '127.0.0.1') {
-    // Use the same hostname but with API port (6100 for dev)
+  if (hostname && hostname !== 'localhost' && hostname !== '127.0.0.1' && apiPort) {
     const protocol = window.location.protocol;
-    const apiPort = import.meta.env.VITE_API_PORT || '6100';
     return `${protocol}//${hostname}:${apiPort}`;
   }
 
-  // Final fallback for local development
-  const fallbackPort = import.meta.env.VITE_API_PORT || '6100';
-  return enforceHttpsUrl(`http://localhost:${fallbackPort}`);
+  // No env var set — fail loudly instead of silently using a wrong URL
+  if (!apiPort) {
+    throw new Error(
+      'API URL not configured. Set VITE_API_BASE_URL or VITE_API_PORT environment variable.',
+    );
+  }
+  return enforceHttpsUrl(`http://localhost:${apiPort}`);
 }
 
 /**

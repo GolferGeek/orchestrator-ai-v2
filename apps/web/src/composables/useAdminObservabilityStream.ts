@@ -22,6 +22,7 @@ import {
   type AgentActivity,
 } from '@/stores/observabilityStore';
 import { observabilityService } from '@/services/observabilityService';
+import { getSecureApiBaseUrl } from '@/utils/securityConfig';
 
 // Re-export types and constants for backwards compatibility
 export { HISTORY_TIME_RANGES };
@@ -67,7 +68,7 @@ export function useAdminObservabilityStream() {
     console.log('[Observability] Connecting to SSE stream...');
 
     try {
-      const apiUrl = import.meta.env.VITE_API_BASE_URL || `http://localhost:${import.meta.env.VITE_API_PORT || '6100'}`;
+      const apiUrl = getSecureApiBaseUrl();
       const queryParams = new URLSearchParams();
 
       if (filters?.userId) queryParams.append('userId', filters.userId);

@@ -9,6 +9,7 @@
  */
 
 import { apiService } from './apiService';
+import { getSecureApiBaseUrl } from '@/utils/securityConfig';
 import type { ExecutionContext } from '@orchestrator-ai/transport-types';
 
 /**
@@ -78,7 +79,7 @@ export function createObservabilityStream(
     conversationId?: string;
   },
 ): EventSource {
-  const apiUrl = import.meta.env.VITE_API_BASE_URL || `http://localhost:${import.meta.env.VITE_API_PORT || '6100'}`;
+  const apiUrl = getSecureApiBaseUrl();
   const queryParams = new URLSearchParams();
 
   if (filters?.userId) queryParams.append('userId', filters.userId);

@@ -84,6 +84,11 @@ export interface MediaStorageMetadata {
 export class MediaStorageHelper {
   private readonly logger = new Logger(MediaStorageHelper.name);
   private readonly bucketName = process.env.MEDIA_STORAGE_BUCKET || 'media';
+  /**
+   * When PUBLIC_API_URL is set, generates API-proxied storage URLs
+   * instead of direct Supabase URLs (which may not be browser-reachable).
+   */
+  private readonly publicApiUrl = process.env.PUBLIC_API_URL;
 
   constructor(private readonly supabaseService: SupabaseService) {}
 
@@ -130,12 +135,8 @@ export class MediaStorageHelper {
       throw new Error(`Failed to upload media: ${uploadError.message}`);
     }
 
-    // Get public URL
-    const { data: urlData } = client.storage
-      .from(this.bucketName)
-      .getPublicUrl(storagePath);
-
-    const publicUrl = urlData.publicUrl;
+    // Get public URL (API-proxied if PUBLIC_API_URL is set)
+    const publicUrl = this.buildPublicUrl(storagePath, this.bucketName);
 
     this.logger.log(`📦 [MEDIA-STORAGE] Uploaded successfully: ${publicUrl}`);
 
@@ -278,14 +279,12 @@ export class MediaStorageHelper {
       return null;
     }
 
-    // Build URL
-    const { data: urlData } = client.storage
-      .from(record.bucket || this.bucketName)
-      .getPublicUrl(record.object_key);
+    // Build URL (API-proxied if PUBLIC_API_URL is set)
+    const assetUrl = this.buildPublicUrl(record.object_key, record.bucket || this.bucketName);
 
     return {
       id: record.id,
-      url: urlData.publicUrl,
+      url: assetUrl,
       mime: record.mime,
       width: record.width,
       height: record.height,
@@ -389,6 +388,21 @@ export class MediaStorageHelper {
     const taskId = context.taskId || 'unknown';
 
     return `${orgSlug}/${conversationId}/${taskId}/${filename}`;
+  }
+
+  /**
+   * Build a browser-reachable URL for a storage path.
+   * If PUBLIC_API_URL is set, generates: {PUBLIC_API_URL}/assets/storage/{bucket}/{path}
+   * Otherwise falls back to Supabase's getPublicUrl.
+   */
+  private buildPublicUrl(storagePath: string, bucket: string): string {
+    if (this.publicApiUrl) {
+      const base = this.publicApiUrl.replace(/\/$/, '');
+      return `${base}/assets/storage/${bucket}/${storagePath}`;
+    }
+    const client = this.supabaseService.getServiceClient();
+    const { data } = client.storage.from(bucket).getPublicUrl(storagePath);
+    return data.publicUrl;
   }
 
   /**
